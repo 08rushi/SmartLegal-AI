@@ -1,16 +1,16 @@
 """
 PDF text extraction using PyMuPDF (fitz).
-Handles both native-text PDFs and image-based scans.
+Preserves page numbers and positions for accurate clause references.
 """
 
-import io
 import fitz  # PyMuPDF
+import re
 
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
     """
-    Extract all text from a PDF file.
-    Returns cleaned plain text.
+    Extract all text from a PDF file with page number markers.
+    Returns cleaned plain text with [Page X] markers preserved.
     """
     try:
         doc = fitz.open(stream=file_bytes, filetype="pdf")
@@ -19,31 +19,71 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
             text = page.get_text("text")
-
             if text.strip():
                 pages_text.append(f"[Page {page_num + 1}]\n{text.strip()}")
 
         doc.close()
 
         full_text = "\n\n".join(pages_text)
-
-        # Basic cleanup
+        full_text = re.sub(r'\n{3,}', '\n\n', full_text)
         full_text = "\n".join(
             line for line in full_text.splitlines() if line.strip()
         )
-
         return full_text
 
     except Exception as e:
         raise ValueError(f"Failed to parse PDF: {str(e)}")
 
 
-def extract_text_from_image(file_bytes: bytes) -> str:
+def split_into_chunks(text: str, max_chars: int = 18000) -> list[dict]:
     """
-    For image files (JPG/PNG), we return a placeholder —
-    Gemini Vision API handles the actual reading.
+    Split document text into chunks, preserving page boundaries.
+    Each chunk includes metadata about which pages it covers.
+    Returns list of: { text, start_page, end_page, chunk_index }
     """
-    return "[IMAGE_DOCUMENT]"
+    chunks = []
+    current_chunk = []
+    current_chars = 0
+    current_start_page = 1
+    current_page = 1
+    chunk_index = 0
+
+    lines = text.split('\n')
+
+    for line in lines:
+        page_match = re.match(r'\[Page (\d+)\]', line)
+        if page_match:
+            current_page = int(page_match.group(1))
+            if chunk_index == 0 and not current_chunk:
+                current_start_page = current_page
+
+        line_len = len(line) + 1
+
+        if current_chars + line_len > max_chars and current_chunk:
+            chunk_text = '\n'.join(current_chunk)
+            chunks.append({
+                'text': chunk_text,
+                'start_page': current_start_page,
+                'end_page': current_page,
+                'chunk_index': chunk_index,
+            })
+            chunk_index += 1
+            current_start_page = current_page
+            current_chunk = [line]
+            current_chars = line_len
+        else:
+            current_chunk.append(line)
+            current_chars += line_len
+
+    if current_chunk:
+        chunks.append({
+            'text': '\n'.join(current_chunk),
+            'start_page': current_start_page,
+            'end_page': current_page,
+            'chunk_index': chunk_index,
+        })
+
+    return chunks
 
 
 def get_pdf_metadata(file_bytes: bytes) -> dict:
@@ -60,3 +100,8 @@ def get_pdf_metadata(file_bytes: bytes) -> dict:
         }
     except Exception:
         return {"title": "", "author": "", "page_count": 0}
+
+
+def count_approximate_tokens(text: str) -> int:
+    """Rough token count estimate (4 chars per token)."""
+    return len(text) // 4

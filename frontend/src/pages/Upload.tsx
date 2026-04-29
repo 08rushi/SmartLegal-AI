@@ -2,8 +2,17 @@ import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
-import { uploadDocument } from '../store/documentSlice'
 import { analyzeDocument } from '../store/analysisSlice'
+import { uploadDocument } from '../store/documentSlice'
+
+const documentTypes = [
+  'Rental Agreement',
+  'Employment Contract',
+  'Loan Agreement',
+  'Service Contract',
+]
+
+const steps = ['Upload', 'Analyze', 'Review', 'Results']
 
 export default function Upload() {
   const dispatch = useAppDispatch()
@@ -16,15 +25,12 @@ export default function Upload() {
     async (acceptedFiles: File[]) => {
       const file = acceptedFiles[0]
       if (!file) return
-      setFileName(file.name)
 
-      // 1. Upload the file
+      setFileName(file.name)
       const uploadResult = await dispatch(uploadDocument(file))
       if (uploadDocument.rejected.match(uploadResult)) return
 
       const doc = uploadResult.payload as { id: string }
-
-      // 2. Immediately trigger AI analysis
       const analyzeResult = await dispatch(analyzeDocument(doc.id))
       if (analyzeDocument.fulfilled.match(analyzeResult)) {
         navigate('/analysis')
@@ -45,112 +51,120 @@ export default function Upload() {
     status === 'uploading'
       ? `Uploading... ${uploadProgress}%`
       : analysisLoading
-      ? 'AI is reading your document...'
-      : ''
+        ? 'AI is reading your document...'
+        : ''
 
   return (
-    <div className="min-h-screen bg-gray-50 py-16 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">Upload your document</h1>
-          <p className="text-gray-500">
-            Supports rental agreements, employment contracts, loan papers, and any legal PDF.
+    <div className="content-wrap py-8 sm:py-10">
+      <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[0.86fr_1.14fr]">
+        <div className="section-card rounded-[32px] p-6 sm:p-8">
+          <span className="section-eyebrow">03 Upload Document</span>
+          <h1 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">Upload Your Document</h1>
+          <p className="mt-3 text-sm leading-7 text-slate-400 sm:text-base">
+            Supports rental agreements, employment contracts, loan papers, and any legal PDF. The flow is fully responsive for mobile, tablet, and desktop.
           </p>
+
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            {steps.map((step, index) => (
+              <div key={step} className="flex items-center gap-3">
+                <div className={`flex h-10 min-w-10 items-center justify-center rounded-full border px-3 text-xs font-semibold ${
+                  index === 0 ? 'border-[#8a5cff]/40 bg-[#8a5cff]/15 text-[#c5b4ff]' : 'border-white/10 bg-white/[0.03] text-slate-500'
+                }`}>
+                  {step}
+                </div>
+                {index < steps.length - 1 && <div className="hidden h-px w-8 bg-white/10 sm:block" />}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {documentTypes.map((type) => (
+              <div key={type} className="info-card rounded-[24px] px-4 py-4 text-sm text-slate-300">
+                {type}
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Drop zone */}
-        <div
-          {...getRootProps()}
-          className={`relative border-2 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all duration-200
-            ${isDragActive ? 'border-brand-500 bg-brand-50 scale-[1.01]' : 'border-gray-300 bg-white hover:border-brand-400 hover:bg-gray-50'}
-            ${isLoading ? 'pointer-events-none opacity-70' : ''}
-          `}
-        >
-          <input {...getInputProps()} />
+        <div className="section-card rounded-[32px] p-5 sm:p-8">
+          <div
+            {...getRootProps()}
+            className={`upload-dropzone relative overflow-hidden rounded-[30px] border border-dashed px-5 py-10 text-center transition-all duration-300 sm:px-8 sm:py-14 ${
+              isDragActive
+                ? 'border-[#f5c26b]/55 bg-[#15101d]/80 shadow-[0_0_40px_rgba(245,194,107,0.16)]'
+                : 'border-white/12 bg-[#0b1120]/72 hover:border-[#8a5cff]/35 hover:bg-[#10172a]/80'
+            } ${isLoading ? 'pointer-events-none opacity-80' : ''}`}
+          >
+            <input {...getInputProps()} />
+            <div className="absolute left-1/2 top-full h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#7c3aed]/20 blur-3xl" />
 
-          {isLoading ? (
-            <div className="space-y-4">
-              <div className="text-4xl animate-bounce">
-                {status === 'uploading' ? '📤' : '🤖'}
-              </div>
-              <p className="text-lg font-semibold text-brand-600">{loadingLabel}</p>
-
-              {status === 'uploading' && (
-                <div className="w-full bg-gray-200 rounded-full h-2 max-w-xs mx-auto">
-                  <div
-                    className="bg-brand-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
+            {isLoading ? (
+              <div className="relative z-10 mx-auto max-w-xl space-y-6">
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] border border-[#8a5cff]/30 bg-[#7c3aed]/10 text-3xl text-[#c5b4ff]">
+                  {status === 'uploading' ? '↑' : '⚖'}
                 </div>
-              )}
-
-              {analysisLoading && (
-                <div className="flex justify-center gap-1 mt-2">
-                  {['Extracting clauses', 'Scoring risks', 'Translating to Hindi'].map((step, i) => (
-                    <span
-                      key={step}
-                      className="text-xs bg-brand-100 text-brand-700 px-2 py-1 rounded-full animate-pulse"
-                      style={{ animationDelay: `${i * 0.3}s` }}
-                    >
-                      {step}
-                    </span>
-                  ))}
+                <div>
+                  <p className="text-xl font-semibold text-white sm:text-2xl">{loadingLabel}</p>
+                  <p className="mt-2 text-sm text-slate-400">{fileName || 'Preparing your document for analysis.'}</p>
                 </div>
-              )}
 
-              {fileName && (
-                <p className="text-sm text-gray-400 mt-2">📄 {fileName}</p>
-              )}
-            </div>
-          ) : isDragActive ? (
-            <div className="space-y-3">
-              <div className="text-5xl">📂</div>
-              <p className="text-xl font-semibold text-brand-600">Drop it here!</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="text-5xl">📄</div>
-              <div>
-                <p className="text-lg font-semibold text-gray-700">
-                  Drag & drop your document here
-                </p>
-                <p className="text-gray-400 text-sm mt-1">or click to browse files</p>
+                {status === 'uploading' && (
+                  <div className="mx-auto max-w-md">
+                    <div className="h-2 rounded-full bg-white/10">
+                      <div
+                        className="h-2 rounded-full bg-[linear-gradient(90deg,#7c3aed,#f5c26b)] transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {analysisLoading && (
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {['Extracting clauses', 'Scoring risks', 'Preparing summary'].map((step) => (
+                      <span key={step} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300">
+                        {step}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-gray-400">PDF, JPG, PNG • Max 10MB</p>
+            ) : (
+              <div className="relative z-10 mx-auto max-w-xl space-y-6">
+                <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] border border-white/10 bg-white/[0.04] text-4xl text-[#8a5cff] shadow-[0_0_40px_rgba(124,58,237,0.2)]">
+                  ⤴
+                </div>
+                <div>
+                  <h2 className="text-2xl font-semibold text-white sm:text-3xl">Drag & drop your document here</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-400 sm:text-base">
+                    Or click to browse files. PDF, JPG, and PNG supported up to 10MB.
+                  </p>
+                </div>
+                <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs uppercase tracking-[0.22em] text-slate-500">
+                  PDF . JPG . PNG . Max 10MB
+                </div>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="mt-4 rounded-[24px] border border-[#fb7185]/25 bg-[#2a1320]/65 px-5 py-4 text-sm text-[#fecdd3]">
+              {error}
             </div>
           )}
-        </div>
 
-        {/* Error */}
-        {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-            ⚠️ {error}
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {documentTypes.map((type) => (
+              <div key={type} className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+                {type}
+              </div>
+            ))}
           </div>
-        )}
 
-        {/* Supported document types */}
-        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { icon: '🏠', label: 'Rental Agreement' },
-            { icon: '💼', label: 'Employment Contract' },
-            { icon: '💰', label: 'Loan Agreement' },
-            { icon: '🤝', label: 'Freelance Contract' },
-          ].map((type) => (
-            <div
-              key={type.label}
-              className="bg-white border border-gray-200 rounded-xl p-3 text-center text-sm text-gray-600"
-            >
-              <div className="text-xl mb-1">{type.icon}</div>
-              {type.label}
-            </div>
-          ))}
+          <p className="mt-4 text-center text-xs text-slate-500">
+            Sign in later if you want saved history and persistent document Q&A.
+          </p>
         </div>
-
-        {/* Note about auth */}
-        <p className="text-center text-xs text-gray-400 mt-6">
-          💡 Sign in to save your document history and access Q&A chat
-        </p>
       </div>
     </div>
   )

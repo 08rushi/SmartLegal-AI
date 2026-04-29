@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from './hooks/redux'
 import { fetchCurrentUser } from './store/authSlice'
@@ -10,6 +10,7 @@ import Analysis from './pages/Analysis'
 import Chat from './pages/Chat'
 import Compare from './pages/Compare'
 import Login from './pages/Login'
+import NotFound from './pages/NotFound'
 import Register from './pages/Register'
 
 // Components
@@ -42,7 +43,7 @@ function App() {
           <Route path="compare" element={<Compare />} />
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </BrowserRouter>

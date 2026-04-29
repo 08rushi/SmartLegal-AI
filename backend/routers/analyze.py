@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from datetime import datetime
 import uuid
@@ -13,6 +13,7 @@ router = APIRouter()
 
 class AnalyzeRequest(BaseModel):
     document_id: str
+    force_reanalyze: bool = False  # set to true to bypass cache
 
 
 @router.post("")
@@ -20,13 +21,26 @@ async def analyze_document(
     req: AnalyzeRequest,
     db=Depends(get_db),
 ):
-    # Check if analysis already exists (cache it)
-    async with db.execute(
-        "SELECT result_json FROM analyses WHERE document_id = ?", (req.document_id,)
-    ) as cur:
-        existing = await cur.fetchone()
-    if existing:
-        return {"analysis": json.loads(existing["result_json"])}
+    # Check cache (unless force_reanalyze is requested)
+    if not req.force_reanalyze:
+        async with db.execute(
+            "SELECT result_json FROM analyses WHERE document_id = ?", (req.document_id,)
+        ) as cur:
+            existing = await cur.fetchone()
+        if existing:
+            cached = json.loads(existing["result_json"])
+            summary = cached.get("summary", {})
+            cached_clause_count = len(cached.get("clauses", []))
+            total_clauses = summary.get("total_clauses", 0)
+            # Only use cache if it has actual extracted clauses.
+            # Empty-clause summaries are often model failures and should be re-analyzed.
+            if cached_clause_count > 0 or total_clauses > 0:
+                return {"analysis": cached}
+            # Otherwise fall through to re-analyze
+
+    # Delete stale cache entry if exists
+    await db.execute("DELETE FROM analyses WHERE document_id = ?", (req.document_id,))
+    await db.commit()
 
     # Fetch document
     async with db.execute(
@@ -55,9 +69,11 @@ async def analyze_document(
         raise HTTPException(status_code=500, detail=f"Could not read document: {str(e)}")
 
     if not text.strip():
-        raise HTTPException(status_code=400, detail="Could not extract text from document")
+        raise HTTPException(status_code=400, detail="Could not extract text from document. Make sure it's a text-based PDF (not a scanned image).")
 
-    # Run Gemini analysis
+    print(f"[analyze] Extracted {len(text)} characters from {doc['filename']}")
+
+    # Run AI analysis
     try:
         analysis = await analyze_legal_document(text, doc["filename"])
     except Exception as e:
@@ -70,7 +86,7 @@ async def analyze_document(
     # Cache result
     analysis_id = str(uuid.uuid4())
     await db.execute(
-        "INSERT INTO analyses (id, document_id, result_json, analyzed_at) VALUES (?, ?, ?, ?)",
+        "INSERT OR REPLACE INTO analyses (id, document_id, result_json, analyzed_at) VALUES (?, ?, ?, ?)",
         (analysis_id, req.document_id, json.dumps(analysis), analysis["analyzed_at"]),
     )
 
@@ -83,3 +99,11 @@ async def analyze_document(
 
     await db.commit()
     return {"analysis": analysis}
+
+
+@router.delete("/{document_id}/cache")
+async def clear_analysis_cache(document_id: str, db=Depends(get_db)):
+    """Clear cached analysis so document gets re-analyzed fresh."""
+    await db.execute("DELETE FROM analyses WHERE document_id = ?", (document_id,))
+    await db.commit()
+    return {"message": "Cache cleared"}
