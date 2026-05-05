@@ -72,13 +72,12 @@ export default function Analysis() {
   const beneficialClauses: string[] = (summary as typeof summary & { beneficial_clauses?: string[] }).beneficial_clauses || []
   const yourObligations: string[] =
     (summary as typeof summary & { your_obligations?: string[]; tenant_obligations?: string[] }).your_obligations ||
-    (summary as typeof summary & { tenant_obligations?: string[] }).tenant_obligations ||
-    []
+    (summary as typeof summary & { tenant_obligations?: string[] }).tenant_obligations || []
+
   const otherPartyRights: string[] =
     (summary as typeof summary & { other_party_rights?: string[]; landlord_rights?: string[] }).other_party_rights ||
-    (summary as typeof summary & { landlord_rights?: string[] }).landlord_rights ||
-    []
-
+    (summary as typeof summary & { landlord_rights?: string[] }).landlord_rights || []
+console.log('Summary:', summary)  
   return (
     <div className="content-wrap py-8 sm:py-10">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
