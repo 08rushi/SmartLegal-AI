@@ -11,10 +11,8 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: create DB tables
     await init_db()
     yield
-    # Shutdown: nothing needed
 
 
 app = FastAPI(
@@ -24,7 +22,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow the React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.origins_list,
@@ -33,11 +30,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount all routers under /api/v1
 app.include_router(auth.router,    prefix="/api/v1/auth",    tags=["Auth"])
 app.include_router(upload.router,  prefix="/api/v1/upload",  tags=["Upload"])
 app.include_router(analyze.router, prefix="/api/v1/analyze", tags=["Analyze"])
 app.include_router(chat.router,    prefix="/api/v1/chat",    tags=["Chat"])
+
+# Google OAuth — mount under /api/v1/auth/google
+try:
+    from auth_google import router as google_router
+    app.include_router(google_router, prefix="/api/v1/auth", tags=["Auth"])
+except ImportError:
+    pass
 
 
 @app.get("/")
