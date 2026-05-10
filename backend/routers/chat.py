@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from datetime import datetime
 import uuid
 
 from database import get_db
+from limiter import limiter
 from services.gemini_service import answer_question_about_document
 from services.pdf_parser import extract_text_from_pdf
 
@@ -16,7 +17,9 @@ class ChatRequest(BaseModel):
 
 
 @router.post("")
+@limiter.limit("20/minute")   # Q&A is lighter but still costs tokens
 async def chat(
+    request: Request,          # required by slowapi
     req: ChatRequest,
     db=Depends(get_db),
 ):

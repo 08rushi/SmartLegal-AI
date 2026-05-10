@@ -221,7 +221,7 @@ DOCUMENT SECTION:
 {document_text}
 
 Return ONLY a valid JSON object (no markdown fences, no explanation). Structure:
-{{"document_type":"Rental Agreement/Employment Contract/etc (chunk 1 only, else empty)","parties":["Party1","Party2"],"clauses":[{{"id":"c{chunk_index}_{n}","title":"Short name","clause_number":"Clause 5 or Section 3.2 (exact from doc)","page_number":{start_page},"original_text":"exact text","plain_english":"Simple 2-3 sentence explanation using you/your","plain_hindi":"Hindi mein 2-3 sentences","risk_level":"low","risk_score":3,"risk_reason":"Why risky with specific amounts/days","clause_type":"Rent/Termination/Penalty/etc","beneficial_to_user":false,"beneficial_reason":""}}]}}
+{{"document_type":"Rental Agreement/Employment Contract/etc (chunk 1 only, else empty)","parties":["Party1","Party2"],"clauses":[{{"id":"c{chunk_index}_1","title":"Short name","clause_number":"Clause 5 or Section 3.2 (exact from doc)","page_number":{start_page},"original_text":"exact text","plain_english":"Simple 2-3 sentence explanation using you/your","plain_hindi":"Hindi mein 2-3 sentences","risk_level":"low","risk_score":3,"risk_reason":"Why risky with specific amounts/days","clause_type":"Rent/Termination/Penalty/etc","beneficial_to_user":false,"beneficial_reason":""}}]}}
 
 Rules:
 - Extract EVERY clause. Do not skip any.
@@ -273,16 +273,6 @@ async def analyze_legal_document(document_text: str, filename: str) -> dict:
             await asyncio.sleep(3)
 
         try:
-            prompt = CHUNK_PROMPT.format(
-                chunk_index=i + 1,
-                total_chunks=total_chunks,
-                start_page=chunk['start_page'],
-                end_page=chunk['end_page'],
-                document_text=chunk['text'],
-                n="{n}",  # placeholder kept literal
-            ).replace("{n}", "N")
-
-            # Build the actual prompt with literal {n} replaced
             prompt = CHUNK_PROMPT.format(
                 chunk_index=i + 1,
                 total_chunks=total_chunks,
