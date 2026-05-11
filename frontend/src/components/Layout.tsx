@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { logout } from '../store/authSlice'
+import { trackEvent } from '../utils/posthog'
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -18,6 +19,27 @@ export default function Layout() {
   const { user, token } = useAppSelector((s) => s.auth)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [isOffline, setIsOffline] = useState(() => (typeof navigator === 'undefined' ? false : !navigator.onLine))
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false)
+    const handleOffline = () => setIsOffline(true)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  useEffect(() => {
+    trackEvent('page_viewed', {
+      path: location.pathname,
+      search: location.search,
+    })
+  }, [location.pathname, location.search])
 
   const handleNavClick = () => {
     setMenuOpen(false)
@@ -220,6 +242,13 @@ export default function Layout() {
       </header>
 
       <main className="relative z-10">
+        {isOffline && (
+          <div className="content-wrap pt-4">
+            <div className="rounded-[22px] border border-[#f5c26b]/25 bg-[#20170d]/85 px-4 py-3 text-sm text-[#fef3c7]">
+              You are offline. Uploads and AI analysis will resume once your connection returns.
+            </div>
+          </div>
+        )}
         <Outlet />
       </main>
 

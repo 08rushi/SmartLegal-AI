@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from './hooks/redux'
 import { fetchCurrentUser } from './store/authSlice'
@@ -18,6 +18,7 @@ import Layout from './components/Layout'
 function App() {
   const dispatch = useAppDispatch()
   const { token, user } = useAppSelector((s) => s.auth)
+  const currentDocument = useAppSelector((s) => s.document.current)
 
   // Step 1: Restore session JWT → fetch user profile
   useEffect(() => {
@@ -41,7 +42,11 @@ function App() {
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
           <Route path="upload" element={<Upload />} />
-          <Route path="analysis" element={<Analysis />} />
+          <Route
+            path="analysis"
+            element={currentDocument ? <Navigate to={`/analysis/${currentDocument.id}`} replace /> : <Analysis />}
+          />
+          <Route path="analysis/:documentId" element={<Analysis />} />
           <Route path="chat" element={<Chat />} />
           <Route path="compare" element={<Compare />} />
           <Route path="documents" element={<MyDocuments />} />

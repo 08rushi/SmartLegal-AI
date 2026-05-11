@@ -269,6 +269,22 @@
             mask-composite: exclude;
     pointer-events: none;
   }
+
+  .skeleton-block {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(32, 42, 58, 0.88), rgba(18, 25, 38, 0.92));
+    border: 1px solid rgba(148, 163, 184, 0.08);
+  }
+
+  .skeleton-block::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
 }
 
 @layer utilities {
@@ -287,6 +303,12 @@
     transform: translateY(-4px);
     border-color: rgba(245, 194, 107, 0.16);
     box-shadow: var(--shadow-violet);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addUserMessage, sendChatMessage, setDocumentId } from '../store/chatSlice'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
+import { trackEvent } from '../utils/posthog'
 
 const suggestedQuestions = [
   'Can my landlord increase rent mid-year?',
@@ -38,6 +39,10 @@ export default function Chat() {
 
     setInput('')
     dispatch(addUserMessage(text))
+    trackEvent('chat_question_sent', {
+      documentId: currentDoc.id,
+      questionLength: text.length,
+    })
     await dispatch(sendChatMessage({ document_id: currentDoc.id, question: text }))
   }
 
@@ -59,7 +64,11 @@ export default function Chat() {
           </p>
 
           <div className="mt-6 space-y-3">
-            <button type="button" onClick={() => navigate('/analysis')} className="btn-secondary w-full justify-center">
+            <button
+              type="button"
+              onClick={() => navigate(currentDoc ? `/analysis/${currentDoc.id}` : '/analysis')}
+              className="btn-secondary w-full justify-center"
+            >
               Back to Analysis
             </button>
             <button type="button" onClick={() => navigate('/upload')} className="btn-primary w-full justify-center">
@@ -67,9 +76,9 @@ export default function Chat() {
             </button>
           </div>
 
-          <div className="mt-8 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+          <div className="mt-8 min-w-0 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Document</p>
-            <p className="mt-3 text-sm text-white">{currentDoc?.filename || 'Uploaded document'}</p>
+            <p className="mt-3 break-all text-sm text-white">{currentDoc?.filename || 'Uploaded document'}</p>
             <p className="mt-1 text-sm text-slate-400">{analysis?.summary.document_type || 'Legal document'}</p>
           </div>
         </aside>

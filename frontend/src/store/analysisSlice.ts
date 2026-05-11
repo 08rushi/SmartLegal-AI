@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
-import type { AnalysisState, AnalysisResult, AnalyzeResponse } from '../types'
+import type { AnalysisState, AnalysisResult } from '../types'
 import { apiClient } from '../services/api'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

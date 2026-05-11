@@ -1,51 +1,188 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import ClauseCard from '../components/ClauseCard'
 import RiskBadge from '../components/RiskBadge'
-import { useAppSelector } from '../hooks/redux'
+import { useAppDispatch, useAppSelector } from '../hooks/redux'
+import { analyzeDocument } from '../store/analysisSlice'
+import { fetchDocumentById } from '../store/documentSlice'
 import type { RiskLevel } from '../types'
+import { trackEvent } from '../utils/posthog'
 
 type FilterType = 'all' | RiskLevel
 
 const sidebarItems = ['Overview', 'Key Points', 'All Clauses', 'Risk Warnings', 'Ask AI']
 
+function AnalysisSkeleton() {
+  return (
+    <div className="content-wrap py-10">
+      <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="section-card rounded-[30px] p-5">
+          <div className="skeleton-block h-4 w-28 rounded-full" />
+          <div className="mt-4 skeleton-block h-8 w-40 rounded-2xl" />
+          <div className="mt-3 skeleton-block h-16 w-full rounded-2xl" />
+          <div className="mt-6 space-y-3">
+            {[1, 2, 3, 4, 5].map((item) => (
+              <div key={item} className="skeleton-block h-12 w-full rounded-2xl" />
+            ))}
+          </div>
+        </aside>
+
+        <div className="space-y-6">
+          <section className="section-card rounded-[30px] p-5 sm:p-7">
+            <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
+              <div className="flex-1">
+                <div className="skeleton-block h-4 w-40 rounded-full" />
+                <div className="mt-4 skeleton-block h-10 w-56 rounded-2xl" />
+                <div className="mt-3 skeleton-block h-16 w-full rounded-2xl" />
+              </div>
+              <div className="flex gap-3">
+                <div className="skeleton-block h-11 w-44 rounded-2xl" />
+                <div className="skeleton-block h-11 w-36 rounded-2xl" />
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {[1, 2, 3, 4].map((item) => (
+                <div key={item} className="metric-card rounded-[22px] p-4">
+                  <div className="skeleton-block h-10 w-16 rounded-2xl" />
+                  <div className="mt-3 skeleton-block h-4 w-24 rounded-full" />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+              <div className="info-card rounded-[24px] p-5">
+                <div className="skeleton-block h-4 w-24 rounded-full" />
+                <div className="mt-4 space-y-3">
+                  <div className="skeleton-block h-4 w-full rounded-full" />
+                  <div className="skeleton-block h-4 w-11/12 rounded-full" />
+                  <div className="skeleton-block h-4 w-4/5 rounded-full" />
+                </div>
+              </div>
+              <div className="info-card rounded-[24px] p-5">
+                <div className="skeleton-block h-4 w-32 rounded-full" />
+                <div className="mt-4 space-y-4">
+                  {[1, 2, 3].map((row) => (
+                    <div key={row} className="flex items-center justify-between gap-3">
+                      <div className="skeleton-block h-4 w-20 rounded-full" />
+                      <div className="skeleton-block h-4 w-24 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="section-card rounded-[30px] p-5 sm:p-6">
+            <div className="space-y-4">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="info-card rounded-[24px] p-5">
+                  <div className="skeleton-block h-5 w-40 rounded-full" />
+                  <div className="mt-4 space-y-3">
+                    <div className="skeleton-block h-4 w-full rounded-full" />
+                    <div className="skeleton-block h-4 w-10/12 rounded-full" />
+                    <div className="skeleton-block h-4 w-9/12 rounded-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Analysis() {
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const { documentId } = useParams()
   const { result, isLoading, error } = useAppSelector((s) => s.analysis)
   const currentDoc = useAppSelector((s) => s.document.current)
   const [filter, setFilter] = useState<FilterType>('all')
   const [activeTab, setActiveTab] = useState<'clauses' | 'summary'>('summary')
+  const requestedAnalysisRef = useRef<string | null>(null)
+  const trackedViewRef = useRef<string | null>(null)
+  const overviewRef = useRef<HTMLElement | null>(null)
+  const keyPointsRef = useRef<HTMLElement | null>(null)
+  const riskWarningsRef = useRef<HTMLDivElement | null>(null)
+  const clausesRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
-    if (!isLoading && !result) {
-      navigate('/upload')
-    }
-  }, [result, isLoading, navigate])
+    if (!documentId) {
+      if (currentDoc?.id) {
+        navigate(`/analysis/${currentDoc.id}`, { replace: true })
+        return
+      }
 
-  if (isLoading) {
-    return (
-      <div className="content-wrap py-10">
-        <div className="section-card mx-auto flex max-w-4xl flex-col items-center gap-6 rounded-[32px] px-6 py-16 text-center">
-          <div className="flex h-24 w-24 items-center justify-center rounded-[30px] border border-[#8a5cff]/25 bg-[#8a5cff]/10 text-4xl text-[#c5b4ff] shadow-[0_0_40px_rgba(124,58,237,0.24)]">
-            ⚖
-          </div>
-          <div>
-            <h1 className="text-3xl font-semibold text-white">Analyzing your document...</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
-              AI is reading every clause and building a structured overview. Larger contracts can take a minute or two.
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            {['Splitting sections', 'Extracting clauses', 'Scoring risk', 'Building summary'].map((item) => (
-              <span key={item} className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-300">
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
+      if (!isLoading && !result) {
+        navigate('/upload', { replace: true })
+      }
+      return
+    }
+
+    if (currentDoc?.id !== documentId) {
+      dispatch(fetchDocumentById(documentId))
+    }
+
+    if (result?.document_id !== documentId && requestedAnalysisRef.current !== documentId) {
+      requestedAnalysisRef.current = documentId
+      dispatch(analyzeDocument(documentId))
+    }
+  }, [currentDoc?.id, dispatch, documentId, isLoading, navigate, result, result?.document_id])
+
+  useEffect(() => {
+    setFilter('all')
+    setActiveTab('summary')
+  }, [documentId])
+
+  useEffect(() => {
+    if (result?.document_id && trackedViewRef.current !== result.document_id) {
+      trackedViewRef.current = result.document_id
+      trackEvent('analysis_viewed', {
+        documentId: result.document_id,
+        clauseCount: result.summary.total_clauses,
+        overallRisk: result.summary.overall_risk,
+      })
+    }
+  }, [result])
+
+  const scrollToSection = (section: 'overview' | 'key-points' | 'all-clauses' | 'risk-warnings') => {
+    if (section === 'all-clauses') {
+      setActiveTab('clauses')
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          clausesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 80)
+      })
+      return
+    }
+
+    setActiveTab('summary')
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (section === 'overview') {
+          overviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          return
+        }
+        if (section === 'key-points') {
+          keyPointsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          return
+        }
+        ;(riskWarningsRef.current || keyPointsRef.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 80)
+    })
   }
+
+  const shouldShowSkeleton =
+    Boolean(documentId) &&
+    (!currentDoc || currentDoc.id !== documentId || isLoading || result?.document_id !== documentId)
+
+  if (shouldShowSkeleton && !error) {
+    return <AnalysisSkeleton />
+  }
+
+  if (!documentId && !isLoading && !result) return null
 
   if (error) {
     return (
@@ -73,11 +210,10 @@ export default function Analysis() {
   const yourObligations: string[] =
     (summary as typeof summary & { your_obligations?: string[]; tenant_obligations?: string[] }).your_obligations ||
     (summary as typeof summary & { tenant_obligations?: string[] }).tenant_obligations || []
-
   const otherPartyRights: string[] =
     (summary as typeof summary & { other_party_rights?: string[]; landlord_rights?: string[] }).other_party_rights ||
     (summary as typeof summary & { landlord_rights?: string[] }).landlord_rights || []
-console.log('Summary:', summary)  
+
   return (
     <div className="content-wrap py-8 sm:py-10">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
@@ -96,9 +232,25 @@ console.log('Summary:', summary)
                 key={item}
                 type="button"
                 onClick={() => {
-                  if (item === 'All Clauses') setActiveTab('clauses')
-                  if (item === 'Ask AI') navigate('/chat')
-                  if (item === 'Overview' || item === 'Key Points' || item === 'Risk Warnings') setActiveTab('summary')
+                  if (item === 'Ask AI') {
+                    navigate('/chat')
+                    return
+                  }
+                  if (item === 'Overview') {
+                    scrollToSection('overview')
+                    return
+                  }
+                  if (item === 'Key Points') {
+                    scrollToSection('key-points')
+                    return
+                  }
+                  if (item === 'All Clauses') {
+                    scrollToSection('all-clauses')
+                    return
+                  }
+                  if (item === 'Risk Warnings') {
+                    scrollToSection('risk-warnings')
+                  }
                 }}
                 className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition ${
                   (activeTab === 'summary' && index < 2) || (activeTab === 'clauses' && item === 'All Clauses')
@@ -114,7 +266,7 @@ console.log('Summary:', summary)
         </aside>
 
         <div className="space-y-6">
-          <section className="section-card rounded-[30px] p-5 sm:p-7">
+          <section ref={overviewRef} className="section-card scroll-mt-28 rounded-[30px] p-5 sm:p-7">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-sm text-slate-500">Document: {currentDoc?.filename || 'Legal Agreement.pdf'}</p>
@@ -143,6 +295,9 @@ console.log('Summary:', summary)
                 onClick={() => {
                   setFilter('high')
                   setActiveTab('clauses')
+                  scrollToSection('overview')
+                  // scrollToSection('all-clauses')
+                    
                 }}
                 className="metric-card rounded-[22px] p-4 text-left transition hover:border-[#fb7185]/25"
               >
@@ -193,7 +348,7 @@ console.log('Summary:', summary)
           </section>
 
           {activeTab === 'summary' && (
-            <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <section ref={keyPointsRef} className="grid scroll-mt-28 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
               <div className="section-card rounded-[30px] p-5 sm:p-6">
                 <div className="mb-5 flex items-center justify-between gap-4">
                   <h3 className="text-2xl font-semibold text-white">Key Points</h3>
@@ -204,7 +359,7 @@ console.log('Summary:', summary)
 
                 <div className="space-y-4">
                   {highRiskClauses.length > 0 && (
-                    <div className="rounded-[24px] border border-[#fb7185]/18 bg-[#2a1320]/55 p-5">
+                    <div ref={riskWarningsRef} className="rounded-[24px] border border-[#fb7185]/18 bg-[#2a1320]/55 p-5">
                       <p className="text-sm font-medium text-[#fecdd3]">High Risk Clauses</p>
                       <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-200">
                         {highRiskClauses.map((item) => (
@@ -296,7 +451,7 @@ console.log('Summary:', summary)
           )}
 
           {activeTab === 'clauses' && (
-            <section className="section-card rounded-[30px] p-5 sm:p-6">
+            <section ref={clausesRef} className="section-card scroll-mt-28 rounded-[30px] p-5 sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-2xl font-semibold text-white">

@@ -2,8 +2,9 @@ import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { analyzeDocument } from '../store/analysisSlice'
-import { clearDocument } from '../store/documentSlice'
+import { clearDocument, setCurrentDocument } from '../store/documentSlice'
 import type { UploadedDocument } from '../types'
+import { trackEvent } from '../utils/posthog'
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -49,8 +50,10 @@ export default function MyDocuments() {
   }, [token, navigate])
 
   async function handleReAnalyze(doc: UploadedDocument) {
+    dispatch(setCurrentDocument(doc))
+    trackEvent('document_reanalyze_started', { documentId: doc.id })
     await dispatch(analyzeDocument(doc.id))
-    navigate('/analysis')
+    navigate(`/analysis/${doc.id}`)
   }
 
   function handleClearAndUpload() {
@@ -173,7 +176,11 @@ export default function MyDocuments() {
                       <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                         {hasResult && (
                           <button
-                            onClick={() => navigate('/analysis')}
+                            onClick={() => {
+                              dispatch(setCurrentDocument(doc))
+                              trackEvent('document_history_view_analysis', { documentId: doc.id })
+                              navigate(`/analysis/${doc.id}`)
+                            }}
                             className="rounded-xl border border-[#f5c26b]/20 bg-[#f5c26b]/8 px-4 py-2 text-xs font-medium text-[#f5c26b] transition hover:bg-[#f5c26b]/15"
                           >
                             View Analysis
@@ -181,7 +188,11 @@ export default function MyDocuments() {
                         )}
                         {hasResult && (
                           <button
-                            onClick={() => navigate('/chat')}
+                            onClick={() => {
+                              dispatch(setCurrentDocument(doc))
+                              trackEvent('document_history_open_chat', { documentId: doc.id })
+                              navigate('/chat')
+                            }}
                             className="rounded-xl border border-[#8a5cff]/20 bg-[#8a5cff]/8 px-4 py-2 text-xs font-medium text-[#c5b4ff] transition hover:bg-[#8a5cff]/15"
                           >
                             Ask AI

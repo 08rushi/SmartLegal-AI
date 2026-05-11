@@ -76,6 +76,19 @@ export const fetchDocumentHistory = createAsyncThunk(
   }
 )
 
+export const fetchDocumentById = createAsyncThunk(
+  'document/fetchById',
+  async (documentId: string, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get<UploadedDocument>(`/upload/${documentId}`)
+      return response.data
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } }
+      return rejectWithValue(error.response?.data?.detail || 'Failed to load document')
+    }
+  }
+)
+
 // ─── Initial state ─────────────────────────────────────────────────────────────
 
 const initialState: DocumentState = {
@@ -107,6 +120,12 @@ const documentSlice = createSlice({
     },
     clearDocumentError(state) {
       state.error = null
+    },
+    setCurrentDocument(state, action: PayloadAction<UploadedDocument | null>) {
+      state.current = action.payload
+      if (action.payload && !state.history.find((doc) => doc.id === action.payload?.id)) {
+        state.history.unshift(action.payload)
+      }
     },
   },
   extraReducers: (builder) => {
@@ -148,8 +167,21 @@ const documentSlice = createSlice({
           }
         }
       })
+
+    builder.addCase(fetchDocumentById.fulfilled, (state, action: PayloadAction<UploadedDocument>) => {
+      state.current = action.payload
+      if (!state.history.find((doc) => doc.id === action.payload.id)) {
+        state.history.unshift(action.payload)
+      }
+    })
   },
 })
 
-export const { setUploadProgress, clearDocument, clearComparison, clearDocumentError } = documentSlice.actions
+export const {
+  setUploadProgress,
+  clearDocument,
+  clearComparison,
+  clearDocumentError,
+  setCurrentDocument,
+} = documentSlice.actions
 export default documentSlice.reducer
