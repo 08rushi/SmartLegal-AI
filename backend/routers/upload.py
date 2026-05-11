@@ -1,10 +1,11 @@
 from datetime import datetime
-import mimetypes
 import os
 import tempfile
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from pydantic import BaseModel
 
 from config import get_settings
@@ -17,23 +18,21 @@ settings = get_settings()
 MAX_SIZE_MB = 10
 
 # ── Magic-byte signatures for allowed file types ──────────────────────────────
-# Each entry: (magic_bytes, offset, mime_type)
-# We check the raw bytes so a renamed .exe can't sneak through.
 MAGIC_SIGNATURES: list[tuple[bytes, int, str]] = [
-    (b"%PDF",       0, "application/pdf"),   # PDF
-    (b"\xff\xd8\xff", 0, "image/jpeg"),       # JPEG
-    (b"\x89PNG\r\n\x1a\n", 0, "image/png"),  # PNG
-    (b"RIFF",       0, "image/webp"),         # WebP (RIFF container)
+    (b"%PDF",          0, "application/pdf"),
+    (b"\xff\xd8\xff",  0, "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", 0, "image/png"),
+    (b"RIFF",          0, "image/webp"),
 ]
 
 ALLOWED_MIME_TYPES = {sig[2] for sig in MAGIC_SIGNATURES}
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
 
 def _detect_mime(content: bytes) -> str | None:
-    """Return the detected MIME type from magic bytes, or None if unknown."""
     for magic, offset, mime in MAGIC_SIGNATURES:
         if content[offset: offset + len(magic)] == magic:
-            # Extra WebP check: bytes 8-12 must be b"WEBP"
             if mime == "image/webp" and content[8:12] != b"WEBP":
                 continue
             return mime
@@ -41,23 +40,15 @@ def _detect_mime(content: bytes) -> str | None:
 
 
 def _validate_file(content: bytes, filename: str) -> str:
-    """
-    Validate file content and return the detected MIME type.
-    Raises HTTPException on any validation failure.
-    """
-    # 1. Size check (done after read so we have the bytes)
     size_mb = len(content) / (1024 * 1024)
     if size_mb > MAX_SIZE_MB:
         raise HTTPException(
             status_code=400,
             detail=f"File too large. Maximum allowed size is {MAX_SIZE_MB} MB.",
         )
-
-    # 2. Empty file check
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    # 3. Magic-byte detection (actual content, not just the extension/MIME header)
     detected = _detect_mime(content)
     if detected is None:
         raise HTTPException(
@@ -68,7 +59,6 @@ def _validate_file(content: bytes, filename: str) -> str:
             ),
         )
 
-    # 4. Sanity-check the declared extension matches what we detected
     declared_ext = os.path.splitext(filename or "")[1].lower()
     ext_to_mime = {
         ".pdf":  "application/pdf",
@@ -86,8 +76,22 @@ def _validate_file(content: bytes, filename: str) -> str:
                 f"(detected: {detected}). Please upload the correct file."
             ),
         )
-
     return detected
+
+
+def _get_user_id_from_token(token: str | None) -> str:
+    """
+    Try to decode the JWT and return the user_id.
+    Returns "anonymous" if no token or invalid token — upload still works.
+    """
+    if not token:
+        return "anonymous"
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        user_id: str = payload.get("sub", "anonymous")
+        return user_id or "anonymous"
+    except JWTError:
+        return "anonymous"
 
 
 def should_use_cloudinary() -> bool:
@@ -119,24 +123,23 @@ class UploadResponse(BaseModel):
     message: str
 
 
-# ── Route ─────────────────────────────────────────────────────────────────────
+# ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.post("", response_model=UploadResponse, status_code=201)
-@limiter.limit("10/minute")          # max 10 uploads per IP per minute
+@limiter.limit("10/minute")
 async def upload_document(
-    request: Request,                # required by slowapi
+    request: Request,
     file: UploadFile = File(...),
+    token: str | None = Depends(oauth2_scheme),
     db=Depends(get_db),
 ):
-    # Read file into memory (we need the bytes for magic-byte validation)
     content = await file.read()
-
-    # Validate content (raises HTTPException on failure)
     _validate_file(content, file.filename or "")
 
-    # Try to upload to Cloudinary; fall back to local storage for dev
+    # Use logged-in user if token present, otherwise anonymous
+    user_id = _get_user_id_from_token(token)
+
     file_url = ""
-    user_id = "anonymous"
     if should_use_cloudinary():
         try:
             import cloudinary.uploader
@@ -151,7 +154,6 @@ async def upload_document(
             file_url = ""
 
     if not file_url:
-        # Dev fallback: store file locally
         local_path = os.path.join(
             tempfile.gettempdir(),
             f"{uuid.uuid4()}_{file.filename or 'document'}",
@@ -163,11 +165,14 @@ async def upload_document(
     doc_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
 
-    await db.execute(
-        """INSERT OR IGNORE INTO users (id, name, email, password, created_at)
-           VALUES (?, ?, ?, ?, ?)""",
-        (user_id, "Anonymous", "anonymous@smartlegal.local", "", now),
-    )
+    # Ensure anonymous user row exists (no-op if already there)
+    if user_id == "anonymous":
+        await db.execute(
+            """INSERT OR IGNORE INTO users (id, name, email, password, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            ("anonymous", "Anonymous", "anonymous@smartlegal.local", "", now),
+        )
+
     await db.execute(
         """INSERT INTO documents (id, user_id, filename, file_url, file_size, status, uploaded_at)
            VALUES (?, ?, ?, ?, ?, 'ready', ?)""",
@@ -187,3 +192,44 @@ async def upload_document(
         ),
         message="Document uploaded successfully",
     )
+
+
+@router.get("/history")
+async def get_document_history(
+    token: str | None = Depends(oauth2_scheme),
+    db=Depends(get_db),
+):
+    """
+    Return all documents for the currently logged-in user.
+    Requires a valid JWT — returns 401 if not authenticated.
+    """
+    if not token:
+        raise HTTPException(status_code=401, detail="Sign in to view document history.")
+
+    user_id = _get_user_id_from_token(token)
+    if user_id == "anonymous":
+        raise HTTPException(status_code=401, detail="Sign in to view document history.")
+
+    async with db.execute(
+        """SELECT id, filename, file_url, file_size, document_type, status, uploaded_at
+           FROM documents
+           WHERE user_id = ?
+           ORDER BY uploaded_at DESC""",
+        (user_id,),
+    ) as cur:
+        rows = await cur.fetchall()
+
+    return {
+        "documents": [
+            {
+                "id": row["id"],
+                "filename": row["filename"],
+                "file_url": row["file_url"],
+                "file_size": row["file_size"],
+                "document_type": row["document_type"] or "",
+                "status": row["status"],
+                "uploaded_at": row["uploaded_at"],
+            }
+            for row in rows
+        ]
+    }

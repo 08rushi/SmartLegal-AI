@@ -20,7 +20,6 @@ client = AsyncOpenAI(
 )
 
 MODEL = "llama-3.3-70b-versatile"
-# Reduced chunk size: 10000 chars ~ 2500 tokens, leaves plenty of room for prompt + output
 MAX_CHARS_PER_CHUNK = 10000
 
 
@@ -89,31 +88,16 @@ def _clean_clause_title(raw_title: str, original_text: str) -> str:
 def _classify_clause_risk(title: str, original_text: str) -> tuple[str, int, str, bool, str]:
     text = f"{title} {original_text}".lower()
     high_keywords = [
-        "penalty",
-        "forfeit",
-        "evict",
-        "unilateral",
-        "indemn",
-        "without notice",
-        "terminate immediately",
+        "penalty", "forfeit", "evict", "unilateral", "indemn",
+        "without notice", "terminate immediately",
     ]
     medium_keywords = [
-        "notice",
-        "termination",
-        "jurisdiction",
-        "repair",
-        "damages",
-        "deposit",
-        "renewal",
-        "sublet",
-        "consent",
+        "notice", "termination", "jurisdiction", "repair", "damages",
+        "deposit", "renewal", "sublet", "consent",
     ]
     beneficial_keywords = [
-        "refundable",
-        "landlord responsibility",
-        "responsibility of the landlord",
-        "mutual consent",
-        "either party may terminate",
+        "refundable", "landlord responsibility", "responsibility of the landlord",
+        "mutual consent", "either party may terminate",
         "structural repairs shall be the responsibility of the landlord",
     ]
 
@@ -131,9 +115,7 @@ def _classify_clause_risk(title: str, original_text: str) -> tuple[str, int, str
         risk_reason = "This clause should be reviewed carefully because it affects rights, obligations, or exit terms."
 
     beneficial = any(keyword in text for keyword in beneficial_keywords)
-    beneficial_reason = ""
-    if beneficial:
-        beneficial_reason = "This clause gives some protection or balance to the user."
+    beneficial_reason = "This clause gives some protection or balance to the user." if beneficial else ""
 
     return risk_level, risk_score, risk_reason, beneficial, beneficial_reason
 
@@ -155,26 +137,23 @@ def _extract_clauses_locally(document_text: str) -> list[dict]:
         original_text = " ".join(line.strip() for line in current_lines if line.strip())
         title = _clean_clause_title(current_title, original_text)
         risk_level, risk_score, risk_reason, beneficial, beneficial_reason = _classify_clause_risk(
-            title,
-            original_text,
+            title, original_text,
         )
-        clauses.append(
-            {
-                "id": f"local_{len(clauses) + 1}",
-                "title": title,
-                "clause_number": f"Clause {current_number}" if current_number else "Unnumbered",
-                "page_number": current_page,
-                "original_text": original_text,
-                "plain_english": original_text,
-                "plain_hindi": original_text,
-                "risk_level": risk_level,
-                "risk_score": risk_score,
-                "risk_reason": risk_reason,
-                "clause_type": title,
-                "beneficial_to_user": beneficial,
-                "beneficial_reason": beneficial_reason,
-            }
-        )
+        clauses.append({
+            "id": f"local_{len(clauses) + 1}",
+            "title": title,
+            "clause_number": f"Clause {current_number}" if current_number else "Unnumbered",
+            "page_number": current_page,
+            "original_text": original_text,
+            "plain_english": original_text,
+            "plain_hindi": original_text,
+            "risk_level": risk_level,
+            "risk_score": risk_score,
+            "risk_reason": risk_reason,
+            "clause_type": title,
+            "beneficial_to_user": beneficial,
+            "beneficial_reason": beneficial_reason,
+        })
         current_number = ""
         current_title = ""
         current_lines = []
@@ -183,12 +162,10 @@ def _extract_clauses_locally(document_text: str) -> list[dict]:
         line = raw_line.strip()
         if not line:
             continue
-
         page_match = re.match(r"^\[Page (\d+)\]$", line)
         if page_match:
             current_page = int(page_match.group(1))
             continue
-
         clause_match = clause_start_re.match(line)
         if clause_match:
             flush_clause()
@@ -197,7 +174,6 @@ def _extract_clauses_locally(document_text: str) -> list[dict]:
             remainder = clause_match.group(3).strip()
             current_lines = [f"{current_title}: {remainder}" if remainder else current_title]
             continue
-
         bare_match = bare_clause_start_re.match(line)
         if bare_match and current_lines:
             flush_clause()
@@ -205,7 +181,6 @@ def _extract_clauses_locally(document_text: str) -> list[dict]:
             current_title = bare_match.group(2)[:60]
             current_lines = [bare_match.group(2).strip()]
             continue
-
         if current_lines:
             current_lines.append(line)
 
@@ -213,7 +188,11 @@ def _extract_clauses_locally(document_text: str) -> list[dict]:
     return clauses
 
 
-# ─── Chunk Analysis Prompt ───────────────────────────────────────────────────
+# ─── Chunk Analysis Prompt ────────────────────────────────────────────────────
+# IMPORTANT: All literal curly braces inside the JSON example MUST be doubled
+# so Python's str.format() does not try to interpolate them as variables.
+# {chunk_index}, {total_chunks}, {start_page}, {end_page}, {document_text}
+# are the only real format variables — everything else uses {{ }}.
 
 CHUNK_PROMPT = """You are a senior Indian legal expert. Analyze this section of a legal document (chunk {chunk_index} of {total_chunks}, pages {start_page}-{end_page}).
 
@@ -255,24 +234,22 @@ async def analyze_legal_document(document_text: str, filename: str) -> dict:
     """
     from services.pdf_parser import split_into_chunks
 
-    # Split document into smaller chunks
     chunks = split_into_chunks(document_text, max_chars=MAX_CHARS_PER_CHUNK)
     total_chunks = len(chunks)
     total_pages = max((c['end_page'] for c in chunks), default=1)
 
     print(f"[analyze] Processing {total_chunks} chunks, {total_pages} pages")
 
-    # Analyze each chunk with delay between calls to avoid rate limits
     all_clauses = []
     document_type = _infer_document_type(document_text, filename)
     parties = _extract_parties_from_text(document_text)
 
     for i, chunk in enumerate(chunks):
-        # Rate limit delay: wait 3 seconds between chunks
         if i > 0:
             await asyncio.sleep(3)
 
         try:
+            # Single clean format call — no duplicate, no {n} variable
             prompt = CHUNK_PROMPT.format(
                 chunk_index=i + 1,
                 total_chunks=total_chunks,
@@ -301,19 +278,18 @@ async def analyze_legal_document(document_text: str, filename: str) -> dict:
 
             chunk_result = json.loads(raw)
 
-            # Collect document type and parties from first chunk only
             if i == 0:
                 document_type = chunk_result.get("document_type", "") or document_type or "Legal Document"
                 parties = chunk_result.get("parties", []) or parties
 
-            # Collect clauses
             clauses = chunk_result.get("clauses", [])
             print(f"[analyze] Chunk {i+1} extracted {len(clauses)} clauses")
             all_clauses.extend(clauses)
 
         except json.JSONDecodeError as e:
             print(f"[analyze] Chunk {i+1} JSON parse failed: {e}")
-            print(f"[analyze] Raw was: {raw[:500] if 'raw' in dir() else 'N/A'}")
+            raw_preview = raw[:500] if 'raw' in dir() else 'N/A'
+            print(f"[analyze] Raw was: {raw_preview}")
             continue
         except Exception as e:
             print(f"[analyze] Chunk {i+1} failed: {type(e).__name__}: {e}")
@@ -326,13 +302,9 @@ async def analyze_legal_document(document_text: str, filename: str) -> dict:
         all_clauses = _extract_clauses_locally(document_text)
         print(f"[analyze] Local fallback extracted {len(all_clauses)} clauses")
 
-    # Generate overall summary
-    await asyncio.sleep(2)  # Brief pause before summary call
-    summary_data = await _generate_summary(
-        all_clauses, document_type, parties, total_pages
-    )
+    await asyncio.sleep(2)
+    summary_data = await _generate_summary(all_clauses, document_type, parties, total_pages)
 
-    # Count risk levels
     high_count   = sum(1 for c in all_clauses if c.get("risk_level") == "high")
     medium_count = sum(1 for c in all_clauses if c.get("risk_level") == "medium")
     low_count    = sum(1 for c in all_clauses if c.get("risk_level") == "low")
@@ -348,7 +320,6 @@ async def analyze_legal_document(document_text: str, filename: str) -> dict:
             "beneficial_clauses": summary_data.get("beneficial_clauses", []),
             "your_obligations": summary_data.get("your_obligations", []),
             "other_party_rights": summary_data.get("other_party_rights", []),
-            # Legacy fields for backward compatibility
             "tenant_obligations": summary_data.get("your_obligations", []),
             "landlord_rights": summary_data.get("other_party_rights", []),
             "total_clauses": len(all_clauses),
@@ -368,9 +339,7 @@ async def _generate_summary(
     parties: list,
     total_pages: int,
 ) -> dict:
-    """Generate overall summary from all analyzed clauses."""
     try:
-        # Send only compact key fields to save tokens
         compact_clauses = [
             {
                 "title": c.get("title", ""),
@@ -385,7 +354,6 @@ async def _generate_summary(
         ]
 
         clauses_json = json.dumps(compact_clauses, ensure_ascii=False)
-        # Trim to stay within token limits
         if len(clauses_json) > 8000:
             clauses_json = clauses_json[:8000] + "...]"
 
@@ -411,7 +379,6 @@ async def _generate_summary(
 
     except Exception as e:
         print(f"[analyze] Summary generation failed: {e}")
-        # Generate a fallback summary from the clauses we have
         high_clauses = [
             f"{c.get('title', 'Unknown')} (page {c.get('page_number', '?')})"
             for c in all_clauses if c.get("risk_level") == "high"
@@ -431,7 +398,7 @@ async def _generate_summary(
         }
 
 
-# ─── Q&A Chat ────────────────────────────────────────────────────────────────
+# ─── Q&A Chat ─────────────────────────────────────────────────────────────────
 
 QA_PROMPT = """You are a helpful Indian legal assistant. Answer the question using ONLY the document below.
 
@@ -450,8 +417,6 @@ Answer:"""
 
 
 async def answer_question_about_document(document_text: str, question: str) -> str:
-    """Answer a user question about a specific legal document."""
-    # Use first 18000 chars to stay within token limits
     truncated = document_text[:18000]
 
     prompt = QA_PROMPT.format(
