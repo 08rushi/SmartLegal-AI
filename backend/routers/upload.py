@@ -233,3 +233,31 @@ async def get_document_history(
             for row in rows
         ]
     }
+
+
+@router.get("/{document_id}", response_model=DocumentOut)
+async def get_document(document_id: str, db=Depends(get_db)):
+    """
+    Return a single uploaded document by id so the frontend can recover
+    analysis routes after a hard refresh.
+    """
+    async with db.execute(
+        """SELECT id, filename, file_url, file_size, document_type, status, uploaded_at
+           FROM documents
+           WHERE id = ?""",
+        (document_id,),
+    ) as cur:
+        row = await cur.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    return DocumentOut(
+        id=row["id"],
+        filename=row["filename"],
+        file_url=row["file_url"],
+        file_size=row["file_size"],
+        document_type=row["document_type"] or "",
+        status=row["status"],
+        uploaded_at=row["uploaded_at"],
+    )
