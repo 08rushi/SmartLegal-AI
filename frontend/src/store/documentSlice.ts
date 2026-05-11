@@ -60,7 +60,23 @@ export const uploadComparisonDocument = createAsyncThunk(
   }
 )
 
-// ─── Initial state ────────────────────────────────────────────────────────────
+// ── NEW: fetch full history from backend (called after login/page load) ───────
+export const fetchDocumentHistory = createAsyncThunk(
+  'document/fetchHistory',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get<{ documents: UploadedDocument[] }>('/upload/history')
+      return response.data.documents
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number } }
+      // 401 = not logged in — silently ignore, history stays empty
+      if (error.response?.status === 401) return []
+      return rejectWithValue('Failed to load document history')
+    }
+  }
+)
+
+// ─── Initial state ─────────────────────────────────────────────────────────────
 
 const initialState: DocumentState = {
   current: null,
@@ -104,7 +120,7 @@ const documentSlice = createSlice({
         state.status = 'ready'
         state.current = action.payload
         state.uploadProgress = 100
-        // Add to history if not already there
+        // Prepend to history if not already there
         if (!state.history.find(d => d.id === action.payload.id)) {
           state.history.unshift(action.payload)
         }
@@ -118,6 +134,19 @@ const documentSlice = createSlice({
     builder
       .addCase(uploadComparisonDocument.fulfilled, (state, action: PayloadAction<UploadedDocument>) => {
         state.comparison = action.payload
+      })
+
+    // Fetch history from backend — replaces in-memory list with real DB data
+    builder
+      .addCase(fetchDocumentHistory.fulfilled, (state, action: PayloadAction<UploadedDocument[]>) => {
+        if (action.payload.length > 0) {
+          state.history = action.payload
+          // Keep current pointer valid if it exists in the fresh list
+          if (state.current) {
+            const fresh = action.payload.find(d => d.id === state.current?.id)
+            if (fresh) state.current = fresh
+          }
+        }
       })
   },
 })
