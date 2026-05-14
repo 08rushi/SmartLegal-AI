@@ -171,14 +171,14 @@ npm run dev
 - [ ] Deploy: Vercel (frontend) + Render.com (backend)
 
 ## Common Errors & Fixes
-| Error | Fix |
-|-------|-----|
-| `No module named 'email_validator'` | `pip install email-validator` |
-| `PyMuPDF` build fails | Use Python 3.12, not 3.14 |
-| `source venv/bin/activate` fails | Windows: use `venv\Scripts\activate` |
-| `/tmp/` path error on Windows | Use `tempfile.gettempdir()` |
-| 401 Unauthorized on upload | Auth interceptor in api.ts needs to be disabled |
-| PostCSS `export default` error | Use `module.exports =` in postcss.config.js |
+| Error                               | Fix                                             |
+|-------------------------------------|-------------------------------------------------|
+| `No module named 'email_validator'` | `pip install email-validator`                   |
+| `PyMuPDF` build fails               | Use Python 3.12, not 3.14                       |
+| `source venv/bin/activate` fails    | Windows: use `venv\Scripts\activate`            |
+| `/tmp/` path error on Windows       | Use `tempfile.gettempdir()`                     |
+| 401 Unauthorized on upload          | Auth interceptor in api.ts needs to be disabled |
+| PostCSS `export default` error      | Use `module.exports =` in postcss.config.js     |
 
 ## Interview Talking Points
 - Redux Toolkit with 4 slices showing real separation of concerns
