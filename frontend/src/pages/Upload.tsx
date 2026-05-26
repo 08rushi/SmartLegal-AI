@@ -116,9 +116,6 @@ export default function Upload() {
     onDrop,
     accept: {
       'application/pdf': ['.pdf'],
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/png': ['.png'],
-      'image/webp': ['.webp'],
     },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024,
@@ -168,9 +165,9 @@ export default function Upload() {
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[0.86fr_1.14fr]">
         <div className="section-card rounded-[32px] p-6 sm:p-8">
           <span className="section-eyebrow">03 Upload Document</span>
-          <h1 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">Upload Your Document</h1>
+          <h1 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">Upload Your PDF Document</h1>
           <p className="mt-3 text-sm leading-7 text-slate-400 sm:text-base">
-            Drop a contract, preview it first, then run analysis when you are sure it is the right file.
+            Drop a PDF contract, preview it first, then run analysis when you are sure it is the right file.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -251,7 +248,7 @@ export default function Upload() {
                         </div>
                         <p className="mt-4 text-lg font-medium text-white">{selectedFile.name}</p>
                         <p className="mt-2 max-w-sm text-sm text-slate-400">
-                          Preview thumbnails are shown for PDFs and images. This file is ready to analyze.
+                          This PDF file is ready to analyze. You can proceed to document analysis.
                         </p>
                       </div>
                     )}

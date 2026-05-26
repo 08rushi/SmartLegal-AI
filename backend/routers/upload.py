@@ -20,9 +20,6 @@ MAX_SIZE_MB = 10
 # ── Magic-byte signatures for allowed file types ──────────────────────────────
 MAGIC_SIGNATURES: list[tuple[bytes, int, str]] = [
     (b"%PDF",          0, "application/pdf"),
-    (b"\xff\xd8\xff",  0, "image/jpeg"),
-    (b"\x89PNG\r\n\x1a\n", 0, "image/png"),
-    (b"RIFF",          0, "image/webp"),
 ]
 
 ALLOWED_MIME_TYPES = {sig[2] for sig in MAGIC_SIGNATURES}
@@ -33,8 +30,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=F
 def _detect_mime(content: bytes) -> str | None:
     for magic, offset, mime in MAGIC_SIGNATURES:
         if content[offset: offset + len(magic)] == magic:
-            if mime == "image/webp" and content[8:12] != b"WEBP":
-                continue
             return mime
     return None
 
@@ -54,18 +49,14 @@ def _validate_file(content: bytes, filename: str) -> str:
         raise HTTPException(
             status_code=400,
             detail=(
-                "Unsupported file type. Only PDF, JPEG, PNG, and WebP are accepted. "
-                "Make sure the file is not corrupted or renamed."
+                "Unsupported file type. Only PDF files are accepted. "
+                "Make sure the file is a valid PDF and not corrupted or renamed."
             ),
         )
 
     declared_ext = os.path.splitext(filename or "")[1].lower()
     ext_to_mime = {
         ".pdf":  "application/pdf",
-        ".jpg":  "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png":  "image/png",
-        ".webp": "image/webp",
     }
     expected_mime = ext_to_mime.get(declared_ext)
     if expected_mime and expected_mime != detected:

@@ -5,7 +5,8 @@ import uuid
 
 from database import get_db
 from limiter import limiter
-from services.gemini_service import answer_question_about_document
+from routers.auth import get_current_user
+from services.groq_service import answer_question_about_document
 from services.pdf_parser import extract_text_from_pdf
 
 router = APIRouter()
@@ -17,11 +18,12 @@ class ChatRequest(BaseModel):
 
 
 @router.post("")
-@limiter.limit("20/minute")   # Q&A is lighter but still costs tokens
+@limiter.limit("20/minute")
 async def chat(
-    request: Request,          # required by slowapi
+    request: Request,
     req: ChatRequest,
     db=Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
     async with db.execute(
         "SELECT * FROM documents WHERE id = ?",
@@ -30,6 +32,10 @@ async def chat(
         doc = await cur.fetchone()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+
+    # ── Verify ownership ───────────────────────────────────────────────────────
+    if doc["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You do not have permission to chat on this document.")
 
     file_url = doc["file_url"]
     try:
@@ -74,7 +80,18 @@ async def chat(
 async def get_chat_history(
     document_id: str,
     db=Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
+    # ── Verify ownership ───────────────────────────────────────────────────────
+    async with db.execute(
+        "SELECT user_id FROM documents WHERE id = ?", (document_id,)
+    ) as cur:
+        doc = await cur.fetchone()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if doc["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You do not have permission to access this document's chat history.")
+
     async with db.execute(
         "SELECT * FROM chat_messages WHERE document_id = ? ORDER BY timestamp ASC",
         (document_id,),

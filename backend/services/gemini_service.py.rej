@@ -1,0 +1,39 @@
+diff a/backend/services/gemini_service.py b/backend/services/gemini_service.py	(rejected hunks)
+@@ -88,31 +88,16 @@
+ def _classify_clause_risk(title: str, original_text: str) -> tuple[str, int, str, bool, str]:
+     text = f"{title} {original_text}".lower()
+     high_keywords = [
+-        "penalty",
+-        "forfeit",
+-        "evict",
+-        "unilateral",
+-        "indemn",
+-        "without notice",
+-        "terminate immediately",
++        "penalty", "forfeit", "evict", "unilateral", "indemn",
++        "without notice", "terminate immediately",
+     ]
+     medium_keywords = [
+-        "notice",
+-        "termination",
+-        "jurisdiction",
+-        "repair",
+-        "damages",
+-        "deposit",
+-        "renewal",
+-        "sublet",
+-        "consent",
++        "notice", "termination", "jurisdiction", "repair", "damages",
++        "deposit", "renewal", "sublet", "consent",
+     ]
+     beneficial_keywords = [
+-        "refundable",
+-        "landlord responsibility",
+-        "responsibility of the landlord",
+-        "mutual consent",
+-        "either party may terminate",
++        "refundable", "landlord responsibility", "responsibility of the landlord",
++        "mutual consent", "either party may terminate",
+         "structural repairs shall be the responsibility of the landlord",
+     ]
+ 

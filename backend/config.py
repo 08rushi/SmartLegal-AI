@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     app_name: str = "SmartLegal AI"
 
     # AI
-    gemini_api_key: str
+    groq_api_key: str
 
     # Auth
     secret_key: str
@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"  # Ignore unknown fields in .env
 
 
 @lru_cache

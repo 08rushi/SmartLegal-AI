@@ -4,7 +4,7 @@ analyze.py — document analysis router.
 Cache hierarchy (fastest → slowest):
   L1  Redis      — sub-millisecond, TTL-based, shared across workers
   L2  SQLite     — persistent across restarts, used as fallback
-  L3  Groq AI    — expensive, only called on true cache miss
+  L3  Groq AI    — free tier (mixtral-8x7b), only called on true cache miss
 
 Flow:
   POST /analyze
@@ -30,7 +30,8 @@ from cache import delete_analysis, get_analysis, set_analysis
 from config import get_settings
 from database import get_db
 from limiter import limiter
-from services.gemini_service import analyze_legal_document
+from routers.auth import get_current_user
+from services.groq_service import analyze_legal_document
 from services.pdf_parser import extract_text_from_pdf
 
 router = APIRouter()
@@ -175,6 +176,7 @@ async def analyze_document(
     req: AnalyzeRequest,
     background_tasks: BackgroundTasks,
     db=Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
     if not req.force_reanalyze:
 
@@ -236,6 +238,10 @@ async def analyze_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found.")
 
+    # ── Verify ownership ───────────────────────────────────────────────────────
+    if doc["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You do not have permission to analyze this document.")
+
     # ── Read file bytes ───────────────────────────────────────────────────────
     file_url = doc["file_url"]
     try:
@@ -264,11 +270,25 @@ async def analyze_document(
 
 
 @router.get("/{document_id}/status")
-async def get_analysis_status(document_id: str, db=Depends(get_db)):
+async def get_analysis_status(
+    document_id: str,
+    db=Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     """
     Poll until status is 'done' or 'error'.
     Checks Redis first, falls back to SQLite.
     """
+    # ── Verify ownership ───────────────────────────────────────────────────────
+    async with db.execute(
+        "SELECT user_id FROM documents WHERE id = ?", (document_id,)
+    ) as cur:
+        doc = await cur.fetchone()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if doc["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You do not have permission to access this document.")
+
     # L1: Redis
     cached = await get_analysis(document_id)
     if cached:
@@ -302,8 +322,22 @@ async def get_analysis_status(document_id: str, db=Depends(get_db)):
 
 
 @router.delete("/{document_id}/cache")
-async def clear_analysis_cache(document_id: str, db=Depends(get_db)):
+async def clear_analysis_cache(
+    document_id: str,
+    db=Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     """Evict from both Redis and SQLite so the document is re-analysed fresh."""
+    # ── Verify ownership ───────────────────────────────────────────────────────
+    async with db.execute(
+        "SELECT user_id FROM documents WHERE id = ?", (document_id,)
+    ) as cur:
+        doc = await cur.fetchone()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if doc["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You do not have permission to delete this document's cache.")
+
     await delete_analysis(document_id)
     await db.execute("DELETE FROM analyses WHERE document_id = ?", (document_id,))
     await db.commit()

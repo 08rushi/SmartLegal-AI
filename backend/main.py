@@ -9,6 +9,7 @@ from database import init_db
 from limiter import limiter
 from cache import init_redis, close_redis
 from routers import auth, upload, analyze, chat
+import auth_google
 
 settings = get_settings()
 
@@ -63,10 +64,11 @@ app.add_middleware(
 )
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-app.include_router(auth.router,    prefix="/api/v1/auth",    tags=["Auth"])
-app.include_router(upload.router,  prefix="/api/v1/upload",  tags=["Upload"])
-app.include_router(analyze.router, prefix="/api/v1/analyze", tags=["Analyze"])
-app.include_router(chat.router,    prefix="/api/v1/chat",    tags=["Chat"])
+app.include_router(auth.router,         prefix="/api/v1/auth",    tags=["Auth"])
+app.include_router(auth_google.router,  prefix="/api/v1/auth",    tags=["Auth"])
+app.include_router(upload.router,       prefix="/api/v1/upload",  tags=["Upload"])
+app.include_router(analyze.router,      prefix="/api/v1/analyze", tags=["Analyze"])
+app.include_router(chat.router,         prefix="/api/v1/chat",    tags=["Chat"])
 
 
 @app.get("/")
