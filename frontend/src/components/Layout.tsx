@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { logout } from '../store/authSlice'
@@ -12,6 +12,30 @@ const navItems = [
   { to: '/compare', label: 'Knowledge Base' },
 ]
 
+const serviceCards = [
+  {
+    key: 'legal-id',
+    title: 'Legal ID Hub',
+    icon: '🆔',
+    description: 'Government ID guidance',
+    to: '/legal-id'
+  },
+  {
+    key: 'property',
+    title: 'Property Hub',
+    icon: '🏠',
+    description: 'Property transactions',
+    to: '/property-hub'
+  },
+  {
+    key: 'all-services',
+    title: 'View All Services',
+    icon: '→',
+    description: 'Complete service center',
+    to: '/services'
+  }
+]
+
 export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -19,6 +43,8 @@ export default function Layout() {
   const { user, token } = useAppSelector((s) => s.auth)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [servicesMenuOpen, setServicesMenuOpen] = useState(false)
+  const servicesRef = useRef<HTMLDivElement>(null)
   const [isOffline, setIsOffline] = useState(() => (typeof navigator === 'undefined' ? false : !navigator.onLine))
 
   useEffect(() => {
@@ -101,6 +127,44 @@ export default function Layout() {
                   {item.label}
                 </NavLink>
               ))}
+
+              {/* Services Dropdown */}
+              <div className="relative" ref={servicesRef}>
+                <button
+                  type="button"
+                  onClick={() => setServicesMenuOpen(!servicesMenuOpen)}
+                  className={`rounded-full px-4 py-2 text-sm transition-all duration-200 flex items-center gap-1.5 ${
+                    servicesMenuOpen || location.pathname.includes('/legal-id') || location.pathname.includes('/property') || location.pathname === '/services'
+                      ? 'bg-white/10 text-[#f5c26b] shadow-[0_0_0_1px_rgba(245,194,107,0.15)]'
+                      : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  Services
+                  <span className={`transition-transform duration-200 ${servicesMenuOpen ? 'rotate-180' : ''}`}>▾</span>
+                </button>
+
+                {servicesMenuOpen && (
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-96 rounded-2xl border border-white/15 bg-[#0f1626]/95 backdrop-blur-lg shadow-2xl overflow-hidden">
+                    <div className="p-4 space-y-2">
+                      {serviceCards.map((card) => (
+                        <Link
+                          key={card.key}
+                          to={card.to}
+                          onClick={() => setServicesMenuOpen(false)}
+                          className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 transition-all hover:bg-white/[0.08] hover:border-white/15"
+                        >
+                          <span className="text-2xl pt-1">{card.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-white">{card.title}</p>
+                            <p className="text-xs text-slate-400">{card.description}</p>
+                          </div>
+                          <span className="text-slate-400 mt-1">→</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </nav>
 
             {/* Desktop auth area */}
@@ -202,6 +266,37 @@ export default function Layout() {
                     {item.label}
                   </NavLink>
                 ))}
+
+                {/* Mobile Services Submenu */}
+                <div className="rounded-2xl border border-white/10 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setServicesMenuOpen(!servicesMenuOpen)}
+                    className="w-full text-left rounded-2xl px-4 py-3 text-sm text-slate-300 hover:bg-white/5 transition flex items-center justify-between"
+                  >
+                    <span>Services</span>
+                    <span className={`transition-transform ${servicesMenuOpen ? 'rotate-180' : ''}`}>▾</span>
+                  </button>
+                  {servicesMenuOpen && (
+                    <div className="space-y-1 border-t border-white/10 p-2 bg-white/[0.02]">
+                      {serviceCards.map((card) => (
+                        <Link
+                          key={card.key}
+                          to={card.to}
+                          onClick={handleNavClick}
+                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-white/10 transition"
+                        >
+                          <span className="text-lg">{card.icon}</span>
+                          <div className="flex-1">
+                            <p className="font-medium">{card.title}</p>
+                            <p className="text-xs text-slate-500">{card.description}</p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {token && user && (
                   <Link to="/documents" onClick={handleNavClick} className="rounded-2xl px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition">
                     📂 My Documents
@@ -283,6 +378,8 @@ export default function Layout() {
                     {item.label}
                   </Link>
                 ))}
+                <Link to="/legal-id" className="transition hover:text-[#f5c26b]">Legal ID Hub</Link>
+                <Link to="/property-hub" className="transition hover:text-[#f5c26b]">Property Hub</Link>
                 <Link to="/documents" className="transition hover:text-[#f5c26b]">My Documents</Link>
               </div>
             </div>

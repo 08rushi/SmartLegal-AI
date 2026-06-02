@@ -9,6 +9,11 @@ import Upload from './pages/Upload'
 import Analysis from './pages/Analysis'
 import Chat from './pages/Chat'
 import Compare from './pages/Compare'
+import ServicesHub from './pages/ServicesHub'
+import LegalIdHub from './pages/LegalIdHub'
+import LegalIdDetail from './pages/LegalIdDetail'
+import PropertyHub from './pages/PropertyHub'
+import PropertyDetail from './pages/PropertyDetail'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import MyDocuments from './pages/MyDocuments'
@@ -48,6 +53,11 @@ function App() {
           />
           <Route path="analysis/:documentId" element={<Analysis />} />
           <Route path="chat" element={<Chat />} />
+          <Route path="services" element={<ServicesHub />} />
+          <Route path="legal-id" element={<LegalIdHub />} />
+          <Route path="legal-id/:idType" element={<LegalIdDetail />} />
+          <Route path="property-hub" element={<PropertyHub />} />
+          <Route path="property-hub/:propertyType" element={<PropertyDetail />} />
           <Route path="compare" element={<Compare />} />
           <Route path="documents" element={<MyDocuments />} />
           <Route path="*" element={<NotFound />} />
