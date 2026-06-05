@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { addUserMessage, sendChatMessage, setDocumentId } from '../store/chatSlice'
+import { addUserMessage, fetchChatHistory, sendChatMessage, setDocumentId } from '../store/chatSlice'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { trackEvent } from '../utils/posthog'
 
@@ -27,6 +27,7 @@ export default function Chat() {
       return
     }
     dispatch(setDocumentId(currentDoc.id))
+    dispatch(fetchChatHistory(currentDoc.id))
   }, [currentDoc, dispatch, navigate])
 
   useEffect(() => {

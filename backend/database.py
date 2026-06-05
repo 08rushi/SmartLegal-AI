@@ -53,5 +53,68 @@ async def init_db():
                 timestamp       TEXT NOT NULL,
                 FOREIGN KEY (document_id) REFERENCES documents(id)
             );
+
+            CREATE TABLE IF NOT EXISTS id_applications (
+                id              TEXT PRIMARY KEY,
+                user_id         TEXT NOT NULL,
+                id_type         TEXT NOT NULL,
+                service         TEXT NOT NULL,
+                status          TEXT DEFAULT 'in_progress',
+                notes           TEXT DEFAULT '',
+                created_at      TEXT NOT NULL,
+                updated_at      TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS id_checklist_items (
+                id              TEXT PRIMARY KEY,
+                application_id  TEXT NOT NULL,
+                item_text       TEXT NOT NULL,
+                is_done         INTEGER DEFAULT 0,
+                updated_at      TEXT NOT NULL,
+                FOREIGN KEY (application_id) REFERENCES id_applications(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS property_applications (
+                id              TEXT PRIMARY KEY,
+                user_id         TEXT NOT NULL,
+                property_type   TEXT NOT NULL,
+                service         TEXT NOT NULL,
+                status          TEXT DEFAULT 'in_progress',
+                notes           TEXT DEFAULT '',
+                created_at      TEXT NOT NULL,
+                updated_at      TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS property_checklist_items (
+                id              TEXT PRIMARY KEY,
+                application_id  TEXT NOT NULL,
+                item_text       TEXT NOT NULL,
+                is_done         INTEGER DEFAULT 0,
+                updated_at      TEXT NOT NULL,
+                FOREIGN KEY (application_id) REFERENCES property_applications(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS business_applications (
+                id              TEXT PRIMARY KEY,
+                user_id         TEXT NOT NULL,
+                business_type   TEXT NOT NULL,
+                service         TEXT NOT NULL,
+                status          TEXT DEFAULT 'in_progress',
+                notes           TEXT DEFAULT '',
+                created_at      TEXT NOT NULL,
+                updated_at      TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS business_checklist_items (
+                id              TEXT PRIMARY KEY,
+                application_id  TEXT NOT NULL,
+                item_text       TEXT NOT NULL,
+                is_done         INTEGER DEFAULT 0,
+                updated_at      TEXT NOT NULL,
+                FOREIGN KEY (application_id) REFERENCES business_applications(id)
+            );
         """)
         await db.commit()

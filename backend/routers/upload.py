@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from config import get_settings
 from database import get_db
 from limiter import limiter
+from routers.auth import get_current_user
 
 router = APIRouter()
 settings = get_settings()
@@ -227,13 +228,17 @@ async def get_document_history(
 
 
 @router.get("/{document_id}", response_model=DocumentOut)
-async def get_document(document_id: str, db=Depends(get_db)):
+async def get_document(
+    document_id: str,
+    db=Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     """
     Return a single uploaded document by id so the frontend can recover
     analysis routes after a hard refresh.
     """
     async with db.execute(
-        """SELECT id, filename, file_url, file_size, document_type, status, uploaded_at
+        """SELECT id, user_id, filename, file_url, file_size, document_type, status, uploaded_at
            FROM documents
            WHERE id = ?""",
         (document_id,),
@@ -242,6 +247,9 @@ async def get_document(document_id: str, db=Depends(get_db)):
 
     if not row:
         raise HTTPException(status_code=404, detail="Document not found.")
+
+    if row["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You do not have permission to access this document.")
 
     return DocumentOut(
         id=row["id"],

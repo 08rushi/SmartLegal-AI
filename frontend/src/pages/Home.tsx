@@ -34,7 +34,7 @@ const workflow = [
   {
     step: '01',
     title: 'Upload Your Document',
-    description: 'Drop a PDF or image and let the app organize it instantly.',
+    description: 'Drop a text-based PDF and let the app organize it instantly.',
   },
   {
     step: '02',

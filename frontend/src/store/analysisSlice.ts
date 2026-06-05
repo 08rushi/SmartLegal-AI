@@ -2,6 +2,23 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import type { AnalysisState, AnalysisResult } from '../types'
 import { apiClient } from '../services/api'
 
+type AnalyzeDocumentArgs =
+  | string
+  | {
+      documentId: string
+      forceReanalyze?: boolean
+    }
+
+function normalizeAnalyzeArgs(args: AnalyzeDocumentArgs) {
+  if (typeof args === 'string') {
+    return { documentId: args, forceReanalyze: false }
+  }
+  return {
+    documentId: args.documentId,
+    forceReanalyze: Boolean(args.forceReanalyze),
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Poll GET /analyze/{id}/status until status is "done" or "error". */
@@ -36,13 +53,17 @@ async function pollUntilDone(documentId: string): Promise<AnalysisResult> {
 
 export const analyzeDocument = createAsyncThunk(
   'analysis/analyze',
-  async (documentId: string, { rejectWithValue }) => {
+  async (args: AnalyzeDocumentArgs, { rejectWithValue }) => {
+    const { documentId, forceReanalyze } = normalizeAnalyzeArgs(args)
     try {
       // Kick off analysis (may return immediately with cached result, or 202 processing)
       const { data } = await apiClient.post<
         | { analysis: AnalysisResult }           // cached hit
         | { status: 'processing'; document_id: string }  // background task started
-      >('/analyze', { document_id: documentId })
+      >('/analyze', {
+        document_id: documentId,
+        force_reanalyze: forceReanalyze,
+      })
 
       // Cached result returned straight away
       if ('analysis' in data) return data.analysis
@@ -63,12 +84,16 @@ export const analyzeDocument = createAsyncThunk(
 
 export const analyzeComparisonDocument = createAsyncThunk(
   'analysis/analyzeComparison',
-  async (documentId: string, { rejectWithValue }) => {
+  async (args: AnalyzeDocumentArgs, { rejectWithValue }) => {
+    const { documentId, forceReanalyze } = normalizeAnalyzeArgs(args)
     try {
       const { data } = await apiClient.post<
         | { analysis: AnalysisResult }
         | { status: 'processing'; document_id: string }
-      >('/analyze', { document_id: documentId })
+      >('/analyze', {
+        document_id: documentId,
+        force_reanalyze: forceReanalyze,
+      })
 
       if ('analysis' in data) return data.analysis
       return await pollUntilDone(documentId)

@@ -8,7 +8,7 @@ from config import get_settings
 from database import init_db
 from limiter import limiter
 from cache import init_redis, close_redis
-from routers import auth, upload, analyze, chat
+from routers import auth, upload, analyze, chat, legal_id, property, business
 import auth_google
 
 settings = get_settings()
@@ -64,11 +64,14 @@ app.add_middleware(
 )
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-app.include_router(auth.router,         prefix="/api/v1/auth",    tags=["Auth"])
-app.include_router(auth_google.router,  prefix="/api/v1/auth",    tags=["Auth"])
-app.include_router(upload.router,       prefix="/api/v1/upload",  tags=["Upload"])
-app.include_router(analyze.router,      prefix="/api/v1/analyze", tags=["Analyze"])
-app.include_router(chat.router,         prefix="/api/v1/chat",    tags=["Chat"])
+app.include_router(auth.router,         prefix="/api/v1/auth",      tags=["Auth"])
+app.include_router(auth_google.router,  prefix="/api/v1/auth",      tags=["Auth"])
+app.include_router(upload.router,       prefix="/api/v1/upload",    tags=["Upload"])
+app.include_router(analyze.router,      prefix="/api/v1/analyze",   tags=["Analyze"])
+app.include_router(chat.router,         prefix="/api/v1/chat",      tags=["Chat"])
+app.include_router(legal_id.router,     prefix="/api/v1/legal-id",  tags=["Legal ID"])
+app.include_router(property.router,     prefix="/api/v1/property",  tags=["Property"])
+app.include_router(business.router,     prefix="/api/v1/business",  tags=["Business"])
 
 
 @app.get("/")

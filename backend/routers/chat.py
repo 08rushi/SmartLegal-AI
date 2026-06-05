@@ -53,6 +53,14 @@ async def chat(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not read document: {str(e)}")
 
+    user_msg_id = str(uuid.uuid4())
+    user_now = datetime.utcnow().isoformat()
+    await db.execute(
+        "INSERT INTO chat_messages (id, document_id, user_id, role, content, timestamp) VALUES (?, ?, ?, 'user', ?, ?)",
+        (user_msg_id, req.document_id, current_user["id"], req.question, user_now),
+    )
+    await db.commit()
+
     try:
         answer = await answer_question_about_document(doc_text, req.question)
     except Exception as e:
@@ -62,11 +70,17 @@ async def chat(
     ai_now = datetime.utcnow().isoformat()
     await db.execute(
         "INSERT INTO chat_messages (id, document_id, user_id, role, content, timestamp) VALUES (?, ?, ?, 'assistant', ?, ?)",
-        (ai_msg_id, req.document_id, "anonymous", answer, ai_now),
+        (ai_msg_id, req.document_id, current_user["id"], answer, ai_now),
     )
     await db.commit()
 
     return {
+        "user_message": {
+            "id": user_msg_id,
+            "role": "user",
+            "content": req.question,
+            "timestamp": user_now,
+        },
         "message": {
             "id": ai_msg_id,
             "role": "assistant",

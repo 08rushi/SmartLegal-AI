@@ -277,7 +277,7 @@ export default function Upload() {
                       <p className="text-sm font-medium text-[#f5c26b]">Before you analyze</p>
                       <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
                         <li>• Confirm this is the exact document version you want reviewed.</li>
-                        <li>• PDFs and common image formats are supported up to 10MB.</li>
+                        <li>• Text-based PDF files are supported up to 10MB.</li>
                         <li>• Analysis can take up to a couple of minutes for long contracts.</li>
                       </ul>
                     </div>
@@ -312,7 +312,7 @@ export default function Upload() {
                     Browse Files
                   </button>
                   <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs uppercase tracking-[0.22em] text-slate-500">
-                    PDF . JPG . PNG . WEBP . Max 10MB
+                    PDF only . Max 10MB
                   </div>
                 </div>
               </div>

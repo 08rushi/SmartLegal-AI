@@ -123,3 +123,172 @@ export interface LoginResponse {
   access_token: string
   token_type: string
 }
+
+// ─── Legal ID Hub ───────────────────────────────────────────────────────────
+
+export interface LegalIdType {
+  key: string
+  display_name: string
+  icon: string
+  authority: string
+  official_portal: string
+}
+
+export interface LegalIdService {
+  service: string
+  description?: string
+  where: string
+  documents_required: string[]
+  fee: string
+  timeline: string
+  official_link: string
+}
+
+export interface LegalIdGuidance {
+  key: string
+  display_name: string
+  icon: string
+  authority: string
+  governing_law: string
+  official_portal: string
+  overview?: string
+  services: LegalIdService[]
+  faqs: { q: string; a: string }[]
+  common_issues?: string[]
+  legal_protections: string[]
+  disclaimer: string
+}
+
+export interface IdApplication {
+  id: string
+  id_type: string
+  service: string
+  status: 'in_progress' | 'submitted' | 'received' | 'completed'
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ChecklistItem {
+  id: string
+  item_text: string
+  is_done: boolean
+  updated_at: string
+}
+
+export interface LegalIdState {
+  idTypes: LegalIdType[]
+  currentGuidance: LegalIdGuidance | null
+  applications: IdApplication[]
+  currentChecklist: ChecklistItem[]
+  isLoading: boolean
+  error: string | null
+}
+
+// ─── Property Hub ───────────────────────────────────────────────────────────
+
+export interface PropertyType {
+  key: string
+  display_name: string
+  icon: string
+  authority: string
+  official_portal: string
+}
+
+export interface PropertyService {
+  service: string
+  description?: string
+  where: string
+  documents_required: string[]
+  fee: string
+  timeline: string
+  official_link: string
+}
+
+export interface PropertyGuidance {
+  key: string
+  display_name: string
+  icon: string
+  authority: string
+  governing_law: string
+  official_portal: string
+  overview?: string
+  services: PropertyService[]
+  faqs: { q: string; a: string }[]
+  common_issues?: string[]
+  legal_protections: string[]
+  disclaimer: string
+}
+
+export interface PropertyApplication {
+  id: string
+  property_type: string
+  service: string
+  status: 'in_progress' | 'submitted' | 'received' | 'completed'
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PropertyState {
+  propertyTypes: PropertyType[]
+  currentGuidance: PropertyGuidance | null
+  applications: PropertyApplication[]
+  currentChecklist: ChecklistItem[]
+  isLoading: boolean
+  error: string | null
+}
+
+// ─── Business License Hub ────────────────────────────────────────────────────
+
+export interface BusinessType {
+  key: string
+  display_name: string
+  icon: string
+  authority: string
+  official_portal: string
+}
+
+export interface BusinessService {
+  service: string
+  description?: string
+  where: string
+  documents_required: string[]
+  fee: string
+  timeline: string
+  official_link: string
+}
+
+export interface BusinessGuidance {
+  key: string
+  display_name: string
+  icon: string
+  authority: string
+  governing_law: string
+  official_portal: string
+  overview?: string
+  services: BusinessService[]
+  faqs: { q: string; a: string }[]
+  common_issues?: string[]
+  legal_protections: string[]
+  disclaimer: string
+}
+
+export interface BusinessApplication {
+  id: string
+  business_type: string
+  service: string
+  status: 'in_progress' | 'submitted' | 'received' | 'completed'
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export interface BusinessState {
+  businessTypes: BusinessType[]
+  currentGuidance: BusinessGuidance | null
+  applications: BusinessApplication[]
+  currentChecklist: ChecklistItem[]
+  isLoading: boolean
+  error: string | null
+}

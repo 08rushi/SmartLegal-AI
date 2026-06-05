@@ -1,9 +1,9 @@
 """
 AI analysis service using Google Gemini.
 
-Provider: Google Gemini (gemini-2.0-flash)
-Multimodal: Supports text (PDFs) and images (JPEG, PNG, WebP) natively.
-Fallback: Groq handles PDFs only via text extraction.
+Provider: Optional Google Gemini legacy helper.
+Live path: Groq handles PDF text extraction and analysis.
+Note: image/OCR analysis is not part of the current production flow.
 """
 
 import json
@@ -12,7 +12,10 @@ import re
 import asyncio
 from typing import Union
 
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 from config import get_settings
 
 settings = get_settings()
@@ -27,8 +30,10 @@ GEMINI_MODEL_FALLBACKS = [
 ]
 
 
-def _make_gemini_model(model_name: str) -> genai.GenerativeModel:
-    genai.configure(api_key=settings.gemini_api_key)
+def _make_gemini_model(model_name: str):
+    if genai is None:
+        raise RuntimeError("google-generativeai is not installed. Install it to use Gemini analysis.")
+    genai.configure(api_key=getattr(settings, "gemini_api_key", ""))
     return genai.GenerativeModel(
         model_name,
         generation_config=genai.types.GenerationConfig(

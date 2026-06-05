@@ -31,6 +31,24 @@ const services: ServiceCard[] = [
     badge: 'Popular'
   },
   {
+    key: 'business',
+    title: 'Business License Hub',
+    description: 'Business registration guidance - GST, FSSAI, MSME, Shop Act, IEC, Trade License & Startup India',
+    icon: 'BIZ',
+    route: '/business-hub',
+    color: 'orange',
+    badge: 'New'
+  },
+  {
+    key: 'tracker',
+    title: 'Service Tracker',
+    description: 'Track applications, save checklists, set reminders, and enable browser notifications',
+    icon: '4D',
+    route: '/tracker',
+    color: 'pink',
+    badge: '4D'
+  },
+  {
     key: 'documents',
     title: 'Document Analysis',
     description: 'Upload and analyze legal documents — Get risk assessments and plain-language explanations',
@@ -69,24 +87,26 @@ export default function ServicesHub() {
   const { token } = useAppSelector((state) => state.auth)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800">
-      {/* Hero Section */}
-      <div className="border-b border-white/10 bg-white/[0.02] backdrop-blur-sm">
-        <div className="content-wrap space-y-4 py-16">
-          <div className="space-y-2">
-            <h1 className="text-5xl font-bold text-white">Online Service Center</h1>
-            <p className="text-xl text-white/60 max-w-2xl">
+    <div className="content-wrap py-8 sm:py-10">
+      <div className="section-card mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
+      {/* ─ Hero Section ─ */}
+      <div className="">
+        <div>
+          <h1 className="text-4xl font-bold text-white mt-4">
+            Online Service Center
+          </h1>
+            <p className="text-sm mt-3 text-white/60">
               Complete legal guidance for Indians — from government IDs to property transactions to document analysis
             </p>
           </div>
-          <div className="flex flex-wrap gap-3 text-sm">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2">
+          <div className="flex flex-wrap gap-3 text-sm mt-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-2">
               <span className="text-base">✓</span> Expert Guidance
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-2">
               <span className="text-base">✓</span> Hindi & English
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-2">
               <span className="text-base">✓</span> AI-Powered
             </span>
           </div>
@@ -103,7 +123,7 @@ export default function ServicesHub() {
               className={`group relative overflow-hidden rounded-2xl border border-white/10 p-8 transition-all duration-300 cursor-pointer hover:border-white/20 ${colorMap[service.color]}`}
             >
               {/* Background gradient accent */}
-              <div className="absolute -right-16 -top-16 h-32 w-32 rounded-full bg-white/5 group-hover:bg-white/10 transition-all duration-300" />
+              <div className="absolute -right-16 -top-16 h-32 w-32 rounded-full bg-white/5 group-hover:bg-white/10 transition-all duration-300 hover-lift" />
 
               <div className="relative z-10 space-y-4">
                 {/* Icon & Badge */}
@@ -149,7 +169,7 @@ export default function ServicesHub() {
 
       {/* Login CTA */}
       {!token && (
-        <div className="border-t border-white/10 bg-white/[0.02] backdrop-blur-sm">
+        <div className="">
           <div className="content-wrap py-12 text-center">
             <h2 className="text-2xl font-bold text-white mb-4">Sign In to Save Your Progress</h2>
             <p className="text-white/60 mb-8 max-w-lg mx-auto">

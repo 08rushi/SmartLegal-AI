@@ -52,7 +52,7 @@ export default function MyDocuments() {
   async function handleReAnalyze(doc: UploadedDocument) {
     dispatch(setCurrentDocument(doc))
     trackEvent('document_reanalyze_started', { documentId: doc.id })
-    await dispatch(analyzeDocument(doc.id))
+    await dispatch(analyzeDocument({ documentId: doc.id, forceReanalyze: true }))
     navigate(`/analysis/${doc.id}`)
   }
 

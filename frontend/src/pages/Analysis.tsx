@@ -193,9 +193,23 @@ export default function Analysis() {
           </div>
           <h1 className="mt-6 text-3xl font-semibold text-white">Analysis Failed</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-400">{error}</p>
-          <button onClick={() => navigate('/upload')} className="btn-primary mt-8">
-            Try Again
-          </button>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            {documentId && (
+              <button
+                type="button"
+                onClick={() => {
+                  requestedAnalysisRef.current = documentId
+                  dispatch(analyzeDocument({ documentId, forceReanalyze: true }))
+                }}
+                className="btn-primary"
+              >
+                Retry Analysis
+              </button>
+            )}
+            <button type="button" onClick={() => navigate('/upload')} className="btn-secondary">
+              Upload Another
+            </button>
+          </div>
         </div>
       </div>
     )

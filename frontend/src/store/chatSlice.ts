@@ -25,6 +25,21 @@ export const sendChatMessage = createAsyncThunk(
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
+export const fetchChatHistory = createAsyncThunk(
+  'chat/fetchHistory',
+  async (documentId: string, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get<{ messages: ChatMessage[] }>(
+        `/chat/${documentId}/history`
+      )
+      return { documentId, messages: response.data.messages }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } }
+      return rejectWithValue(error.response?.data?.detail || 'Failed to load chat history')
+    }
+  }
+)
+
 const initialState: ChatState = {
   messages: [],
   isLoading: false,
@@ -39,6 +54,10 @@ const chatSlice = createSlice({
   initialState,
   reducers: {
     setDocumentId(state, action: PayloadAction<string>) {
+      if (state.document_id !== action.payload) {
+        state.messages = []
+        state.error = null
+      }
       state.document_id = action.payload
     },
     addUserMessage(state, action: PayloadAction<string>) {
@@ -71,6 +90,21 @@ const chatSlice = createSlice({
       })
       .addCase(sendChatMessage.rejected, (state, action) => {
         state.isLoading = false
+        state.error = action.payload as string
+      })
+
+    builder
+      .addCase(fetchChatHistory.pending, (state) => {
+        state.error = null
+      })
+      .addCase(
+        fetchChatHistory.fulfilled,
+        (state, action: PayloadAction<{ documentId: string; messages: ChatMessage[] }>) => {
+          state.document_id = action.payload.documentId
+          state.messages = action.payload.messages
+        }
+      )
+      .addCase(fetchChatHistory.rejected, (state, action) => {
         state.error = action.payload as string
       })
   },

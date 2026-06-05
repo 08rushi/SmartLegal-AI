@@ -28,6 +28,20 @@ const serviceCards = [
     to: '/property-hub'
   },
   {
+    key: 'business',
+    title: 'Business License Hub',
+    icon: '📊',
+    description: 'Business registrations',
+    to: '/business-hub'
+  },
+  {
+    key: 'tracker',
+    title: 'Service Tracker',
+    icon: '4D',
+    description: 'Checklists and reminders',
+    to: '/tracker'
+  },
+  {
     key: 'all-services',
     title: 'View All Services',
     icon: '→',
@@ -134,7 +148,7 @@ export default function Layout() {
                   type="button"
                   onClick={() => setServicesMenuOpen(!servicesMenuOpen)}
                   className={`rounded-full px-4 py-2 text-sm transition-all duration-200 flex items-center gap-1.5 ${
-                    servicesMenuOpen || location.pathname.includes('/legal-id') || location.pathname.includes('/property') || location.pathname === '/services'
+                    servicesMenuOpen || location.pathname.includes('/legal-id') || location.pathname.includes('/property') || location.pathname.includes('/business') || location.pathname === '/services' || location.pathname === '/tracker'
                       ? 'bg-white/10 text-[#f5c26b] shadow-[0_0_0_1px_rgba(245,194,107,0.15)]'
                       : 'text-slate-300 hover:bg-white/5 hover:text-white'
                   }`}
@@ -197,6 +211,13 @@ export default function Layout() {
                           className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-slate-300 transition hover:bg-white/8 hover:text-white"
                         >
                           <span>📂</span> My Documents
+                        </Link>
+                        <Link
+                          to="/tracker"
+                          onClick={handleNavClick}
+                          className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-slate-300 transition hover:bg-white/8 hover:text-white"
+                        >
+                          <span>4D</span> Service Tracker
                         </Link>
                         <Link
                           to="/upload"
@@ -298,9 +319,14 @@ export default function Layout() {
                 </div>
 
                 {token && user && (
-                  <Link to="/documents" onClick={handleNavClick} className="rounded-2xl px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition">
+                  <>
+                    <Link to="/tracker" onClick={handleNavClick} className="rounded-2xl px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition">
+                      4D Service Tracker
+                    </Link>
+                    <Link to="/documents" onClick={handleNavClick} className="rounded-2xl px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition">
                     📂 My Documents
-                  </Link>
+                    </Link>
+                  </>
                 )}
               </nav>
 
@@ -380,6 +406,8 @@ export default function Layout() {
                 ))}
                 <Link to="/legal-id" className="transition hover:text-[#f5c26b]">Legal ID Hub</Link>
                 <Link to="/property-hub" className="transition hover:text-[#f5c26b]">Property Hub</Link>
+                <Link to="/business-hub" className="transition hover:text-[#f5c26b]">Business License Hub</Link>
+                <Link to="/tracker" className="transition hover:text-[#f5c26b]">Service Tracker</Link>
                 <Link to="/documents" className="transition hover:text-[#f5c26b]">My Documents</Link>
               </div>
             </div>

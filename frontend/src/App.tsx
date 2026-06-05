@@ -14,11 +14,15 @@ import LegalIdHub from './pages/LegalIdHub'
 import LegalIdDetail from './pages/LegalIdDetail'
 import PropertyHub from './pages/PropertyHub'
 import PropertyDetail from './pages/PropertyDetail'
+import BusinessHub from './pages/BusinessHub'
+import BusinessDetail from './pages/BusinessDetail'
+import ServiceTracker from './pages/ServiceTracker'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import MyDocuments from './pages/MyDocuments'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
+import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
   const dispatch = useAppDispatch()
@@ -43,23 +47,83 @@ function App() {
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/" element={<Layout />}>
+          {/* Public routes */}
           <Route index element={<Home />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
-          <Route path="upload" element={<Upload />} />
-          <Route
-            path="analysis"
-            element={currentDocument ? <Navigate to={`/analysis/${currentDocument.id}`} replace /> : <Analysis />}
-          />
-          <Route path="analysis/:documentId" element={<Analysis />} />
-          <Route path="chat" element={<Chat />} />
+
+          {/* Public service hub routes (no auth required) */}
           <Route path="services" element={<ServicesHub />} />
           <Route path="legal-id" element={<LegalIdHub />} />
           <Route path="legal-id/:idType" element={<LegalIdDetail />} />
           <Route path="property-hub" element={<PropertyHub />} />
           <Route path="property-hub/:propertyType" element={<PropertyDetail />} />
-          <Route path="compare" element={<Compare />} />
-          <Route path="documents" element={<MyDocuments />} />
+          <Route path="business-hub" element={<BusinessHub />} />
+          <Route path="business-hub/:businessType" element={<BusinessDetail />} />
+
+          {/* Protected routes (requires auth) */}
+          <Route
+            path="upload"
+            element={
+              <ProtectedRoute>
+                <Upload />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="analysis"
+            element={
+              <ProtectedRoute>
+                {currentDocument ? (
+                  <Navigate to={`/analysis/${currentDocument.id}`} replace />
+                ) : (
+                  <Analysis />
+                )}
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="analysis/:documentId"
+            element={
+              <ProtectedRoute>
+                <Analysis />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="chat"
+            element={
+              <ProtectedRoute>
+                <Chat />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="compare"
+            element={
+              <ProtectedRoute>
+                <Compare />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="documents"
+            element={
+              <ProtectedRoute>
+                <MyDocuments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="tracker"
+            element={
+              <ProtectedRoute>
+                <ServiceTracker />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

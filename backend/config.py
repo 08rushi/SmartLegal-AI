@@ -1,17 +1,21 @@
 from pydantic_settings import BaseSettings
+from pydantic import Field
 from functools import lru_cache
+from typing import Optional
 
 
 class Settings(BaseSettings):
     app_name: str = "SmartLegal AI"
 
-    # AI
-    groq_api_key: str
+    # AI — Groq is primary, Gemini is optional fallback
+    groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
 
     # Auth
-    secret_key: str
+    secret_key: str = Field(default="", alias="SECRET_KEY")
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 10080  # 7 days
+    google_client_id: str = ""  # OAuth 2.0 Client ID from Google Cloud Console
 
     # Cloudinary
     cloudinary_cloud_name: str = ""
@@ -38,7 +42,9 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
         extra = "ignore"  # Ignore unknown fields in .env
+        case_sensitive = False  # Allow lowercase field names with UPPERCASE env vars
 
 
 @lru_cache
