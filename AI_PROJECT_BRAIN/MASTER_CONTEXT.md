@@ -2,7 +2,7 @@
 
 This file is the permanent senior-developer brain for SmartLegal-AI. Treat the live codebase as the source of truth. Treat PDFs, README, CLAUDE.md, AUTH_SETUP.md, and older notes as historical context that may be outdated.
 
-Last audited from live project files: 2026-05-14.
+Last audited from live project files: 2026-05-28.
 
 ## Project Identity
 
@@ -22,7 +22,7 @@ Product promise:
 Current stack:
 - Frontend: React 18, TypeScript, Vite, Redux Toolkit, React Router, Axios, Tailwind CSS.
 - Backend: FastAPI, Python, aiosqlite, SQLite, PyMuPDF, python-jose JWT, passlib bcrypt.
-- AI: Google Gemini via `google.generativeai`, model `gemini-2.0-flash`.
+- AI: Groq via `groq`, model `llama-3.3-70b-versatile`.
 - Upload storage: Cloudinary when configured, otherwise local temp files.
 - Cache: SQLite persistent analysis cache plus optional Redis L1 cache.
 - Monitoring: optional Sentry backend hooks.
@@ -31,7 +31,7 @@ Current stack:
 
 Important architecture reality:
 - This is no longer just a scaffold.
-- Auth, upload, analysis, deep linking, history, skeletons, PostHog hooks, Redis cache, Sentry hooks, and Indian-law prompt context already exist.
+- Auth, upload, analysis, deep linking, history, chat persistence, skeletons, PostHog hooks, Redis cache, Sentry hooks, and Indian-law prompt context already exist.
 - Security ownership boundaries are incomplete and must be fixed before scaling.
 
 ## Backend
@@ -55,11 +55,11 @@ Cross-cutting backend systems:
 - slowapi limiter is attached globally.
 
 Important backend files:
-- `backend/config.py`: pydantic settings. Includes `database_url`, Redis, Sentry, Cloudinary, auth, Gemini key.
+- `backend/config.py`: pydantic settings. Includes `database_url`, Redis, Sentry, Cloudinary, auth, and Groq key.
 - `backend/database.py`: hardcodes `DB_PATH = "smartlegal.db"` and does not actually use `DATABASE_URL`.
 - `backend/cache.py`: optional async Redis cache for analysis results.
 - `backend/limiter.py`: shared slowapi limiter keyed by client IP.
-- `backend/auth_google.py`: Google OAuth endpoint file exists, but is not mounted in `main.py`.
+- `backend/auth_google.py`: Google OAuth endpoint is mounted, but token audience/client ID validation still needs hardening.
 
 ## Frontend
 
@@ -181,10 +181,10 @@ Thunks/actions:
 - `clearChat`
 
 Reality:
-- User messages are stored only in frontend Redux.
-- Backend stores assistant messages only.
-- Frontend does not fetch backend chat history.
-- Messages are not automatically scoped/reset when changing documents.
+- User messages are added optimistically in frontend Redux.
+- Backend stores both user and assistant messages under the authenticated user.
+- Frontend fetches backend chat history for the active document.
+- Messages are scoped/reset when changing documents.
 
 ## Upload -> Analyze -> Chat Data Flow
 
@@ -198,7 +198,7 @@ Reality:
 6. Backend validates:
    - non-empty file
    - max 10 MB
-   - magic-byte type: PDF, JPEG, PNG, WebP
+   - magic-byte type: PDF
    - extension/content mismatch when extension is known
 7. Backend chooses user:
    - valid JWT -> user ID
@@ -219,7 +219,7 @@ Reality:
 8. Backend queues FastAPI `BackgroundTasks`.
 9. Background task writes `{"status": "processing"}` to SQLite.
 10. Background task extracts text using PyMuPDF.
-11. Background task calls Gemini through `analyze_legal_document()`.
+11. Background task calls Groq through `analyze_legal_document()`.
 12. Result gets `document_id`, `analyzed_at`, `status = "done"`.
 13. Result is saved to SQLite.
 14. Document `document_type` is updated.
@@ -235,19 +235,27 @@ Reality:
 5. Backend fetches document by ID.
 6. Backend reads file bytes.
 7. Backend extracts PDF text again.
-8. Backend calls Gemini Q&A prompt.
-9. Backend saves assistant response to `chat_messages`.
-10. Frontend appends assistant response.
+8. Backend stores the user message in `chat_messages`.
+9. Backend calls Groq Q&A prompt.
+10. Backend saves assistant response to `chat_messages`.
+11. Frontend appends assistant response.
+12. On chat open/refresh, frontend fetches stored chat history for the active document.
 
 ## AI Prompts
 
-AI service file: `backend/services/gemini_service.py`.
+Primary AI service file: `backend/services/groq_service.py`.
+
+Shared AI helper file: `backend/services/gemini_service.py`.
 
 Current model:
-- Provider: Google Gemini
-- Model: `gemini-2.0-flash`
+- Provider: Groq
+- Model: `llama-3.3-70b-versatile`
 - Temperature: 0.1
-- Max output tokens: 8192
+- Max output tokens: 4000 for chunk extraction, 2000 for summary, 1000 for chat.
+
+Important:
+- `gemini_service.py` remains because Groq reuses document type detection, law context, prompt builders, JSON extraction, and fallback summary helpers.
+- The Gemini SDK is optional at import time; missing `google-generativeai` no longer blocks backend import.
 
 Document templates:
 - `rental_agreement`
@@ -461,7 +469,7 @@ Planned:
 - Static FAQ/offline guidance for common document types.
 
 Current state:
-- Not implemented except current Hindi clause text from AI output and offline banner.
+- Not implemented except current Hindi clause text from AI output, offline banner, and browser-local service reminder notifications on `/tracker`.
 
 ### Phase 4 - Life Services Guidance
 
@@ -470,6 +478,12 @@ Planned:
 - Property Help Hub.
 - Business License Hub.
 - Progress tracker and reminders.
+
+Current state:
+- Legal ID, Property, and Business License hubs are implemented as guidance-first service hubs.
+- Each hub has authenticated application tracking and checklist persistence through its own backend router/table pair.
+- `/tracker` aggregates all three service application types and provides browser-local reminder dates/notes.
+- Browser notifications are opt-in and checked while the app is open; full PWA/service-worker notification scheduling remains future work.
 
 Important legal/product caution:
 - Provide guidance and official links first.

@@ -15,11 +15,14 @@ Run this checklist before every release. Do not ship if any critical item fails.
   - Polling reaches `done`.
   - Analysis page renders summary and clauses.
   - `/analysis/:documentId` works after refresh.
+  - Failed analysis can be retried with forced re-analysis.
 
 - [ ] Chat works
   - Chat opens for the current document.
   - User question sends successfully.
   - Assistant answer returns and renders.
+  - Both user and assistant messages persist after refresh.
+  - Chat history loads for the active document.
   - Chat does not show stale messages from another document.
 
 - [ ] Auth works
@@ -42,6 +45,7 @@ Run this checklist before every release. Do not ship if any critical item fails.
   - Corrupt PDF fails with safe error.
   - Scanned/textless PDF fails with safe error or supported OCR path.
   - Image upload behavior matches actual backend capability.
+  - UI copy matches PDF-only upload support unless OCR/image support is implemented.
 
 - [ ] AI schema valid
   - Analysis result includes `summary`.
@@ -63,6 +67,20 @@ Run this checklist before every release. Do not ship if any critical item fails.
   - Refresh keeps history available.
   - Opening a previous document recovers analysis or starts analysis safely.
   - Other users' documents are not shown.
+
+- [ ] Life services hubs work
+  - `/legal-id`, `/property-hub`, and `/business-hub` load public guidance cards.
+  - Each detail page loads services, FAQs, legal protections, and official links.
+  - Logged-in users can create Legal ID, Property, and Business application trackers.
+  - Checklists load and save for each service application type.
+  - User A cannot access or update User B service applications/checklists.
+
+- [ ] Service Tracker works
+  - `/tracker` requires login and shows a clear sign-in state when logged out.
+  - Logged-in users see Legal ID, Property, and Business applications in one list.
+  - Tracker counts active, completed, and reminder items correctly.
+  - Reminder date and note persist after refresh in the same browser.
+  - Notification permission flow handles granted, denied, and unsupported browsers cleanly.
 
 - [ ] No placeholder routes exposed
   - `/compare` is either production-ready or clearly hidden/renamed.

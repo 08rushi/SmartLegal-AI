@@ -2,7 +2,20 @@
 
 Purpose: track everything that has changed since the original PDFs/documentation. Live code is the source of truth; historical docs are baseline only.
 
-Last updated from audit: 2026-05-14.
+Last updated from audit: 2026-05-28.
+
+## 2026-05-28 Current Reality Override
+
+Live code has moved beyond several older notes below:
+- Active AI analysis/chat path is Groq through `backend/services/groq_service.py`.
+- `gemini_service.py` remains for shared helper functions and optional legacy Gemini support; missing `google-generativeai` no longer blocks backend import.
+- Backend upload accepts PDF only by magic bytes.
+- Frontend Home/Upload copy now advertises PDF-only upload support.
+- `GET /api/v1/upload/{document_id}` now requires authentication and verifies document ownership.
+- Analysis supports `force_reanalyze`, and the UI exposes `Retry Analysis` for stale failed rows.
+- Chat now stores both user and assistant messages and loads history by active document.
+- Backend requirements include `email-validator==2.1.1`.
+- Backend import/compile and frontend production build passed on 2026-05-28.
 
 ## Baseline
 
@@ -170,12 +183,16 @@ Phase 3 pending:
 - PWA install/offline queue.
 - Static FAQs/offline guidance.
 
+Phase 4 current:
+- Legal ID Services Hub implemented with guidance, applications, and checklists.
+- Property Help Hub implemented with guidance, applications, and checklists.
+- Business License Hub implemented with guidance, applications, and checklists.
+- Progress tracker added at `/tracker` to aggregate Legal ID, Property, and Business applications.
+- Browser-local reminders and opt-in notifications added for tracked applications while the app is open.
+
 Phase 4 pending:
-- Legal ID Services Hub.
-- Property Help Hub.
-- Business License Hub.
-- Progress tracker.
-- Reminders and PWA notifications.
+- Persistent service-worker/PWA notification scheduling.
+- Backend-persisted reminders if reminders must follow users across browsers/devices.
 - Clear legal/authorization model for government service guidance.
 
 Phase 5+ pending:

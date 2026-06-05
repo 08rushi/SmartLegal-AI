@@ -27,7 +27,7 @@ SOURCE OF TRUTH:
 Historical PDFs = baseline only.
 
 Last Updated:
-2026-05-15
+2026-05-28
 
 ==================================================
 STATUS LEGEND
@@ -105,17 +105,20 @@ Core Tasks:
 - [~] Email/password auth works
 - [~] JWT persistence works
 - [~] Google frontend exists
-- [ ] Mount + verify Google OAuth backend
+- [~] Mount + verify Google OAuth backend
 OR
 - [ ] Remove/disable Google Sign-In until production-ready
 
+Current note:
+- Google OAuth backend route is mounted, but token audience/client ID validation still needs hardening before production.
+
 ## 1B. Ownership Enforcement
-- [ ] Secure `GET /upload/{document_id}`
-- [ ] Secure `POST /analyze`
-- [ ] Secure `GET /analyze/{document_id}/status`
-- [ ] Secure `DELETE /analyze/{document_id}/cache`
-- [ ] Secure `POST /chat`
-- [ ] Secure `GET /chat/{document_id}/history`
+- [x] Secure `GET /upload/{document_id}`
+- [x] Secure `POST /analyze`
+- [x] Secure `GET /analyze/{document_id}/status`
+- [x] Secure `DELETE /analyze/{document_id}/cache`
+- [x] Secure `POST /chat`
+- [x] Secure `GET /chat/{document_id}/history`
 
 ## 1C. Anonymous Policy
 - [ ] Decide:
@@ -152,12 +155,16 @@ Why:
 Current project may imply image support while analysis is PDF-centric.
 
 ## 2A. File Truth Alignment
-- [ ] Restrict uploads to PDF only
+- [x] Restrict uploads to PDF only
 OR
 - [ ] Build OCR/image pipeline
 
+Current note:
+- Backend accepts PDF only, and frontend upload/home copy has been aligned to PDF-only support.
+
 ## 2B. PDF Correctness
-- [ ] PyMuPDF parse verification
+- [x] PyMuPDF dependency installed in rebuilt backend venv
+- [~] PyMuPDF parse verification
 - [ ] Scanned PDF error clarity
 - [ ] Empty PDF detection
 - [ ] Corrupt PDF safe failure
@@ -167,6 +174,7 @@ OR
 - [ ] Frontend TypeScript parity
 - [ ] Cached JSON compatibility
 - [ ] Prompt regression fixtures
+- [x] Frontend force-reanalyze retry path bypasses stale failed SQLite analysis rows
 
 Definition of Done:
 - No fake image promise
@@ -186,10 +194,10 @@ Goal:
 Complete real user product loops.
 
 ## 3A. Chat
-- [ ] Fetch chat history
-- [ ] Store user messages backend-side
-- [ ] Scope chat by document
-- [ ] Clear stale chat bleed
+- [x] Fetch chat history
+- [x] Store user messages backend-side
+- [x] Scope chat by document
+- [x] Clear stale chat bleed
 
 ## 3B. Documents
 - [ ] My Documents reliability
@@ -430,40 +438,45 @@ Flat platform convenience fees only
 4A — LEGAL ID HUB
 =============================================
 
-- [ ] Aadhaar
-- [ ] PAN
-- [ ] DL
-- [ ] Passport
-- [ ] Voter
-- [ ] Certificates
+- [x] Aadhaar
+- [x] PAN
+- [x] DL
+- [x] Passport
+- [x] Voter
+- [x] Certificates
 
 =============================================
 4B — PROPERTY HUB
 =============================================
 
-- [ ] 7/12
-- [ ] Ferfar
-- [ ] Index II
-- [ ] Registry
-- [ ] Mutation
+- [x] 7/12
+- [x] Ferfar
+- [x] Index II
+- [x] Registry
+- [x] Mutation
 
 =============================================
 4C — BUSINESS LICENSE HUB
 =============================================
 
-- [ ] GST
-- [ ] FSSAI
-- [ ] MSME
-- [ ] Shop Act
-- [ ] IEC
+- [x] GST
+- [x] FSSAI
+- [x] MSME
+- [x] Shop Act
+- [x] IEC
 
 =============================================
 4D — TRACKER
 =============================================
 
-- [ ] Checklists
-- [ ] Reminders
-- [ ] PWA notifications
+- [x] Checklists
+- [~] Reminders
+- [~] PWA notifications
+
+Current note:
+- Service applications and checklists exist across Legal ID, Property, and Business hubs.
+- `/tracker` now aggregates service applications and supports browser-local reminder times/notes.
+- Browser notifications are opt-in and fire while the web app is open; persistent service-worker notification scheduling is still pending.
 
 ==================================================
 PHASE 5 — BOTS, COMMUNITY & BUSINESS SCALE

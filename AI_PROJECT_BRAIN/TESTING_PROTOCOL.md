@@ -99,11 +99,35 @@ Goal: ensure asynchronous analysis contract remains stable.
 Cases:
 - POST `/analyze` on new document returns `{ status: "processing", document_id }` or cached `{ analysis }`.
 - Frontend polls `/analyze/{documentId}/status` every 3 seconds.
+
+## 5. Life Services and Tracker Tests
+
+Goal: ensure Legal ID, Property, Business License, and 4D tracker flows remain usable and ownership-safe.
+
+Public guidance cases:
+- Open `/services` and confirm Legal ID, Property, Business License, and Service Tracker cards are visible.
+- Open `/legal-id`, `/property-hub`, and `/business-hub`; confirm guidance cards load from backend public endpoints.
+- Open one detail page from each hub and confirm services, FAQs, legal protections, disclaimers, and official links render.
+
+Authenticated tracker cases:
+- Login as User A.
+- Create one application from Legal ID, one from Property, and one from Business.
+- Confirm each application appears on its source hub detail page.
+- Open each checklist, toggle at least one item, save, refresh, and confirm the saved state remains.
+- Open `/tracker` and confirm all three applications appear in one list with correct statuses and counts.
+- Set a reminder date and note on `/tracker`, refresh, and confirm the reminder persists in the same browser.
+- Enable browser notifications where supported and confirm due reminders produce a notification while the app is open.
+
+Ownership cases:
+- Login as User B.
+- Confirm User B cannot list, fetch, update, delete, or save checklist items for User A service applications.
+- Expected responses: missing token `401`; wrong owner consistent `403` or `404`.
 - Status eventually returns `{ status: "done", analysis }`.
 - Analysis result contains `document_id` and `analyzed_at`.
 - UI shows skeleton while processing.
 - UI renders result after completion.
 - Failed analysis returns clean error state.
+- Retry Analysis sends `force_reanalyze = true` and bypasses stale failed SQLite rows.
 - Polling timeout shows user-safe message.
 
 Edge cases:
@@ -147,12 +171,12 @@ Cases:
 - Send question; user message appears immediately.
 - Assistant response appears and is stored.
 - Switch to Document B; old Document A chat must not appear as current chat unless intentionally loaded by document.
-- Refresh page and verify expected chat history behavior.
+- Refresh page and verify stored chat history loads for the active document.
 - User A cannot chat against User B's document.
 - User A cannot fetch User B's chat history.
 
 Backend persistence cases:
-- Store both user and assistant messages, or document explicitly that only assistant is stored.
+- Store both user and assistant messages.
 - Fetch history ordered by timestamp.
 - Chat history must be scoped by `document_id` and owner.
 

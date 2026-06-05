@@ -1,0 +1,211 @@
+[
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 343,
+    "severity": "HIGH",
+    "category": "State Management - Redux Thunk Issue",
+    "title": "Checklist items not synced with fetched data",
+    "summary": "When fetchChecklist completes, it updates state.currentChecklist in Redux, but the component uses local state checklistItems which is never populated from the Redux store.",
+    "code_context": "const checklistItems = state.currentChecklist (line 30 local state)\nconst currentChecklist = useAppSelector(...) (line 17 Redux state)\nsetChecklistItems(updated) (line 80) modifies local state only\nThe local state is initialized as empty: const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([])",
+    "failure_scenario": "User clicks 'View Checklist' -> fetchChecklist thunk dispatches and Redux state updates -> component renders but checklistItems is still [] -> checklist appears empty even though Redux has data",
+    "impact": "Users see no checklist items to complete, breaking the entire tracker feature"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 70,
+    "severity": "HIGH",
+    "category": "API Error Handling",
+    "title": "fetchChecklist dispatch not awaited properly for Redux state update",
+    "summary": "fetchChecklist is dispatched but the component doesn't wait for the Redux state to update before trying to use checklist data. Also, the function doesn't check if fetchChecklist actually succeeded.",
+    "code_context": "await dispatch(fetchChecklist(appId)) (line 73)\nImmediately after, setActiveTab('checklist') (line 72)\nNo check for resultAction.fulfilled.match() like in handleCreateApplication",
+    "failure_scenario": "User clicks 'View Checklist', dispatch happens, but if there's a network error or invalid app_id, no error is shown and checklist tab appears empty",
+    "impact": "Silent failures - user doesn't know if the API call failed or the data is just empty"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 83,
+    "severity": "HIGH",
+    "category": "State Management - Missing Error Display",
+    "title": "saveChecklist error state not shown to user",
+    "summary": "saveChecklist thunk rejection updates Redux error state, but LegalIdDetail never displays errors from saveChecklist. The error banner on line 55 only shows when error && !currentGuidance, not during save operations.",
+    "code_context": "handleSaveChecklist calls dispatch(saveChecklist(...)) (line 87-94)\nNo check for resultAction.fulfilled or .rejected\nError state exists in Redux but UI never displays it",
+    "failure_scenario": "User saves checklist, API returns 403 Forbidden due to ownership check, Redux error updates, but UI shows 'Save Checklist' button as if nothing happened - user has no idea the save failed",
+    "impact": "Data loss perception - user thinks changes are saved when they're not"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 48,
+    "severity": "MEDIUM",
+    "category": "Type Safety / Validation",
+    "title": "selectedService used in API call without validation",
+    "summary": "handleCreateApplication only checks if selectedService is falsy, but doesn't validate that the service actually exists in guidance.services array.",
+    "code_context": "if (!selectedService) return (line 49)\nBut selectedService could be any string typed by user (if validation bypass)\nNo validation against guidance.services items",
+    "failure_scenario": "If frontend form validation is removed or bypassed (via devtools), user can submit arbitrary service names, causing backend 400 error with no frontend error handling shown to user",
+    "impact": "Backend returns 400 detail 'Service not found', but UI has no error display for createApplication failures"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 59,
+    "severity": "MEDIUM",
+    "category": "State Management - Async Operation Tracking",
+    "title": "createApplication thunk success doesn't clear trackerLoading reliably",
+    "summary": "If createApplication is rejected (line 64), trackerLoading is only cleared in the finally block. However, no success toast/alert is shown, and the modal closes without confirming to user that creation succeeded.",
+    "code_context": "if (createApplication.fulfilled.match(resultAction)) {\n  setShowTrackerModal(false) (line 60)\n}\nfinally {\n  setTrackerLoading(false) (line 66)\n}\nNo success feedback to user",
+    "failure_scenario": "User creates application, modal closes, user doesn't know if it actually succeeded or if modal just closed due to error. Later they see duplicate application entry.",
+    "impact": "Poor UX - unclear operation outcome"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdHub.tsx",
+    "line": 110,
+    "severity": "MEDIUM",
+    "category": "Type Safety / Unsafe Cast",
+    "title": "Unsafe status color mapping with type assertion",
+    "summary": "statusColors is defined but the mapping could fail silently if app.status has an unexpected value. The as keyof typeof statusColors assertion masks type errors.",
+    "code_context": "const statusColors = { in_progress, submitted, received, completed } (lines 111-116)\nconst statusBgColor = statusColors[app.status as keyof typeof statusColors] (line 117)\nNo null check for statusBgColor if app.status is invalid",
+    "failure_scenario": "Backend returns app.status = 'unknown' (due to data corruption or API bug), statusBgColor becomes undefined, no CSS class applied, status badge has no styling",
+    "impact": "Visual bug - status badge renders without styling, confusing users"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdHub.tsx",
+    "line": 98,
+    "severity": "MEDIUM",
+    "category": "API Error Handling",
+    "title": "No error display for fetchApplications failure",
+    "summary": "fetchApplications can reject and update state.error, but LegalIdHub only renders error if isLoading && error appears above idTypes grid (line 54). The My Applications section (line 93) never shows error state - it will just appear empty.",
+    "code_context": "Error display (lines 54-57) only affects idTypes grid\nMy Applications section (lines 93-159) has no error handling\nIf fetchApplications fails, applications = [] and user sees 'You haven't tracked any applications yet' with no error message",
+    "failure_scenario": "Network error when fetching applications, Redux error updates, but user sees empty state with CTA to start tracking instead of error message",
+    "impact": "User confusion - they think there are no applications when API failed"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 346,
+    "severity": "HIGH",
+    "category": "UI Correctness / List Rendering",
+    "title": "Checklist items use non-unique keys if item.id is missing",
+    "summary": "Checklist items are rendered with key={item.id} but if item.id is undefined or null, React will render all items with key=undefined, causing re-render bugs.",
+    "code_context": "checklistItems.map((item) => <label key={item.id}>) (line 346-348)",
+    "failure_scenario": "Backend returns ChecklistItem without id field (schema validation bypassed), all checkboxes share same key=undefined, toggling one checkbox toggles all; React warns about duplicate keys",
+    "impact": "Critical rendering bug - checkboxes malfunction, user can't track which items are done"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 272,
+    "severity": "LOW",
+    "category": "UI Correctness / List Rendering",
+    "title": "Services rendered with array index key (anti-pattern)",
+    "summary": "Services grid uses key={idx} instead of unique identifier. While services are static, this is poor practice and breaks React key semantics.",
+    "code_context": "{guidance.services.map((service, idx) => (\n  <div key={idx} ...>\n})",
+    "failure_scenario": "If guidance data is mutated (service list reordered), React may reuse DOM nodes incorrectly, causing state to leak between cards",
+    "impact": "Potential visual bugs if services list is reordered; violates React best practices"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 391,
+    "severity": "LOW",
+    "category": "UI Correctness / List Rendering",
+    "title": "FAQs rendered with array index key (anti-pattern)",
+    "summary": "FAQs grid uses key={idx} instead of using FAQ content hash or unique identifier.",
+    "code_context": "{guidance.faqs.map((faq, idx) => (\n  <details key={idx} ...>\n})",
+    "failure_scenario": "If FAQs are reordered, React may reuse DOM nodes, causing open/closed state to apply to wrong FAQ",
+    "impact": "Details state (open/closed) may leak between FAQs if list is reordered"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 295,
+    "severity": "LOW",
+    "category": "UI Correctness / List Rendering",
+    "title": "Documents required rendered with array index key",
+    "summary": "Document list uses key={idx} - fine for static data but violates React patterns.",
+    "code_context": "{service.documents_required.map((doc, idx) => (\n  <li key={idx} className=\"text-sm text-white/80 flex gap-2\">\n})",
+    "failure_scenario": "Low risk since documents_required is static, but if dynamic in future, reordering breaks React semantics",
+    "impact": "Minor - unlikely to cause issues with static data"
+  },
+  {
+    "file": "frontend/src/store/legalIdSlice.ts",
+    "line": 13,
+    "severity": "MEDIUM",
+    "category": "Type Safety / Error Casting",
+    "title": "Unsafe error object cast in fetchIdTypes",
+    "summary": "Error handling casts err as { response?: { data?: { detail?: string } } } but if error structure differs (e.g., timeout, network error), response is undefined and error message defaults to generic string.",
+    "code_context": "const error = err as { response?: { data?: { detail?: string } } }\nreturn rejectWithValue(error.response?.data?.detail || 'Failed to load ID types')",
+    "failure_scenario": "Network timeout occurs, error.response is undefined, generic error shown. User sees 'Failed to load ID types' with no context (timeout vs 500 error)",
+    "impact": "Poor error messaging - users can't distinguish between network issues and server errors"
+  },
+  {
+    "file": "frontend/src/store/legalIdSlice.ts",
+    "line": 37,
+    "severity": "MEDIUM",
+    "category": "Type Safety / Validation",
+    "title": "No validation that API response matches IdApplication type",
+    "summary": "createApplication thunk doesn't validate that response.data is actually an IdApplication. If backend returns invalid data, no error is thrown.",
+    "code_context": "const response = await apiClient.post<IdApplication>('/legal-id/applications', data)\nreturn response.data (line 38)\nNo runtime validation - relies on TypeScript <IdApplication> cast which is erased at runtime",
+    "failure_scenario": "Backend returns { id: null, id_type: undefined, status: 'invalid' } (due to backend bug), app silently stores invalid data in Redux, later operations crash",
+    "impact": "Silent data corruption - invalid data stored in Redux without warning"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 76,
+    "severity": "HIGH",
+    "category": "State Management - Sync Issue",
+    "title": "Local checklistItems never initialized from Redux currentChecklist",
+    "summary": "Even though fetchChecklist updates Redux state.currentChecklist, the component local state checklistItems is never populated. User sees empty checklist.",
+    "code_context": "const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]) (line 30)\nNo useEffect to sync: setChecklistItems(currentChecklist) when fetchChecklist completes",
+    "failure_scenario": "User views checklist, Redux updates with 5 items, but component renders 0 checklistItems, so no checkboxes appear. User must refresh page to see items (if they know to do that).",
+    "impact": "Critical UX - entire checklist feature broken"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 46,
+    "severity": "MEDIUM",
+    "category": "Navigation & Routing - Race Condition",
+    "title": "userAppsForThisId computed before idType or applications updated",
+    "summary": "userAppsForThisId is computed on every render, but if idType changes or applications fetch completes with delay, it may be stale or filter empty.",
+    "code_context": "const userAppsForThisId = applications.filter((app) => app.id_type === idType) (line 46)\nIf dispatch(fetchApplications()) completes asynchronously, first renders may show empty array",
+    "failure_scenario": "User navigates to /legal-id/aadhaar, component mounts, fetchApplications dispatched, but filter runs before async thunk completes, so userAppsForThisId is empty for 1-2 seconds",
+    "impact": "Minor visual jank - applications flicker in/out"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 209,
+    "severity": "MEDIUM",
+    "category": "Type Safety - Implicit Conversion",
+    "title": "app.id passed to handleViewChecklist but function parameter expects appId: string",
+    "summary": "app.id is typed as string in IdApplication, but if API returns app.id = null or undefined, no runtime error occurs until fetch attempts.",
+    "code_context": "onClick={() => handleViewChecklist(app.id, app.service)} (line 209)\nhandleViewChecklist function doesn't validate appId before dispatch(fetchChecklist(appId))",
+    "failure_scenario": "Backend returns { id: null }, user clicks 'View Checklist', fetchChecklist(null) dispatches to /applications/null/checklist which returns 404, error updates Redux but UI doesn't display it",
+    "impact": "Silent API call to wrong endpoint, user sees no feedback"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 127,
+    "severity": "LOW",
+    "category": "Code Quality - Duplication",
+    "title": "Status formatting logic duplicated in 3 places",
+    "summary": "app.status formatting appears at lines 129-132, 139-140, 205-206, 477-478. Should be extracted to utility function.",
+    "code_context": "app.status.replace('_', ' ').split(' ').map(...).join(' ') repeated 4 times\nStatusColor mapping also duplicated (lines 111-116, 188-193, 461-466)",
+    "failure_scenario": "If status enum changes, all 4 locations must be updated. Missing one causes inconsistency.",
+    "impact": "Maintainability issue - high refactoring cost"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdDetail.tsx",
+    "line": 14,
+    "severity": "MEDIUM",
+    "category": "Navigation & Routing - Missing Validation",
+    "title": "idType from useParams not validated before API calls",
+    "summary": "idType is extracted from URL params but never validated. User can navigate to /legal-id/invalid-type and component calls fetchIdGuidance('invalid-type').",
+    "code_context": "const { idType } = useParams<{ idType: string }>() (line 14)\nNo validation that idType is in allowed list\ndispatch(fetchIdGuidance(idType)) (line 40) proceeds anyway",
+    "failure_scenario": "User manually types /legal-id/xyz in URL, component fetches guidance for 'xyz', backend returns 404, error shown is 'ID type 'xyz' not found' - this works but backend is doing validation that frontend should do",
+    "impact": "Minor - backend validation catches it, but frontend could fail faster"
+  },
+  {
+    "file": "frontend/src/pages/LegalIdHub.tsx",
+    "line": 60,
+    "severity": "LOW",
+    "category": "UI Correctness / List Rendering",
+    "title": "ID type cards use key={idType.key} which is string, not unique ID",
+    "summary": "While idType.key should be unique, it's not guaranteed to be a valid React key if it contains special chars or is user-controlled.",
+    "code_context": "{idTypes.map((idType) => (\n  <div key={idType.key} ...>\n})",
+    "failure_scenario": "If idType.key = 'aadhaar/pan' (contains /), React may warn. Very edge-casey.",
+    "impact": "Minimal - unlikely idType.key would be invalid"
+  }
+]
