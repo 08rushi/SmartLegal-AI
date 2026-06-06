@@ -40,11 +40,15 @@ class TokenResponse(BaseModel):
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    # Bcrypt has a 72-byte limit - truncate to be safe
+    truncated = password[:72]
+    return pwd_context.hash(truncated)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    # Bcrypt has a 72-byte limit - truncate to match hashing behavior
+    truncated = plain[:72]
+    return pwd_context.verify(truncated, hashed)
 
 
 def create_access_token(user_id: str) -> str:
