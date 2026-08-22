@@ -55,7 +55,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="content-wrap py-8 sm:py-10">
+    <div className="content-wrap py-5 sm:py-6">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="section-card h-fit rounded-[30px] p-5">
           <p className="text-sm text-slate-500">SmartLegal AI</p>

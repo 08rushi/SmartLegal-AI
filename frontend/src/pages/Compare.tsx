@@ -18,7 +18,7 @@ const articles = [
 
 export default function Compare() {
   return (
-    <div className="content-wrap py-8 sm:py-10">
+    <div className="content-wrap py-5 sm:py-6">
       <div className="section-card mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

@@ -64,7 +64,7 @@ export default function MyDocuments() {
   if (!token) return null
 
   return (
-    <div className="content-wrap py-8 sm:py-10">
+    <div className="content-wrap py-5 sm:py-6">
       <div className="mx-auto max-w-7xl">
 
         {/* Header */}

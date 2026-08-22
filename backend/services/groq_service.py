@@ -1,8 +1,9 @@
 """
-Groq AI service fallback for PDF text analysis.
+Groq AI service for PDF text analysis.
 
-Provider: Groq (llama-3.3-70b-versatile)
-Text-only: No image support. Used as fallback when Gemini is rate-limited.
+Provider: Groq — the only LLM provider used at runtime. The model is read from
+settings.groq_model (env GROQ_MODEL, default "openai/gpt-oss-120b").
+Text-only: No image support.
 """
 
 import json
@@ -53,7 +54,7 @@ async def _call_groq(prompt: str, max_tokens: int = 4000) -> str:
     def _sync_call():
         client = _get_groq_client()
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=settings.groq_model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=max_tokens,
             temperature=0.1,

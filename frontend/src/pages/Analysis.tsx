@@ -14,7 +14,7 @@ const sidebarItems = ['Overview', 'Key Points', 'All Clauses', 'Risk Warnings', 
 
 function AnalysisSkeleton() {
   return (
-    <div className="content-wrap py-10">
+    <div className="content-wrap py-6">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="section-card rounded-[30px] p-5">
           <div className="skeleton-block h-4 w-28 rounded-full" />
@@ -41,7 +41,7 @@ function AnalysisSkeleton() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {[1, 2, 3, 4].map((item) => (
                 <div key={item} className="metric-card rounded-[22px] p-4">
                   <div className="skeleton-block h-10 w-16 rounded-2xl" />
@@ -50,7 +50,7 @@ function AnalysisSkeleton() {
               ))}
             </div>
 
-            <div className="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="mt-5 grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
               <div className="info-card rounded-[24px] p-5">
                 <div className="skeleton-block h-4 w-24 rounded-full" />
                 <div className="mt-4 space-y-3">
@@ -186,8 +186,8 @@ export default function Analysis() {
 
   if (error) {
     return (
-      <div className="content-wrap py-10">
-        <div className="section-card mx-auto max-w-3xl rounded-[32px] px-6 py-14 text-center">
+      <div className="content-wrap py-6">
+        <div className="section-card mx-auto max-w-3xl rounded-[32px] px-6 py-9 text-center">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] border border-[#fb7185]/20 bg-[#fb7185]/10 text-3xl text-[#fecdd3]">
             !
           </div>
@@ -219,17 +219,13 @@ export default function Analysis() {
 
   const { summary, clauses } = result
   const filteredClauses = filter === 'all' ? clauses : clauses.filter((c) => c.risk_level === filter)
-  const highRiskClauses: string[] = (summary as typeof summary & { high_risk_clauses?: string[] }).high_risk_clauses || []
-  const beneficialClauses: string[] = (summary as typeof summary & { beneficial_clauses?: string[] }).beneficial_clauses || []
-  const yourObligations: string[] =
-    (summary as typeof summary & { your_obligations?: string[]; tenant_obligations?: string[] }).your_obligations ||
-    (summary as typeof summary & { tenant_obligations?: string[] }).tenant_obligations || []
-  const otherPartyRights: string[] =
-    (summary as typeof summary & { other_party_rights?: string[]; landlord_rights?: string[] }).other_party_rights ||
-    (summary as typeof summary & { landlord_rights?: string[] }).landlord_rights || []
+  const highRiskClauses: string[] = summary.high_risk_clauses || []
+  const beneficialClauses: string[] = summary.beneficial_clauses || []
+  const yourObligations: string[] = summary.your_obligations || []
+  const otherPartyRights: string[] = summary.other_party_rights || []
 
   return (
-    <div className="content-wrap py-8 sm:py-10">
+    <div className="content-wrap py-5 sm:py-6">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="section-card h-fit rounded-[30px] p-5">
           <div className="mb-6">
@@ -280,12 +276,12 @@ export default function Analysis() {
         </aside>
 
         <div className="space-y-6">
-          <section ref={overviewRef} className="section-card scroll-mt-28 rounded-[30px] p-5 sm:p-7">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <section ref={overviewRef} className="section-card scroll-mt-28 rounded-[30px] p-5 sm:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-sm text-slate-500">Document: {currentDoc?.filename || 'Legal Agreement.pdf'}</p>
-                <h2 className="mt-2 text-3xl font-semibold text-white">Analysis Overview</h2>
-                <p className="mt-2 text-sm leading-7 text-slate-400">
+                <h2 className="mt-1 text-2xl font-semibold text-white">Analysis Overview</h2>
+                <p className="mt-1.5 text-sm leading-6 text-slate-400">
                   Review risk counts, core obligations, and your contract summary in one structured dashboard.
                 </p>
               </div>
@@ -299,9 +295,9 @@ export default function Analysis() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <div className="metric-card rounded-[22px] p-4">
-                <p className="text-4xl font-semibold text-white">{summary.total_clauses}</p>
+                <p className="text-3xl font-semibold text-white">{summary.total_clauses}</p>
                 <p className="mt-1 text-sm text-slate-400">Total clauses</p>
               </div>
               <button
@@ -309,13 +305,11 @@ export default function Analysis() {
                 onClick={() => {
                   setFilter('high')
                   setActiveTab('clauses')
-                  scrollToSection('overview')
-                  // scrollToSection('all-clauses')
-                    
+                  scrollToSection('all-clauses')
                 }}
                 className="metric-card rounded-[22px] p-4 text-left transition hover:border-[#fb7185]/25"
               >
-                <p className="text-4xl font-semibold text-[#fb7185]">{summary.high_risk_count}</p>
+                <p className="text-3xl font-semibold text-[#fb7185]">{summary.high_risk_count}</p>
                 <p className="mt-1 text-sm text-slate-400">High risk items</p>
               </button>
               <button
@@ -326,16 +320,16 @@ export default function Analysis() {
                 }}
                 className="metric-card rounded-[22px] p-4 text-left transition hover:border-[#f5c26b]/25"
               >
-                <p className="text-4xl font-semibold text-[#f5c26b]">{summary.medium_risk_count}</p>
+                <p className="text-3xl font-semibold text-[#f5c26b]">{summary.medium_risk_count}</p>
                 <p className="mt-1 text-sm text-slate-400">Medium risk items</p>
               </button>
               <div className="metric-card rounded-[22px] p-4">
                 <RiskBadge level={summary.overall_risk} />
-                <p className="mt-4 text-sm leading-7 text-slate-400">Overall contract risk profile</p>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Overall contract risk profile</p>
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="mt-5 grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
               <div className="info-card rounded-[24px] p-5">
                 <p className="text-sm font-medium text-white">AI Summary</p>
                 <p className="mt-3 text-sm leading-7 text-slate-300">{summary.risk_summary}</p>

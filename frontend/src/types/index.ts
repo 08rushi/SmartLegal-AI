@@ -51,6 +51,9 @@ export interface Clause {
   risk_score: number        // 1–10
   risk_reason: string       // why it's risky
   clause_type: string       // e.g. "Termination", "Rent", "Notice Period"
+  clause_number?: string
+  page_number?: number
+  beneficial_to_user?: boolean
 }
 
 export interface DocumentSummary {
@@ -63,6 +66,10 @@ export interface DocumentSummary {
   high_risk_count: number
   medium_risk_count: number
   low_risk_count: number
+  high_risk_clauses?: string[]
+  beneficial_clauses?: string[]
+  your_obligations?: string[]
+  other_party_rights?: string[]
 }
 
 export interface AnalysisResult {

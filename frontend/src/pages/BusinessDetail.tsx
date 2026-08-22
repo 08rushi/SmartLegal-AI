@@ -9,6 +9,7 @@ import {
   saveBusinessChecklist,
 } from '../store/businessSlice'
 import type { BusinessGuidance, ChecklistItem } from '../types'
+import ServiceArt from '../components/ServiceArt'
 
 export default function BusinessDetail() {
   const { businessType } = useParams<{ businessType: string }>()
@@ -111,10 +112,12 @@ export default function BusinessDetail() {
 
   if (isLoading && !currentGuidance) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto" />
-          <p className="mt-4 text-white/40">Loading details...</p>
+      <div className="content-wrap py-5 sm:py-6">
+        <div className="section-card mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
+          <div className="text-center py-16">
+            <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto" />
+            <p className="mt-4 text-white/40">Loading details...</p>
+          </div>
         </div>
       </div>
     )
@@ -122,11 +125,11 @@ export default function BusinessDetail() {
 
   if (error && !currentGuidance) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800">
-        <div className="content-wrap py-12">
+      <div className="content-wrap py-5 sm:py-6">
+        <div className="section-card mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
           <button
             onClick={() => navigate('/business-hub')}
-            className="text-blue-400 hover:text-blue-300 mb-6"
+            className="inline-block text-blue-400 hover:text-blue-300 mb-6 text-sm font-medium"
           >
             ← Back to Hub
           </button>
@@ -140,11 +143,11 @@ export default function BusinessDetail() {
 
   if (!currentGuidance) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800">
-        <div className="content-wrap py-12">
+      <div className="content-wrap py-5 sm:py-6">
+        <div className="section-card mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
           <button
             onClick={() => navigate('/business-hub')}
-            className="text-blue-400 hover:text-blue-300 mb-6"
+            className="inline-block text-blue-400 hover:text-blue-300 mb-6 text-sm font-medium"
           >
             ← Back to Hub
           </button>
@@ -157,24 +160,25 @@ export default function BusinessDetail() {
   const guidance: BusinessGuidance = currentGuidance
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800">
-      {/* ─ Back Button ─ */}
-      <div className="content-wrap border-b border-white/10 py-4">
+    <div className="content-wrap py-5 sm:py-6">
+      <div className="section-card mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
+        {/* ─ Back Button ─ */}
         <button
           onClick={() => navigate('/business-hub')}
-          className="text-blue-400 hover:text-blue-300 transition-colors text-sm font-medium"
+          className="inline-block text-blue-400 hover:text-blue-300 transition-colors text-sm font-medium mb-6"
         >
           ← Back to Business License Hub
         </button>
-      </div>
 
-      {/* ─ Main Layout: Sidebar + Content ─ */}
-      <div className="xl:grid xl:grid-cols-[260px_minmax(0,1fr)] gap-8 content-wrap py-12">
+        {/* ─ Main Layout: Sidebar + Content ─ */}
+        <div className="xl:grid xl:grid-cols-[260px_minmax(0,1fr)] gap-8">
         {/* ─ Sidebar ─ */}
         <div className="space-y-6 mb-12 xl:mb-0">
           {/* Business Info Card */}
           <div className="rounded-lg border border-white/10 bg-white/[0.02] backdrop-blur-sm p-6">
-            <div className="text-5xl mb-4">{guidance.icon}</div>
+            <div className="mb-4 h-28 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+              <ServiceArt hub="business" serviceKey={businessType || ''} preserve="xMidYMid meet" />
+            </div>
             <h1 className="text-2xl font-bold text-white">{guidance.display_name}</h1>
             <p className="text-sm text-white/60 mt-2">{guidance.authority}</p>
             <a
@@ -427,6 +431,7 @@ export default function BusinessDetail() {
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {/* ─ Create Application Modal ─ */}

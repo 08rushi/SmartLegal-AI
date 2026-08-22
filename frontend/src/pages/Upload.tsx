@@ -161,16 +161,16 @@ export default function Upload() {
   }
 
   return (
-    <div className="content-wrap py-8 sm:py-10">
+    <div className="content-wrap py-5 sm:py-5">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[0.86fr_1.14fr]">
-        <div className="section-card rounded-[32px] p-6 sm:p-8">
+        <div className="section-card rounded-[32px] p-6 sm:p-6">
           <span className="section-eyebrow">03 Upload Document</span>
-          <h1 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">Upload Your PDF Document</h1>
-          <p className="mt-3 text-sm leading-7 text-slate-400 sm:text-base">
+          <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">Upload Your PDF Document</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-400 sm:text-base">
             Drop a PDF contract, preview it first, then run analysis when you are sure it is the right file.
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="mt-5 flex flex-wrap items-center gap-3">
             {steps.map((step, index) => (
               <div key={step} className="flex items-center gap-3">
                 <div className={`flex h-10 min-w-10 items-center justify-center rounded-full border px-3 text-xs font-semibold ${
@@ -185,9 +185,9 @@ export default function Upload() {
             ))}
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {documentTypes.map((type) => (
-              <div key={type} className="info-card rounded-[24px] px-4 py-4 text-sm text-slate-300">
+              <div key={type} className="info-card rounded-[20px] px-4 py-3 text-sm text-slate-300">
                 {type}
               </div>
             ))}
@@ -197,7 +197,7 @@ export default function Upload() {
         <div className="section-card rounded-[32px] p-5 sm:p-8">
           <div
             {...getRootProps()}
-            className={`upload-dropzone relative overflow-hidden rounded-[30px] border border-dashed px-5 py-8 text-center transition-all duration-300 sm:px-8 sm:py-10 ${
+            className={`upload-dropzone relative overflow-hidden rounded-[30px] border border-dashed px-5 py-6 text-center transition-all duration-300 sm:px-8 sm:py-7 ${
               isDragActive
                 ? 'border-[#f5c26b]/55 bg-[#15101d]/80 shadow-[0_0_40px_rgba(245,194,107,0.16)]'
                 : 'border-white/12 bg-[#0b1120]/72 hover:border-[#8a5cff]/35 hover:bg-[#10172a]/80'
@@ -213,16 +213,16 @@ export default function Upload() {
                 fileName={selectedFile?.name || ''}
               />
             ) : selectedFile ? (
-              <div className="relative z-10 mx-auto max-w-2xl space-y-6 text-left">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="relative z-10 mx-auto max-w-2xl space-y-4 text-left">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">File Preview</p>
-                    <h2 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">{selectedFile.name}</h2>
-                    <p className="mt-3 text-sm leading-7 text-slate-400">
+                    <h2 className="mt-1 text-xl font-semibold text-white sm:text-2xl">{selectedFile.name}</h2>
+                    <p className="mt-1.5 text-sm leading-6 text-slate-400">
                       Review the file details below, then start analysis when you are ready.
                     </p>
                   </div>
-                  <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+                  <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs uppercase tracking-[0.22em]">
                     {fileExtension} • {formatSize(selectedFile.size)}
                   </div>
                 </div>
@@ -233,16 +233,16 @@ export default function Upload() {
                       <img
                         src={previewUrl}
                         alt={selectedFile.name}
-                        className="aspect-[4/5] w-full rounded-[18px] object-contain bg-[#050913] sm:aspect-[3/4]"
+                        className="h-[300px] w-full rounded-[18px] object-contain bg-[#050913]"
                       />
                     ) : isPdfPreview && previewUrl ? (
                       <iframe
                         title={`${selectedFile.name} preview`}
                         src={previewUrl}
-                        className="aspect-[4/5] w-full rounded-[18px] border border-white/10 bg-white sm:aspect-[3/4]"
+                        className="h-[300px] w-full rounded-[18px] border border-white/10 bg-white"
                       />
                     ) : (
-                      <div className="flex aspect-[4/5] w-full flex-col items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.03] text-center sm:aspect-[3/4]">
+                      <div className="flex h-[300px] w-full flex-col items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.03] text-center">
                         <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-6 py-5 text-4xl text-[#8a5cff]">
                           {fileExtension}
                         </div>
@@ -254,10 +254,10 @@ export default function Upload() {
                     )}
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="info-card rounded-[24px] p-5">
+                  <div className="space-y-3">
+                    {/* <div className="info-card rounded-[24px] p-4">
                       <p className="text-sm font-medium text-white">Selected File</p>
-                      <div className="mt-4 space-y-3 text-sm text-slate-300">
+                      <div className="mt-3 space-y-2 text-sm text-slate-300">
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-slate-500">Name</span>
                           <span className="max-w-[180px] truncate text-right">{selectedFile.name}</span>
@@ -271,11 +271,11 @@ export default function Upload() {
                           <span>{formatSize(selectedFile.size)}</span>
                         </div>
                       </div>
-                    </div>
+                    </div> */}
 
-                    <div className="rounded-[24px] border border-[#f5c26b]/16 bg-[#1b1720]/80 p-5">
+                    <div className="rounded-[24px] border border-[#f5c26b]/16 bg-[#1b1720]/80 p-6">
                       <p className="text-sm font-medium text-[#f5c26b]">Before you analyze</p>
-                      <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+                      <ul className="mt-2 space-y-1.5 text-sm leading-6 text-slate-300">
                         <li>• Confirm this is the exact document version you want reviewed.</li>
                         <li>• Text-based PDF files are supported up to 10MB.</li>
                         <li>• Analysis can take up to a couple of minutes for long contracts.</li>
@@ -297,13 +297,13 @@ export default function Upload() {
                 </div>
               </div>
             ) : (
-              <div className="relative z-10 mx-auto max-w-xl space-y-6">
-                <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] border border-white/10 bg-white/[0.04] text-4xl text-[#8a5cff] shadow-[0_0_40px_rgba(124,58,237,0.2)]">
+              <div className="relative z-10 mx-auto max-w-xl space-y-4">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.04] text-3xl text-[#8a5cff] shadow-[0_0_40px_rgba(124,58,237,0.2)]">
                   ⇪
                 </div>
                 <div>
                   <h2 className="text-2xl font-semibold text-white sm:text-3xl">Drag & drop your document here</h2>
-                  <p className="mt-3 text-sm leading-7 text-slate-400 sm:text-base">
+                  <p className="mt-2 text-sm leading-6 text-slate-400 sm:text-base">
                     Choose a file first, preview it, then run AI analysis when you are ready.
                   </p>
                 </div>
@@ -325,17 +325,9 @@ export default function Upload() {
             </div>
           )}
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {documentTypes.map((type) => (
-              <div key={type} className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
-                {type}
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-4 text-center text-xs text-slate-500">
+          {/* <p className="mt-4 text-center text-xs text-slate-500">
             Sign in later if you want saved history and persistent document Q&A.
-          </p>
+          </p> */}
         </div>
       </div>
     </div>

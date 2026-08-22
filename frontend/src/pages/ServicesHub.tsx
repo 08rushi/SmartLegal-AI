@@ -1,14 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '../hooks/redux'
+import CategoryArt from '../components/CategoryArt'
 
 interface ServiceCard {
   key: string
   title: string
   description: string
   icon: string
+  iconLabel: string
   route: string
   badge?: string
   color: 'blue' | 'purple' | 'green' | 'orange' | 'pink'
+  art: 'legal-id' | 'property' | 'business' | 'tracker' | 'documents' | 'chat'
 }
 
 const services: ServiceCard[] = [
@@ -16,63 +19,67 @@ const services: ServiceCard[] = [
     key: 'legal-id',
     title: 'Legal ID Hub',
     description: 'Government ID guidance — Aadhaar, PAN, Passport, Driving License, Voter ID & Certificates',
-    icon: '🆔',
+    icon: 'ID',
+    iconLabel: 'Legal ID services',
     route: '/legal-id',
     color: 'blue',
-    badge: 'Popular'
+    badge: 'Popular',
+    art: 'legal-id'
   },
   {
     key: 'property',
     title: 'Property Hub',
     description: 'Property transaction guidance — Sale, Rental, Mutation, Registration & Encumbrance Certificate',
-    icon: '🏠',
+    icon: 'PR',
+    iconLabel: 'Property services',
     route: '/property-hub',
     color: 'green',
-    badge: 'Popular'
+    badge: 'Popular',
+    art: 'property'
   },
   {
     key: 'business',
     title: 'Business License Hub',
     description: 'Business registration guidance - GST, FSSAI, MSME, Shop Act, IEC, Trade License & Startup India',
     icon: 'BIZ',
+    iconLabel: 'Business license services',
     route: '/business-hub',
     color: 'orange',
-    badge: 'New'
+    badge: 'New',
+    art: 'business'
   },
   {
     key: 'tracker',
     title: 'Service Tracker',
     description: 'Track applications, save checklists, set reminders, and enable browser notifications',
     icon: '4D',
+    iconLabel: 'Service tracker',
     route: '/tracker',
     color: 'pink',
-    badge: '4D'
+    badge: '4D',
+    art: 'tracker'
   },
   {
     key: 'documents',
     title: 'Document Analysis',
     description: 'Upload and analyze legal documents — Get risk assessments and plain-language explanations',
-    icon: '📄',
+    icon: 'DOC',
+    iconLabel: 'Document analysis',
     route: '/upload',
-    color: 'purple'
+    color: 'purple',
+    art: 'documents'
   },
   {
     key: 'chat',
     title: 'AI Legal Assistant',
     description: 'Ask questions about your documents — Get instant answers and clause clarifications',
-    icon: '💬',
+    icon: 'AI',
+    iconLabel: 'AI legal assistant',
     route: '/chat',
-    color: 'orange'
+    color: 'orange',
+    art: 'chat'
   }
 ]
-
-const colorMap = {
-  blue: 'border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 group-hover:text-blue-400',
-  purple: 'border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 group-hover:text-purple-400',
-  green: 'border-green-500/20 bg-green-500/5 hover:bg-green-500/10 group-hover:text-green-400',
-  orange: 'border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 group-hover:text-orange-400',
-  pink: 'border-pink-500/20 bg-pink-500/5 hover:bg-pink-500/10 group-hover:text-pink-400'
-}
 
 const badgeColorMap = {
   blue: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -87,7 +94,7 @@ export default function ServicesHub() {
   const { token } = useAppSelector((state) => state.auth)
 
   return (
-    <div className="content-wrap py-8 sm:py-10">
+    <div className="content-wrap py-5 sm:py-6">
       <div className="section-card mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
       {/* ─ Hero Section ─ */}
       <div className="">
@@ -114,21 +121,24 @@ export default function ServicesHub() {
       </div>
 
       {/* Services Grid */}
-      <div className="content-wrap py-20">
+      <div className="content-wrap py-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {services.map((service) => (
             <div
               key={service.key}
               onClick={() => navigate(service.route)}
-              className={`group relative overflow-hidden rounded-2xl border border-white/10 p-8 transition-all duration-300 cursor-pointer hover:border-white/20 ${colorMap[service.color]}`}
+              className="group hub-service-card relative overflow-hidden rounded-2xl p-8 cursor-pointer"
             >
-              {/* Background gradient accent */}
-              <div className="absolute -right-16 -top-16 h-32 w-32 rounded-full bg-white/5 group-hover:bg-white/10 transition-all duration-300 hover-lift" />
+              <div className="hub-service-card__art" aria-hidden="true">
+                <CategoryArt art={service.art} className="hub-service-svg" />
+              </div>
 
               <div className="relative z-10 space-y-4">
                 {/* Icon & Badge */}
                 <div className="flex items-start justify-between">
-                  <span className="text-5xl">{service.icon}</span>
+                  <span className="service-icon-badge" aria-label={service.iconLabel}>
+                    {service.icon}
+                  </span>
                   {service.badge && (
                     <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold border ${badgeColorMap[service.color]}`}>
                       {service.badge}
@@ -170,7 +180,7 @@ export default function ServicesHub() {
       {/* Login CTA */}
       {!token && (
         <div className="">
-          <div className="content-wrap py-12 text-center">
+          <div className="content-wrap py-7 text-center">
             <h2 className="text-2xl font-bold text-white mb-4">Sign In to Save Your Progress</h2>
             <p className="text-white/60 mb-8 max-w-lg mx-auto">
               Create an account to track your applications, save checklists, and manage all your documents in one place.

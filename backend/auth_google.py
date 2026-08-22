@@ -105,11 +105,11 @@ async def google_signin(data: GoogleTokenRequest, db=Depends(get_db)):
             detail="Email not verified by Google. Please verify your email first."
         )
 
+    email = email.lower().strip()
     name = google_data.get("name", email.split("@")[0])  # fallback to email prefix
 
     # Check if user exists
-    async with db.execute("SELECT * FROM users WHERE email = ?", (email,)) as cur:
-        user = await cur.fetchone()
+    user = await db.fetchrow("SELECT * FROM users WHERE email = $1", email)
 
     now = datetime.utcnow().isoformat()
 
@@ -124,10 +124,9 @@ async def google_signin(data: GoogleTokenRequest, db=Depends(get_db)):
         user_name = name
         created_at = now
         await db.execute(
-            "INSERT INTO users (id, name, email, password, created_at) VALUES (?, ?, ?, ?, ?)",
-            (user_id, name, email, "", now),
+            "INSERT INTO users (id, name, email, password, created_at) VALUES ($1, $2, $3, $4, $5)",
+            user_id, name, email, "", now,
         )
-        await db.commit()
 
     token = create_access_token(user_id)
     return TokenResponse(

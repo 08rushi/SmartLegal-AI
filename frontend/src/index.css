@@ -250,7 +250,7 @@
   }
 
   .upload-dropzone {
-    min-height: 420px;
+    min-height: 300px;
   }
 
   .glow-ring {
@@ -268,6 +268,298 @@
     -webkit-mask-composite: xor;
             mask-composite: exclude;
     pointer-events: none;
+  }
+
+  .service-card,
+  .hub-service-card {
+    isolation: isolate;
+  }
+
+  .service-card::before,
+  .hub-service-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 38%),
+      radial-gradient(circle at 88% 18%, rgba(245, 194, 107, 0.12), transparent 30%);
+    opacity: 0.78;
+  }
+
+  .service-icon-badge {
+    display: inline-flex;
+    width: 3.75rem;
+    height: 3.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.04));
+    color: #f8fafc;
+    font-family: 'Poppins', 'Inter', sans-serif;
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 34px rgba(0, 0, 0, 0.22);
+  }
+
+  .service-card__art,
+  .hub-service-card__art {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .service-card__art {
+    right: -1.4rem;
+    bottom: -1.6rem;
+    width: 11.5rem;
+    height: 9rem;
+    opacity: 0.6;
+    transition: transform 240ms ease, opacity 240ms ease;
+  }
+
+  .service-card:hover .service-card__art {
+    transform: translate(-0.35rem, -0.35rem);
+    opacity: 0.82;
+  }
+
+  .service-card__art span,
+  .hub-service-card__art span {
+    position: absolute;
+    display: block;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.035));
+    box-shadow: 0 24px 42px rgba(0, 0, 0, 0.22);
+  }
+
+  .service-card__art--legal-id span:nth-child(1),
+  .hub-service-card--legal-id .hub-service-card__art span:nth-child(1) {
+    right: 1.4rem;
+    top: 1rem;
+    width: 6.2rem;
+    height: 4.1rem;
+    border-radius: 0.9rem;
+    background:
+      linear-gradient(90deg, rgba(125, 211, 252, 0.42) 0 20%, transparent 20%),
+      linear-gradient(180deg, rgba(59, 130, 246, 0.22), rgba(15, 23, 42, 0.24));
+  }
+
+  .service-card__art--legal-id span:nth-child(2),
+  .hub-service-card--legal-id .hub-service-card__art span:nth-child(2) {
+    right: 2.1rem;
+    top: 2.5rem;
+    width: 3.8rem;
+    height: 0.32rem;
+    border-radius: 999px;
+    background: rgba(226, 232, 240, 0.38);
+  }
+
+  .service-card__art--legal-id span:nth-child(3),
+  .hub-service-card--legal-id .hub-service-card__art span:nth-child(3) {
+    right: 1rem;
+    bottom: 1rem;
+    width: 5.2rem;
+    height: 5.2rem;
+    border-radius: 1.4rem;
+    transform: rotate(11deg);
+    background: rgba(37, 99, 235, 0.12);
+  }
+
+  .service-card__art--property span:nth-child(1),
+  .hub-service-card--property .hub-service-card__art span:nth-child(1) {
+    right: 1.3rem;
+    bottom: 1.1rem;
+    width: 7rem;
+    height: 4.6rem;
+    border-radius: 0.85rem;
+    background:
+      linear-gradient(90deg, transparent 42%, rgba(52, 211, 153, 0.28) 42% 56%, transparent 56%),
+      linear-gradient(180deg, rgba(16, 185, 129, 0.2), rgba(15, 23, 42, 0.22));
+  }
+
+  .service-card__art--property span:nth-child(2),
+  .hub-service-card--property .hub-service-card__art span:nth-child(2) {
+    right: 2.25rem;
+    bottom: 5.35rem;
+    width: 4.8rem;
+    height: 4.8rem;
+    border-radius: 0.6rem;
+    transform: rotate(45deg);
+    background: rgba(34, 197, 94, 0.13);
+  }
+
+  .service-card__art--property span:nth-child(3),
+  .hub-service-card--property .hub-service-card__art span:nth-child(3) {
+    right: 5.1rem;
+    bottom: 1.1rem;
+    width: 0.85rem;
+    height: 2rem;
+    border-radius: 0.4rem 0.4rem 0 0;
+    background: rgba(245, 194, 107, 0.24);
+  }
+
+  .service-card__art--business span:nth-child(1),
+  .hub-service-card--business .hub-service-card__art span:nth-child(1) {
+    right: 1.2rem;
+    bottom: 1.2rem;
+    width: 7.4rem;
+    height: 4.5rem;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, rgba(251, 146, 60, 0.2), rgba(15, 23, 42, 0.2));
+  }
+
+  .service-card__art--business span:nth-child(2),
+  .hub-service-card--business .hub-service-card__art span:nth-child(2) {
+    right: 2.2rem;
+    bottom: 5.4rem;
+    width: 5.4rem;
+    height: 2.2rem;
+    border-radius: 0.8rem 0.8rem 0.3rem 0.3rem;
+    background: rgba(245, 194, 107, 0.16);
+  }
+
+  .service-card__art--business span:nth-child(3),
+  .hub-service-card--business .hub-service-card__art span:nth-child(3) {
+    right: 4.3rem;
+    bottom: 3.2rem;
+    width: 2.2rem;
+    height: 0.54rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.34);
+  }
+
+  .service-card__art--tracker span:nth-child(1) {
+    right: 5.3rem;
+    top: 0.7rem;
+    width: 0.34rem;
+    height: 7.4rem;
+    border-radius: 999px;
+    background: rgba(244, 114, 182, 0.26);
+  }
+
+  .service-card__art--tracker span:nth-child(2) {
+    right: 2rem;
+    top: 1.35rem;
+    width: 5.2rem;
+    height: 1.15rem;
+    border-radius: 999px;
+    background: rgba(251, 113, 133, 0.2);
+  }
+
+  .service-card__art--tracker span:nth-child(3) {
+    right: 3.2rem;
+    bottom: 1.4rem;
+    width: 4.7rem;
+    height: 1.15rem;
+    border-radius: 999px;
+    background: rgba(245, 194, 107, 0.18);
+  }
+
+  .service-card__art--documents span:nth-child(1) {
+    right: 2.6rem;
+    bottom: 1.1rem;
+    width: 5.8rem;
+    height: 7.2rem;
+    border-radius: 0.9rem;
+    background: linear-gradient(180deg, rgba(167, 139, 250, 0.22), rgba(15, 23, 42, 0.24));
+  }
+
+  .service-card__art--documents span:nth-child(2),
+  .service-card__art--documents span:nth-child(3) {
+    right: 3.55rem;
+    width: 3.8rem;
+    height: 0.34rem;
+    border-radius: 999px;
+    background: rgba(226, 232, 240, 0.35);
+  }
+
+  .service-card__art--documents span:nth-child(2) {
+    bottom: 5.25rem;
+  }
+
+  .service-card__art--documents span:nth-child(3) {
+    bottom: 4rem;
+  }
+
+  .service-card__art--chat span:nth-child(1) {
+    right: 1.4rem;
+    top: 1.1rem;
+    width: 6.5rem;
+    height: 3.7rem;
+    border-radius: 1.15rem 1.15rem 0.3rem 1.15rem;
+    background: rgba(251, 146, 60, 0.2);
+  }
+
+  .service-card__art--chat span:nth-child(2) {
+    right: 3.4rem;
+    bottom: 1.3rem;
+    width: 5.8rem;
+    height: 3.4rem;
+    border-radius: 1.15rem 1.15rem 1.15rem 0.3rem;
+    background: rgba(96, 165, 250, 0.16);
+  }
+
+  .service-card__art--chat span:nth-child(3) {
+    right: 3.1rem;
+    top: 2.55rem;
+    width: 3rem;
+    height: 0.36rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.33);
+  }
+
+  .hub-service-card {
+    /* Neutral theme surface — matches the Home / Knowledge Base glass cards. */
+    position: relative;
+    min-height: 13rem;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--panel-1), var(--panel-2));
+    border: 1px solid var(--line-soft);
+    box-shadow: var(--shadow-panel);
+    backdrop-filter: blur(18px);
+    transform: translateY(0);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 320ms ease,
+      border-color 320ms ease;
+  }
+
+  .hub-service-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(245, 194, 107, 0.22);
+    box-shadow: var(--shadow-panel), var(--shadow-violet);
+  }
+
+  .hub-service-card:active {
+    transform: translateY(-2px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hub-service-card,
+    .hub-service-card:hover {
+      transform: none;
+    }
+  }
+
+  .hub-service-card__art {
+    right: -0.9rem;
+    bottom: -1rem;
+    width: 13.5rem;
+    height: 11.5rem;
+    opacity: 0.68;
+    transition: transform 300ms ease, opacity 300ms ease;
+  }
+
+  .hub-service-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .hub-service-card:hover .hub-service-card__art {
+    transform: translate(-0.4rem, -0.5rem) scale(1.04);
+    opacity: 0.86;
   }
 
   .skeleton-block {
@@ -314,6 +606,6 @@
 
 @media (max-width: 640px) {
   .upload-dropzone {
-    min-height: 340px;
+    min-height: 240px;
   }
 }

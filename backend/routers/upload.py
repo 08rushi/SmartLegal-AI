@@ -160,17 +160,17 @@ async def upload_document(
     # Ensure anonymous user row exists (no-op if already there)
     if user_id == "anonymous":
         await db.execute(
-            """INSERT OR IGNORE INTO users (id, name, email, password, created_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            ("anonymous", "Anonymous", "anonymous@smartlegal.local", "", now),
+            """INSERT INTO users (id, name, email, password, created_at)
+               VALUES ($1, $2, $3, $4, $5)
+               ON CONFLICT (id) DO NOTHING""",
+            "anonymous", "Anonymous", "anonymous@smartlegal.local", "", now,
         )
 
     await db.execute(
         """INSERT INTO documents (id, user_id, filename, file_url, file_size, status, uploaded_at)
-           VALUES (?, ?, ?, ?, ?, 'ready', ?)""",
-        (doc_id, user_id, file.filename or "document", file_url, len(content), now),
+           VALUES ($1, $2, $3, $4, $5, 'ready', $6)""",
+        doc_id, user_id, file.filename or "document", file_url, len(content), now,
     )
-    await db.commit()
 
     return UploadResponse(
         document=DocumentOut(
@@ -202,14 +202,13 @@ async def get_document_history(
     if user_id == "anonymous":
         raise HTTPException(status_code=401, detail="Sign in to view document history.")
 
-    async with db.execute(
+    rows = await db.fetch(
         """SELECT id, filename, file_url, file_size, document_type, status, uploaded_at
            FROM documents
-           WHERE user_id = ?
+           WHERE user_id = $1
            ORDER BY uploaded_at DESC""",
-        (user_id,),
-    ) as cur:
-        rows = await cur.fetchall()
+        user_id,
+    )
 
     return {
         "documents": [
@@ -237,13 +236,12 @@ async def get_document(
     Return a single uploaded document by id so the frontend can recover
     analysis routes after a hard refresh.
     """
-    async with db.execute(
+    row = await db.fetchrow(
         """SELECT id, user_id, filename, file_url, file_size, document_type, status, uploaded_at
            FROM documents
-           WHERE id = ?""",
-        (document_id,),
-    ) as cur:
-        row = await cur.fetchone()
+           WHERE id = $1""",
+        document_id,
+    )
 
     if not row:
         raise HTTPException(status_code=404, detail="Document not found.")

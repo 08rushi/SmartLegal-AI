@@ -3,6 +3,8 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { logout } from '../store/authSlice'
 import { trackEvent } from '../utils/posthog'
+import CategoryArt from './CategoryArt'
+import { type Category } from '../lib/serviceColors'
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -12,39 +14,39 @@ const navItems = [
   { to: '/compare', label: 'Knowledge Base' },
 ]
 
-const serviceCards = [
+const serviceCards: { key: string; title: string; art: Category; description: string; to: string }[] = [
   {
     key: 'legal-id',
     title: 'Legal ID Hub',
-    icon: '🆔',
+    art: 'legal-id',
     description: 'Government ID guidance',
     to: '/legal-id'
   },
   {
     key: 'property',
     title: 'Property Hub',
-    icon: '🏠',
+    art: 'property',
     description: 'Property transactions',
     to: '/property-hub'
   },
   {
     key: 'business',
     title: 'Business License Hub',
-    icon: '📊',
+    art: 'business',
     description: 'Business registrations',
     to: '/business-hub'
   },
   {
     key: 'tracker',
     title: 'Service Tracker',
-    icon: '4D',
+    art: 'tracker',
     description: 'Checklists and reminders',
     to: '/tracker'
   },
   {
     key: 'all-services',
     title: 'View All Services',
-    icon: '→',
+    art: 'all',
     description: 'Complete service center',
     to: '/services'
   }
@@ -59,7 +61,25 @@ export default function Layout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [servicesMenuOpen, setServicesMenuOpen] = useState(false)
   const servicesRef = useRef<HTMLDivElement>(null)
+  const mobileServicesRef = useRef<HTMLDivElement>(null)
   const [isOffline, setIsOffline] = useState(() => (typeof navigator === 'undefined' ? false : !navigator.onLine))
+
+  // Close the Services dropdown when clicking anywhere outside it.
+  useEffect(() => {
+    if (!servicesMenuOpen) return
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node
+      const inDesktop = servicesRef.current?.contains(target)
+      const inMobile = mobileServicesRef.current?.contains(target)
+      if (!inDesktop && !inMobile) setServicesMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+    }
+  }, [servicesMenuOpen])
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false)
@@ -165,14 +185,16 @@ export default function Layout() {
                           key={card.key}
                           to={card.to}
                           onClick={() => setServicesMenuOpen(false)}
-                          className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 transition-all hover:bg-white/[0.08] hover:border-white/15"
+                          className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5 transition-all hover:bg-white/[0.08] hover:border-white/15"
                         >
-                          <span className="text-2xl pt-1">{card.icon}</span>
+                          <span className="block h-11 w-[52px] shrink-0 overflow-hidden rounded-lg border border-white/10">
+                            <CategoryArt art={card.art} className="block h-full w-full" />
+                          </span>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-white">{card.title}</p>
                             <p className="text-xs text-slate-400">{card.description}</p>
                           </div>
-                          <span className="text-slate-400 mt-1">→</span>
+                          <span className="text-slate-400 transition-transform group-hover:translate-x-0.5">→</span>
                         </Link>
                       ))}
                     </div>
@@ -289,7 +311,7 @@ export default function Layout() {
                 ))}
 
                 {/* Mobile Services Submenu */}
-                <div className="rounded-2xl border border-white/10 overflow-hidden">
+                <div className="rounded-2xl border border-white/10 overflow-hidden" ref={mobileServicesRef}>
                   <button
                     type="button"
                     onClick={() => setServicesMenuOpen(!servicesMenuOpen)}
@@ -305,9 +327,11 @@ export default function Layout() {
                           key={card.key}
                           to={card.to}
                           onClick={handleNavClick}
-                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-white/10 transition"
+                          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-white/10 transition"
                         >
-                          <span className="text-lg">{card.icon}</span>
+                          <span className="block h-9 w-[42px] shrink-0 overflow-hidden rounded-md border border-white/10">
+                            <CategoryArt art={card.art} className="block h-full w-full" />
+                          </span>
                           <div className="flex-1">
                             <p className="font-medium">{card.title}</p>
                             <p className="text-xs text-slate-500">{card.description}</p>
@@ -373,7 +397,7 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <footer className="relative z-10 px-4 pb-8 pt-10 sm:px-6 sm:pt-14">
+      <footer className="relative z-10 px-4 pb-8 pt-10 sm:px-6 sm:pt-6">
         <div className="content-wrap">
           <div className="glass-panel mx-auto grid max-w-7xl gap-8 rounded-[32px] px-6 py-8 sm:px-8 lg:grid-cols-[1.2fr_0.9fr_0.8fr]">
             <div className="space-y-4">

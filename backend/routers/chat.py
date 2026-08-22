@@ -25,15 +25,13 @@ async def chat(
     db=Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    async with db.execute(
-        "SELECT * FROM documents WHERE id = ?",
-        (req.document_id,),
-    ) as cur:
-        doc = await cur.fetchone()
+    doc = await db.fetchrow(
+        "SELECT * FROM documents WHERE id = $1",
+        req.document_id,
+    )
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # ── Verify ownership ───────────────────────────────────────────────────────
     if doc["user_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="You do not have permission to chat on this document.")
 
@@ -56,10 +54,9 @@ async def chat(
     user_msg_id = str(uuid.uuid4())
     user_now = datetime.utcnow().isoformat()
     await db.execute(
-        "INSERT INTO chat_messages (id, document_id, user_id, role, content, timestamp) VALUES (?, ?, ?, 'user', ?, ?)",
-        (user_msg_id, req.document_id, current_user["id"], req.question, user_now),
+        "INSERT INTO chat_messages (id, document_id, user_id, role, content, timestamp) VALUES ($1, $2, $3, 'user', $4, $5)",
+        user_msg_id, req.document_id, current_user["id"], req.question, user_now,
     )
-    await db.commit()
 
     try:
         answer = await answer_question_about_document(doc_text, req.question)
@@ -69,10 +66,9 @@ async def chat(
     ai_msg_id = str(uuid.uuid4())
     ai_now = datetime.utcnow().isoformat()
     await db.execute(
-        "INSERT INTO chat_messages (id, document_id, user_id, role, content, timestamp) VALUES (?, ?, ?, 'assistant', ?, ?)",
-        (ai_msg_id, req.document_id, current_user["id"], answer, ai_now),
+        "INSERT INTO chat_messages (id, document_id, user_id, role, content, timestamp) VALUES ($1, $2, $3, 'assistant', $4, $5)",
+        ai_msg_id, req.document_id, current_user["id"], answer, ai_now,
     )
-    await db.commit()
 
     return {
         "user_message": {
@@ -96,19 +92,16 @@ async def get_chat_history(
     db=Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    # ── Verify ownership ───────────────────────────────────────────────────────
-    async with db.execute(
-        "SELECT user_id FROM documents WHERE id = ?", (document_id,)
-    ) as cur:
-        doc = await cur.fetchone()
+    doc = await db.fetchrow(
+        "SELECT user_id FROM documents WHERE id = $1", document_id
+    )
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found.")
     if doc["user_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="You do not have permission to access this document's chat history.")
 
-    async with db.execute(
-        "SELECT * FROM chat_messages WHERE document_id = ? ORDER BY timestamp ASC",
-        (document_id,),
-    ) as cur:
-        rows = await cur.fetchall()
+    rows = await db.fetch(
+        "SELECT * FROM chat_messages WHERE document_id = $1 ORDER BY timestamp ASC",
+        document_id,
+    )
     return {"messages": [dict(r) for r in rows]}

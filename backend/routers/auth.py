@@ -72,8 +72,7 @@ async def get_current_user(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    async with db.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cur:
-        user = await cur.fetchone()
+    user = await db.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return dict(user)
@@ -83,32 +82,32 @@ async def get_current_user(
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register(data: RegisterRequest, db=Depends(get_db)):
-    async with db.execute("SELECT id FROM users WHERE email = ?", (data.email,)) as cur:
-        if await cur.fetchone():
-            raise HTTPException(status_code=400, detail="Email already registered")
+    email = data.email.lower().strip()
+    existing = await db.fetchrow("SELECT id FROM users WHERE email = $1", email)
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
 
     user_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
 
     await db.execute(
-        "INSERT INTO users (id, name, email, password, created_at) VALUES (?, ?, ?, ?, ?)",
-        (user_id, data.name, data.email, hash_password(data.password), now),
+        "INSERT INTO users (id, name, email, password, created_at) VALUES ($1, $2, $3, $4, $5)",
+        user_id, data.name.strip(), email, hash_password(data.password), now,
     )
-    await db.commit()
 
     token = create_access_token(user_id)
     return TokenResponse(
-        user=UserOut(id=user_id, name=data.name, email=data.email, created_at=now),
+        user=UserOut(id=user_id, name=data.name.strip(), email=email, created_at=now),
         access_token=token,
     )
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(form: OAuth2PasswordRequestForm = Depends(), db=Depends(get_db)):
-    async with db.execute("SELECT * FROM users WHERE email = ?", (form.username,)) as cur:
-        user = await cur.fetchone()
+    email = form.username.lower().strip()
+    user = await db.fetchrow("SELECT * FROM users WHERE email = $1", email)
 
-    if not user or not verify_password(form.password, user["password"]):
+    if not user or not user["password"] or not verify_password(form.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_access_token(user["id"])

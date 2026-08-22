@@ -107,8 +107,8 @@ async def create_application(
     await db.execute(
         """INSERT INTO property_applications
            (id, user_id, property_type, service, status, notes, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (app_id, current_user["id"], normalized_property_type, data.service, "in_progress", data.notes, now, now),
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)""",
+        app_id, current_user["id"], normalized_property_type, data.service, "in_progress", data.notes, now, now,
     )
 
     # Create checklist items from knowledge base
@@ -117,11 +117,9 @@ async def create_application(
         await db.execute(
             """INSERT INTO property_checklist_items
                (id, application_id, item_text, is_done, updated_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (item_id, app_id, item_text, 0, now),
+               VALUES ($1, $2, $3, $4, $5)""",
+            item_id, app_id, item_text, 0, now,
         )
-
-    await db.commit()
 
     return PropertyApplicationOut(
         id=app_id,
@@ -144,12 +142,11 @@ async def list_applications(
     """
     List all property applications for the current user.
     """
-    async with db.execute(
+    rows = await db.fetch(
         """SELECT id, property_type, service, status, notes, created_at, updated_at
-           FROM property_applications WHERE user_id = ? ORDER BY created_at DESC""",
-        (current_user["id"],)
-    ) as cur:
-        rows = await cur.fetchall()
+           FROM property_applications WHERE user_id = $1 ORDER BY created_at DESC""",
+        current_user["id"],
+    )
 
     applications = [
         PropertyApplicationOut(
@@ -179,11 +176,10 @@ async def get_application(
     Get a specific application by ID.
     Ownership check: user can only view their own applications.
     """
-    async with db.execute(
-        "SELECT * FROM property_applications WHERE id = ?",
-        (app_id,)
-    ) as cur:
-        app = await cur.fetchone()
+    app = await db.fetchrow(
+        "SELECT * FROM property_applications WHERE id = $1",
+        app_id,
+    )
 
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -215,11 +211,10 @@ async def update_application(
     Update an application's status or notes.
     Ownership check: user can only update their own applications.
     """
-    async with db.execute(
-        "SELECT * FROM property_applications WHERE id = ?",
-        (app_id,)
-    ) as cur:
-        app = await cur.fetchone()
+    app = await db.fetchrow(
+        "SELECT * FROM property_applications WHERE id = $1",
+        app_id,
+    )
 
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -236,10 +231,9 @@ async def update_application(
     notes = data.notes if data.notes is not None else app["notes"]
 
     await db.execute(
-        "UPDATE property_applications SET status = ?, notes = ?, updated_at = ? WHERE id = ?",
-        (status, notes, now, app_id),
+        "UPDATE property_applications SET status = $1, notes = $2, updated_at = $3 WHERE id = $4",
+        status, notes, now, app_id,
     )
-    await db.commit()
 
     return PropertyApplicationOut(
         id=app["id"],
@@ -264,11 +258,10 @@ async def delete_application(
     Delete an application and its checklist items.
     Ownership check: user can only delete their own applications.
     """
-    async with db.execute(
-        "SELECT * FROM property_applications WHERE id = ?",
-        (app_id,)
-    ) as cur:
-        app = await cur.fetchone()
+    app = await db.fetchrow(
+        "SELECT * FROM property_applications WHERE id = $1",
+        app_id,
+    )
 
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -277,11 +270,10 @@ async def delete_application(
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Delete checklist items first
-    await db.execute("DELETE FROM property_checklist_items WHERE application_id = ?", (app_id,))
+    await db.execute("DELETE FROM property_checklist_items WHERE application_id = $1", app_id,)
 
     # Delete application
-    await db.execute("DELETE FROM property_applications WHERE id = ?", (app_id,))
-    await db.commit()
+    await db.execute("DELETE FROM property_applications WHERE id = $1", app_id,)
 
     return {"message": "Application deleted"}
 
@@ -299,11 +291,10 @@ async def get_checklist(
     Ownership check: user can only view their own application's checklist.
     """
     # Verify ownership
-    async with db.execute(
-        "SELECT user_id FROM property_applications WHERE id = ?",
-        (app_id,)
-    ) as cur:
-        app = await cur.fetchone()
+    app = await db.fetchrow(
+        "SELECT user_id FROM property_applications WHERE id = $1",
+        app_id,
+    )
 
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -312,11 +303,10 @@ async def get_checklist(
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Fetch checklist items
-    async with db.execute(
-        "SELECT id, item_text, is_done, updated_at FROM property_checklist_items WHERE application_id = ?",
-        (app_id,)
-    ) as cur:
-        items = await cur.fetchall()
+    items = await db.fetch(
+        "SELECT id, item_text, is_done, updated_at FROM property_checklist_items WHERE application_id = $1",
+        app_id,
+    )
 
     return {
         "application_id": app_id,
@@ -346,11 +336,10 @@ async def save_checklist(
     Ownership check: user can only update their own application's checklist.
     """
     # Verify ownership
-    async with db.execute(
-        "SELECT user_id FROM property_applications WHERE id = ?",
-        (app_id,)
-    ) as cur:
-        app = await cur.fetchone()
+    app = await db.fetchrow(
+        "SELECT user_id FROM property_applications WHERE id = $1",
+        app_id,
+    )
 
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -364,23 +353,20 @@ async def save_checklist(
     for item in data.items:
         if item.id:
             await db.execute(
-                "UPDATE property_checklist_items SET is_done = ?, updated_at = ? WHERE id = ? AND application_id = ?",
-                (1 if item.is_done else 0, now, item.id, app_id),
+                "UPDATE property_checklist_items SET is_done = $1, updated_at = $2 WHERE id = $3 AND application_id = $4",
+                1 if item.is_done else 0, now, item.id, app_id,
             )
         else:
             await db.execute(
-                "UPDATE property_checklist_items SET is_done = ?, updated_at = ? WHERE application_id = ? AND item_text = ?",
-                (1 if item.is_done else 0, now, app_id, item.item_text),
+                "UPDATE property_checklist_items SET is_done = $1, updated_at = $2 WHERE application_id = $3 AND item_text = $4",
+                1 if item.is_done else 0, now, app_id, item.item_text,
             )
 
-    await db.commit()
-
     # Return updated checklist
-    async with db.execute(
-        "SELECT id, item_text, is_done, updated_at FROM property_checklist_items WHERE application_id = ?",
-        (app_id,)
-    ) as cur:
-        items = await cur.fetchall()
+    items = await db.fetch(
+        "SELECT id, item_text, is_done, updated_at FROM property_checklist_items WHERE application_id = $1",
+        app_id,
+    )
 
     return {
         "application_id": app_id,

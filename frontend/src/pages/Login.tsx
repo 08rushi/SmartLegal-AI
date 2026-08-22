@@ -89,7 +89,7 @@ export default function Login() {
   }
 
   return (
-    <div className="content-wrap py-8 sm:py-12">
+    <div className="content-wrap py-5 sm:py-8">
       <div className="mx-auto grid max-w-6xl overflow-hidden rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,22,38,0.94),rgba(11,18,31,0.92))] shadow-[0_30px_70px_rgba(0,0,0,0.35)] lg:grid-cols-[0.92fr_1.08fr]">
 
         {/* Left decorative panel */}

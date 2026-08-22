@@ -217,7 +217,7 @@ export default function ServiceTracker() {
 
   if (!token) {
     return (
-      <div className="content-wrap py-16">
+      <div className="content-wrap py-8">
         <div className="glass-panel mx-auto max-w-2xl rounded-[28px] p-8 text-center">
           <p className="section-eyebrow">Service Tracker</p>
           <h1 className="mt-4 text-3xl font-bold text-white">Sign in to track applications</h1>
@@ -234,7 +234,7 @@ export default function ServiceTracker() {
   }
 
   return (
-    <div className="content-wrap py-12">
+    <div className="content-wrap py-7">
       <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="section-eyebrow">4D Tracker</p>
@@ -287,8 +287,13 @@ export default function ServiceTracker() {
           {applications.map((app) => {
             const reminder = reminders.find((item) => item.appId === app.id)
             return (
-              <article key={`${app.kind}-${app.id}`} className="glass-panel rounded-[24px] p-5">
-                <div className="grid gap-5 lg:grid-cols-[1fr_360px] lg:items-start">
+              <article key={`${app.kind}-${app.id}`} className={`hub-service-card hub-service-card--${app.kind} glass-panel rounded-[24px] p-5`}>
+                <div className="hub-service-card__art" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <div className="relative z-10 grid gap-5 lg:grid-cols-[1fr_360px] lg:items-start">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-slate-300">

@@ -5,7 +5,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from config import get_settings
-from database import init_db
+from database import init_db_pool, close_db_pool
 from limiter import limiter
 from cache import init_redis, close_redis
 from routers import auth, upload, analyze, chat, legal_id, property, business
@@ -36,10 +36,11 @@ if settings.sentry_dsn:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    await init_db()
+    await init_db_pool()
     await init_redis(settings.redis_url)   # no-op when REDIS_URL is blank
     yield
     # Shutdown
+    await close_db_pool()
     await close_redis()
 
 

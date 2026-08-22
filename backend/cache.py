@@ -3,7 +3,7 @@ cache.py — async Redis cache layer for analysis results.
 
 Design decisions:
 - Redis is OPTIONAL. If REDIS_URL is blank the app works exactly as before
-  (SQLite is the only store). No KeyError, no crash on startup.
+  (PostgreSQL is the only store). No KeyError, no crash on startup.
 - One module-level client is created once and reused across all requests
   (connection pooling is built into redis-py).
 - Cache key:  "analysis:{document_id}"

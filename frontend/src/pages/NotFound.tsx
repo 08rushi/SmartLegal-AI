@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 
 export default function NotFound() {
   return (
-    <div className="content-wrap py-10 sm:py-12">
+    <div className="content-wrap py-6 sm:py-8">
       <div className="section-card mx-auto grid max-w-7xl items-center gap-8 rounded-[34px] p-6 sm:p-8 lg:grid-cols-[0.92fr_1.08fr]">
         <div className="space-y-5">
           <p className="text-7xl font-semibold tracking-[-0.06em] text-[#8a5cff] sm:text-8xl lg:text-[8rem]">404</p>

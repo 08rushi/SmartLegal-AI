@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { fetchBusinessTypes, fetchBusinessApplications } from '../store/businessSlice'
 import type { BusinessType } from '../types'
+import ServiceArt from '../components/ServiceArt'
 
 export default function BusinessHub() {
   const navigate = useNavigate()
@@ -43,7 +44,7 @@ export default function BusinessHub() {
     //   </div>
 
 
-      <div className="content-wrap py-8 sm:py-10">
+      <div className="content-wrap py-5 sm:py-6">
       <div className="section-card mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
       {/* ─ Hero Section ─ */}
       <div className="">
@@ -59,7 +60,7 @@ export default function BusinessHub() {
       </div>
 
       {/* ─ Business Type Cards Grid ─ */}
-      <div className="content-wrap py-16">
+      <div className="content-wrap py-8">
         {isLoading ? (
           <div className="text-center py-12">
             <div className="inline-block">
@@ -77,27 +78,31 @@ export default function BusinessHub() {
               <div
                 key={businessType.key}
                 onClick={() => handleCardClick(businessType)}
-                className="group rounded-lg border border-white/10 bg-white/[0.02] backdrop-blur-sm p-8 hover:bg-white/[0.05] hover:border-white/20 transition-all cursor-pointer"
+                className="group hub-service-card rounded-lg p-8 cursor-pointer"
               >
-                <div className="text-4xl mb-4">{businessType.icon}</div>
-                <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">
-                  {businessType.display_name}
-                </h3>
-                <p className="text-sm text-white/60 mt-2">
-                  {businessType.authority}
-                </p>
-                <a
-                  href={businessType.official_portal}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-block text-xs text-blue-400 hover:text-blue-300 mt-4 underline"
-                >
-                  Official Portal →
-                </a>
-                <div className="mt-6 flex items-center text-sm text-blue-400 font-medium group-hover:translate-x-1 transition-transform">
-                  View Guide
-                  <span className="ml-2">→</span>
+                <div className="hub-service-card__art" aria-hidden="true">
+                  <ServiceArt hub="business" serviceKey={businessType.key} />
+                </div>
+                <div className="relative z-10">
+                  <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">
+                    {businessType.display_name}
+                  </h3>
+                  <p className="text-sm text-white/60 mt-2">
+                    {businessType.authority}
+                  </p>
+                  <a
+                    href={businessType.official_portal}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-block text-xs text-blue-400 hover:text-blue-300 mt-4 underline"
+                  >
+                    Official Portal →
+                  </a>
+                  <div className="mt-6 flex items-center text-sm text-blue-400 font-medium group-hover:translate-x-1 transition-transform">
+                    View Guide
+                    <span className="ml-2">→</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -108,7 +113,7 @@ export default function BusinessHub() {
       {/* ─ My Applications Panel ─ */}
       {token && (
         <div className="border-t border-white/10 bg-white/[0.02] backdrop-blur-sm">
-          <div className="content-wrap py-12">
+          <div className="content-wrap py-7">
             <h2 className="text-2xl font-bold text-white mb-8">My Applications</h2>
 
             {error && (
@@ -170,7 +175,7 @@ export default function BusinessHub() {
       {/* ─ Login Prompt ─ */}
       {!token && (
         <div className="border-t border-white/10 bg-white/[0.02] backdrop-blur-sm">
-          <div className="content-wrap py-12 text-center">
+          <div className="content-wrap py-7 text-center">
             <p className="text-white/60 mb-4">
               Sign in to track your business registrations
             </p>
