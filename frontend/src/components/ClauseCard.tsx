@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Clause } from '../types'
 import RiskBadge from './RiskBadge'
+import { Card } from './Card'
 
 interface Props {
   clause: Clause
@@ -36,7 +37,7 @@ export default function ClauseCard({ clause, index }: Props) {
   const tone = toneMap[clause.risk_level]
 
   return (
-    <div className={`section-card overflow-hidden rounded-[26px] border-l-4 ${tone.line}`}>
+    <Card variant="section" className={`overflow-hidden rounded-[26px] border-l-4 ${tone.line}`}>
       <button
         type="button"
         onClick={() => setExpanded((value) => !value)}
@@ -83,7 +84,7 @@ export default function ClauseCard({ clause, index }: Props) {
                 </div>
               )}
 
-              <div className="info-card rounded-[22px] px-4 py-4">
+              <Card variant="info" className="rounded-[22px] px-4 py-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Plain language</p>
                   <button
@@ -101,7 +102,7 @@ export default function ClauseCard({ clause, index }: Props) {
                 <p className="text-sm leading-7 text-slate-300">
                   {showHindi ? clause.plain_hindi : clause.plain_english}
                 </p>
-              </div>
+              </Card>
             </div>
 
             <details className="info-card h-fit rounded-[22px] px-4 py-4">
@@ -113,6 +114,6 @@ export default function ClauseCard({ clause, index }: Props) {
           </div>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

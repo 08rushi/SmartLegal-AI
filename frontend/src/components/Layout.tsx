@@ -95,6 +95,7 @@ export default function Layout() {
   }, [])
 
   useEffect(() => {
+    window.scrollTo(0, 0)
     trackEvent('page_viewed', {
       path: location.pathname,
       search: location.search,
@@ -125,9 +126,8 @@ export default function Layout() {
       <div className="ambient-wave" />
       <div className="ambient-grid" />
 
-      <header className="sticky top-0 z-50 px-3 pt-3 sm:px-5">
-        <div className="content-wrap">
-          <div className="glass-nav mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-5">
+      <header className="sticky top-0 z-50 px-4 pt-3 sm:px-6 lg:px-8">
+        <div className="glass-nav mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6 sm:py-3">
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3" onClick={handleNavClick}>
@@ -383,7 +383,6 @@ export default function Layout() {
               </div>
             </div>
           )}
-        </div>
       </header>
 
       <main className="relative z-10">

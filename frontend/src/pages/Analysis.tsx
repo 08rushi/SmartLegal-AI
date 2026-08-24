@@ -7,6 +7,9 @@ import { analyzeDocument } from '../store/analysisSlice'
 import { fetchDocumentById } from '../store/documentSlice'
 import type { RiskLevel } from '../types'
 import { trackEvent } from '../utils/posthog'
+import { Card } from '../components/Card'
+import { exportAnalysisToPDF } from '../utils/pdfExporter'
+import { demoAnalysisResult, demoDocument } from '../utils/demoData'
 
 type FilterType = 'all' | RiskLevel
 
@@ -93,12 +96,19 @@ function AnalysisSkeleton() {
   )
 }
 
-export default function Analysis() {
+export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { documentId } = useParams()
-  const { result, isLoading, error } = useAppSelector((s) => s.analysis)
-  const currentDoc = useAppSelector((s) => s.document.current)
+  
+  const { result: apiResult, isLoading, error } = useAppSelector((s) => s.analysis)
+  const apiDoc = useAppSelector((s) => s.document.current)
+
+  const isDemoMode = isDemo || documentId === 'demo' || (!documentId && !apiDoc?.id && !apiResult)
+
+  const result = isDemoMode ? demoAnalysisResult : apiResult
+  const currentDoc = isDemoMode ? demoDocument : apiDoc
+
   const [filter, setFilter] = useState<FilterType>('all')
   const [activeTab, setActiveTab] = useState<'clauses' | 'summary'>('summary')
   const requestedAnalysisRef = useRef<string | null>(null)
@@ -109,27 +119,29 @@ export default function Analysis() {
   const clausesRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
+    if (isDemoMode) return
+
     if (!documentId) {
-      if (currentDoc?.id) {
-        navigate(`/analysis/${currentDoc.id}`, { replace: true })
+      if (apiDoc?.id) {
+        navigate(`/analysis/${apiDoc.id}`, { replace: true })
         return
       }
 
-      if (!isLoading && !result) {
+      if (!isLoading && !apiResult) {
         navigate('/upload', { replace: true })
       }
       return
     }
 
-    if (currentDoc?.id !== documentId) {
+    if (apiDoc?.id !== documentId) {
       dispatch(fetchDocumentById(documentId))
     }
 
-    if (result?.document_id !== documentId && requestedAnalysisRef.current !== documentId) {
+    if (apiResult?.document_id !== documentId && requestedAnalysisRef.current !== documentId) {
       requestedAnalysisRef.current = documentId
       dispatch(analyzeDocument(documentId))
     }
-  }, [currentDoc?.id, dispatch, documentId, isLoading, navigate, result, result?.document_id])
+  }, [apiDoc?.id, apiResult, dispatch, documentId, isDemoMode, isLoading, navigate])
 
   useEffect(() => {
     setFilter('all')
@@ -175,16 +187,17 @@ export default function Analysis() {
   }
 
   const shouldShowSkeleton =
+    !isDemoMode &&
     Boolean(documentId) &&
-    (!currentDoc || currentDoc.id !== documentId || isLoading || result?.document_id !== documentId)
+    (!apiDoc || apiDoc.id !== documentId || isLoading || apiResult?.document_id !== documentId)
 
   if (shouldShowSkeleton && !error) {
     return <AnalysisSkeleton />
   }
 
-  if (!documentId && !isLoading && !result) return null
+  if (!isDemoMode && !documentId && !isLoading && !apiResult) return null
 
-  if (error) {
+  if (!isDemoMode && error) {
     return (
       <div className="content-wrap py-6">
         <div className="section-card mx-auto max-w-3xl rounded-[32px] px-6 py-9 text-center">
@@ -226,8 +239,35 @@ export default function Analysis() {
 
   return (
     <div className="content-wrap py-5 sm:py-6">
+      {isDemoMode && (
+        <div className="mx-auto max-w-7xl mb-5">
+          <Card variant="hero" className="rounded-[24px] border border-[#f5c26b]/30 bg-[#161208]/90 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f5c26b]/20 text-xl">✨</span>
+                <div>
+                  <p className="text-base font-semibold text-white">Interactive Demo Analysis Mode</p>
+                  <p className="text-xs text-slate-300">
+                    Viewing sample AI risk review for a <span className="font-semibold text-[#f5c26b]">Residential Rental Agreement</span>. Try switching tabs, toggling Hindi translation, or downloading the PDF report!
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  window.scrollTo(0, 0)
+                  navigate('/upload')
+                }}
+                className="btn-primary text-xs px-5 py-2.5 self-start sm:self-auto shrink-0 shadow-lg"
+              >
+                Upload Your Document →
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="section-card h-fit rounded-[30px] p-5">
+        <Card as="aside" variant="section" className="h-fit rounded-[30px] p-5">
           <div className="mb-6">
             <p className="text-sm text-slate-500">Analysis Overview</p>
             <h1 className="mt-2 text-2xl font-semibold text-white">Document Review</h1>
@@ -273,10 +313,23 @@ export default function Analysis() {
               </button>
             ))}
           </div>
-        </aside>
+
+          <div className="mt-6 border-t border-white/10 pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                trackEvent('analysis_exported_pdf', { documentId: currentDoc?.id })
+                exportAnalysisToPDF(result, currentDoc)
+              }}
+              className="btn-secondary w-full justify-center gap-2 py-3 text-xs"
+            >
+              <span>📥</span> Export PDF Report
+            </button>
+          </div>
+        </Card>
 
         <div className="space-y-6">
-          <section ref={overviewRef} className="section-card scroll-mt-28 rounded-[30px] p-5 sm:p-6">
+          <Card as="section" ref={overviewRef} variant="section" className="scroll-mt-28 rounded-[30px] p-5 sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-sm text-slate-500">Document: {currentDoc?.filename || 'Legal Agreement.pdf'}</p>
@@ -285,13 +338,28 @@ export default function Analysis() {
                   Review risk counts, core obligations, and your contract summary in one structured dashboard.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-3">
-                <button onClick={() => navigate('/chat')} className="btn-primary">
-                  Ask About This Document
+              <div className="flex flex-col gap-2.5 sm:min-w-[280px] shrink-0">
+                {/* 1st Row: Primary Highlighted Button */}
+                <button onClick={() => navigate('/chat')} className="btn-primary w-full justify-center">
+                  Ask About This Document →
                 </button>
-                <button onClick={() => navigate('/upload')} className="btn-secondary">
-                  Upload Another
-                </button>
+
+                {/* 2nd Row: Upload Another & Export PDF */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => navigate('/upload')} className="btn-secondary justify-center px-3 py-2.5 text-xs">
+                    Upload Another
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      trackEvent('analysis_exported_pdf', { documentId: currentDoc?.id })
+                      exportAnalysisToPDF(result, currentDoc)
+                    }}
+                    className="btn-secondary justify-center px-3 py-2.5 text-xs flex items-center gap-1.5"
+                  >
+                    <span>📥</span> Export PDF
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -353,11 +421,11 @@ export default function Analysis() {
                 </div>
               </div>
             </div>
-          </section>
+          </Card>
 
           {activeTab === 'summary' && (
             <section ref={keyPointsRef} className="grid scroll-mt-28 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-              <div className="section-card rounded-[30px] p-5 sm:p-6">
+              <Card variant="section" className="rounded-[30px] p-5 sm:p-6">
                 <div className="mb-5 flex items-center justify-between gap-4">
                   <h3 className="text-2xl font-semibold text-white">Key Points</h3>
                   <button type="button" onClick={() => setActiveTab('clauses')} className="btn-secondary px-4 py-2.5 text-sm">
@@ -392,11 +460,11 @@ export default function Analysis() {
                     <ClauseCard key={clause.id} clause={clause} index={index} />
                   ))}
                 </div>
-              </div>
+              </Card>
 
               <div className="space-y-6">
                 {(yourObligations.length > 0 || otherPartyRights.length > 0) && (
-                  <div className="section-card rounded-[30px] p-5 sm:p-6">
+                  <Card variant="section" className="rounded-[30px] p-5 sm:p-6">
                     <h3 className="text-2xl font-semibold text-white">Rights & Obligations</h3>
                     <div className="mt-5 space-y-4">
                       {yourObligations.length > 0 && (
@@ -421,11 +489,11 @@ export default function Analysis() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </Card>
                 )}
 
                 {(summary.parties.length > 0 || summary.key_dates.length > 0) && (
-                  <div className="section-card rounded-[30px] p-5 sm:p-6">
+                  <Card variant="section" className="rounded-[30px] p-5 sm:p-6">
                     <h3 className="text-2xl font-semibold text-white">Parties & Dates</h3>
                     <div className="mt-5 grid gap-4">
                       {summary.parties.length > 0 && (
@@ -452,14 +520,14 @@ export default function Analysis() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </Card>
                 )}
               </div>
             </section>
           )}
 
           {activeTab === 'clauses' && (
-            <section ref={clausesRef} className="section-card scroll-mt-28 rounded-[30px] p-5 sm:p-6">
+            <Card as="section" ref={clausesRef} variant="section" className="scroll-mt-28 rounded-[30px] p-5 sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-2xl font-semibold text-white">
@@ -505,7 +573,7 @@ export default function Analysis() {
                   ))
                 )}
               </div>
-            </section>
+            </Card>
           )}
         </div>
       </div>

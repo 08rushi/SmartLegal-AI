@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from './hooks/redux'
 import { fetchCurrentUser } from './store/authSlice'
@@ -27,7 +27,6 @@ import ProtectedRoute from './components/ProtectedRoute'
 function App() {
   const dispatch = useAppDispatch()
   const { token, user } = useAppSelector((s) => s.auth)
-  const currentDocument = useAppSelector((s) => s.document.current)
 
   // Step 1: Restore session JWT → fetch user profile
   useEffect(() => {
@@ -70,18 +69,11 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="analysis"
-            element={
-              <ProtectedRoute>
-                {currentDocument ? (
-                  <Navigate to={`/analysis/${currentDocument.id}`} replace />
-                ) : (
-                  <Analysis />
-                )}
-              </ProtectedRoute>
-            }
-          />
+          {/* Public demo analysis route (accessible without auth) */}
+          <Route path="analysis" element={<Analysis isDemo />} />
+          <Route path="analysis/demo" element={<Analysis isDemo />} />
+
+          {/* Protected specific document analysis route */}
           <Route
             path="analysis/:documentId"
             element={

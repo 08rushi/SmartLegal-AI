@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { analyzeDocument } from '../store/analysisSlice'
 import { clearDocumentError, uploadDocument } from '../store/documentSlice'
 import { trackEvent } from '../utils/posthog'
+import { Card } from '../components/Card'
 
 const documentTypes = [
   'Rental Agreement',
@@ -83,6 +84,7 @@ export default function Upload() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   useEffect(() => {
+    window.scrollTo(0, 0)
     dispatch(clearDocumentError())
   }, [dispatch])
 
@@ -163,7 +165,7 @@ export default function Upload() {
   return (
     <div className="content-wrap py-5 sm:py-5">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[0.86fr_1.14fr]">
-        <div className="section-card rounded-[32px] p-6 sm:p-6">
+        <Card variant="section" className="rounded-[32px] p-6 sm:p-6">
           <span className="section-eyebrow">03 Upload Document</span>
           <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">Upload Your PDF Document</h1>
           <p className="mt-2 text-sm leading-6 text-slate-400 sm:text-base">
@@ -187,14 +189,14 @@ export default function Upload() {
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {documentTypes.map((type) => (
-              <div key={type} className="info-card rounded-[20px] px-4 py-3 text-sm text-slate-300">
+              <Card key={type} variant="info" className="rounded-[20px] px-4 py-3 text-sm text-slate-300">
                 {type}
-              </div>
+              </Card>
             ))}
           </div>
-        </div>
+        </Card>
 
-        <div className="section-card rounded-[32px] p-5 sm:p-8">
+        <Card variant="section" className="rounded-[32px] p-5 sm:p-8">
           <div
             {...getRootProps()}
             className={`upload-dropzone relative overflow-hidden rounded-[30px] border border-dashed px-5 py-6 text-center transition-all duration-300 sm:px-8 sm:py-7 ${
@@ -328,7 +330,7 @@ export default function Upload() {
           {/* <p className="mt-4 text-center text-xs text-slate-500">
             Sign in later if you want saved history and persistent document Q&A.
           </p> */}
-        </div>
+        </Card>
       </div>
     </div>
   )

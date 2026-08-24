@@ -95,11 +95,11 @@
   }
 
   .glass-nav {
-    background: linear-gradient(180deg, rgba(11, 17, 31, 0.9), rgba(9, 14, 26, 0.86));
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.26);
-    backdrop-filter: blur(22px);
-    border-radius: 28px;
+    background: linear-gradient(180deg, rgba(22, 18, 8, 0.92), rgba(12, 16, 28, 0.95));
+    border: 1px solid rgba(245, 194, 107, 0.3);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 24px rgba(245, 194, 107, 0.08);
+    backdrop-filter: blur(24px);
+    border-radius: 24px;
   }
 
   .section-card {

@@ -5,6 +5,7 @@ import { analyzeDocument } from '../store/analysisSlice'
 import { clearDocument, setCurrentDocument } from '../store/documentSlice'
 import type { UploadedDocument } from '../types'
 import { trackEvent } from '../utils/posthog'
+import { Card } from '../components/Card'
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -67,8 +68,8 @@ export default function MyDocuments() {
     <div className="content-wrap py-5 sm:py-6">
       <div className="mx-auto max-w-7xl">
 
-        {/* Header */}
-        <div className="section-card rounded-[32px] p-6 sm:p-8">
+        {/* Header Container Card */}
+        <Card variant="section" className="rounded-[32px] p-6 sm:p-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="section-eyebrow">Document History</span>
@@ -84,27 +85,27 @@ export default function MyDocuments() {
 
           {/* Stats bar */}
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="metric-card rounded-[22px] px-5 py-4">
+            <Card variant="metric" className="rounded-[22px] px-5 py-4">
               <p className="text-3xl font-semibold text-white">{history.length}</p>
               <p className="mt-1 text-sm text-slate-400">Documents analyzed</p>
-            </div>
-            <div className="metric-card rounded-[22px] px-5 py-4">
+            </Card>
+            <Card variant="metric" className="rounded-[22px] px-5 py-4">
               <p className="text-3xl font-semibold text-[#f5c26b]">
                 {result ? result.summary.high_risk_count : '—'}
               </p>
               <p className="mt-1 text-sm text-slate-400">High risk clauses (last doc)</p>
-            </div>
-            <div className="metric-card rounded-[22px] px-5 py-4">
+            </Card>
+            <Card variant="metric" className="rounded-[22px] px-5 py-4">
               <p className="text-3xl font-semibold text-[#34d399]">
                 {result ? result.summary.total_clauses : '—'}
               </p>
               <p className="mt-1 text-sm text-slate-400">Clauses extracted (last doc)</p>
-            </div>
+            </Card>
           </div>
-        </div>
+        </Card>
 
-        {/* Document list */}
-        <div className="mt-6 section-card rounded-[32px] p-5 sm:p-7">
+        {/* Document list Card */}
+        <Card variant="section" className="mt-6 rounded-[32px] p-5 sm:p-7">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-xl font-semibold text-white">Recent Documents</h2>
             <span className="text-sm text-slate-500">{history.length} total</span>
@@ -133,12 +134,12 @@ export default function MyDocuments() {
                 const hasResult = result?.document_id === doc.id
 
                 return (
-                  <div
+                  <Card
                     key={doc.id}
-                    className={`group relative overflow-hidden rounded-[24px] border px-5 py-4 transition-all ${
-                      isCurrent
-                        ? 'border-[#f5c26b]/25 bg-[#f5c26b]/5'
-                        : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+                    variant="outline"
+                    hoverLift
+                    className={`relative overflow-hidden rounded-[24px] px-5 py-4 ${
+                      isCurrent ? 'border-[#f5c26b]/25 bg-[#f5c26b]/5' : ''
                     }`}
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -236,16 +237,16 @@ export default function MyDocuments() {
                         </span>
                       </div>
                     )}
-                  </div>
+                  </Card>
                 )
               })}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Quick tips for logged-out users */}
         {!user && (
-          <div className="mt-6 section-card rounded-[32px] p-5 sm:p-7">
+          <Card variant="section" className="mt-6 rounded-[32px] p-5 sm:p-7">
             <div className="flex items-start gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#f5c26b]/20 bg-[#f5c26b]/8 text-sm text-[#f5c26b]">
                 ℹ
@@ -261,7 +262,7 @@ export default function MyDocuments() {
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         )}
       </div>
     </div>
