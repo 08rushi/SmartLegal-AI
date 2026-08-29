@@ -173,7 +173,6 @@ async def create_tables():
                 status          TEXT DEFAULT 'ready',
                 uploaded_at     TEXT NOT NULL
             );
-            ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_hash TEXT DEFAULT '';
             CREATE INDEX IF NOT EXISTS idx_documents_file_hash ON documents(user_id, file_hash);
 
 
