@@ -29,7 +29,9 @@ jobs:
       - name: Run Pytest Test Suite
         run: |
           cd backend
-          pytest tests/ -v
+          python -m pytest tests/ -v
+        env:
+          PYTHONPATH: .
 
   frontend-checks:
     name: Frontend TypeCheck, Lint & Build
