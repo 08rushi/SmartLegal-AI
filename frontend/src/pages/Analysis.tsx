@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ClauseCard from '../components/ClauseCard'
 import RiskBadge from '../components/RiskBadge'
+import ConsequencesPanel from '../components/ConsequencesPanel'
+import NegotiationPanel from '../components/NegotiationPanel'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { analyzeDocument } from '../store/analysisSlice'
+import { setInsightsDocument } from '../store/insightsSlice'
 import { fetchDocumentById } from '../store/documentSlice'
 import type { RiskLevel } from '../types'
 import { trackEvent } from '../utils/posthog'
@@ -12,8 +15,7 @@ import { exportAnalysisToPDF } from '../utils/pdfExporter'
 import { demoAnalysisResult, demoDocument } from '../utils/demoData'
 
 type FilterType = 'all' | RiskLevel
-
-const sidebarItems = ['Overview', 'Key Points', 'All Clauses', 'Risk Warnings', 'Ask AI']
+type ActiveTab = 'summary' | 'clauses' | 'consequences' | 'negotiation'
 
 function AnalysisSkeleton() {
   return (
@@ -110,13 +112,16 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
   const currentDoc = isDemoMode ? demoDocument : apiDoc
 
   const [filter, setFilter] = useState<FilterType>('all')
-  const [activeTab, setActiveTab] = useState<'clauses' | 'summary'>('summary')
+  const [activeTab, setActiveTab] = useState<ActiveTab>('summary')
   const requestedAnalysisRef = useRef<string | null>(null)
+  const analyzeReqRef = useRef<{ abort: (reason?: string) => void } | null>(null)
   const trackedViewRef = useRef<string | null>(null)
   const overviewRef = useRef<HTMLElement | null>(null)
   const keyPointsRef = useRef<HTMLElement | null>(null)
   const riskWarningsRef = useRef<HTMLDivElement | null>(null)
   const clausesRef = useRef<HTMLElement | null>(null)
+  const consequencesRef = useRef<HTMLElement | null>(null)
+  const negotiationRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (isDemoMode) return
@@ -137,16 +142,30 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
       dispatch(fetchDocumentById(documentId))
     }
 
-    if (apiResult?.document_id !== documentId && requestedAnalysisRef.current !== documentId) {
+    if (!isLoading && apiResult?.document_id !== documentId && requestedAnalysisRef.current !== documentId) {
       requestedAnalysisRef.current = documentId
-      dispatch(analyzeDocument(documentId))
+      analyzeReqRef.current = dispatch(analyzeDocument(documentId))
     }
   }, [apiDoc?.id, apiResult, dispatch, documentId, isDemoMode, isLoading, navigate])
 
+  // Cancel the in-flight analysis poll when the document changes or on unmount,
+  // so the 3s status loop doesn't keep running (up to 5 min) after navigating away.
   useEffect(() => {
+    return () => {
+      analyzeReqRef.current?.abort()
+      analyzeReqRef.current = null
+      requestedAnalysisRef.current = null
+    }
+  }, [documentId])
+
+  useEffect(() => {
+    requestedAnalysisRef.current = null
     setFilter('all')
     setActiveTab('summary')
-  }, [documentId])
+    if (documentId && documentId !== 'demo') {
+      dispatch(setInsightsDocument(documentId))
+    }
+  }, [documentId, dispatch])
 
   useEffect(() => {
     if (result?.document_id && trackedViewRef.current !== result.document_id) {
@@ -159,29 +178,25 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
     }
   }, [result])
 
-  const scrollToSection = (section: 'overview' | 'key-points' | 'all-clauses' | 'risk-warnings') => {
-    if (section === 'all-clauses') {
-      setActiveTab('clauses')
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          clausesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }, 80)
-      })
-      return
-    }
+  type SectionKey = 'overview' | 'key-points' | 'all-clauses' | 'risk-warnings' | 'consequences' | 'negotiation'
 
-    setActiveTab('summary')
+  const sectionMap: Record<SectionKey, { tab: ActiveTab; ref: React.RefObject<HTMLElement | HTMLDivElement | null> }> = {
+    overview: { tab: 'summary', ref: overviewRef },
+    'key-points': { tab: 'summary', ref: keyPointsRef },
+    'all-clauses': { tab: 'clauses', ref: clausesRef },
+    'risk-warnings': { tab: 'summary', ref: riskWarningsRef },
+    consequences: { tab: 'consequences', ref: consequencesRef },
+    negotiation: { tab: 'negotiation', ref: negotiationRef },
+  }
+
+  const scrollToSection = (section: SectionKey) => {
+    const config = sectionMap[section]
+    if (!config) return
+    setActiveTab(config.tab)
     requestAnimationFrame(() => {
       setTimeout(() => {
-        if (section === 'overview') {
-          overviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          return
-        }
-        if (section === 'key-points') {
-          keyPointsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          return
-        }
-        ;(riskWarningsRef.current || keyPointsRef.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        const target = config.ref.current || (section === 'risk-warnings' ? keyPointsRef.current : null)
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 80)
     })
   }
@@ -189,11 +204,13 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
   const shouldShowSkeleton =
     !isDemoMode &&
     Boolean(documentId) &&
-    (!apiDoc || apiDoc.id !== documentId || isLoading || apiResult?.document_id !== documentId)
+    !error &&
+    (isLoading || !apiResult || apiResult.document_id !== documentId)
 
-  if (shouldShowSkeleton && !error) {
+  if (shouldShowSkeleton) {
     return <AnalysisSkeleton />
   }
+
 
   if (!isDemoMode && !documentId && !isLoading && !apiResult) return null
 
@@ -232,6 +249,26 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
 
   const { summary, clauses } = result
   const filteredClauses = filter === 'all' ? clauses : clauses.filter((c) => c.risk_level === filter)
+  // Insight tabs need a real, owned, analyzed document (not the public demo).
+  const insightDocId = !isDemoMode && documentId && documentId !== 'demo' ? documentId : null
+
+  const sidebarConfig: Array<{
+    id: string
+    label: string
+    isActive: boolean
+    onClick: () => void
+  }> = [
+    { id: 'overview', label: 'Overview', isActive: activeTab === 'summary', onClick: () => scrollToSection('overview') },
+    { id: 'key-points', label: 'Key Points', isActive: activeTab === 'summary', onClick: () => scrollToSection('key-points') },
+    { id: 'all-clauses', label: 'All Clauses', isActive: activeTab === 'clauses', onClick: () => scrollToSection('all-clauses') },
+    { id: 'risk-warnings', label: 'Risk Warnings', isActive: activeTab === 'summary', onClick: () => scrollToSection('risk-warnings') },
+    ...(insightDocId ? [
+      { id: 'consequences', label: 'What If I Sign', isActive: activeTab === 'consequences', onClick: () => scrollToSection('consequences') },
+      { id: 'negotiation', label: 'Negotiate', isActive: activeTab === 'negotiation', onClick: () => scrollToSection('negotiation') },
+    ] : []),
+    { id: 'ask-ai', label: 'Ask AI', isActive: false, onClick: () => navigate('/chat') },
+  ]
+
   const highRiskClauses: string[] = summary.high_risk_clauses || []
   const beneficialClauses: string[] = summary.beneficial_clauses || []
   const yourObligations: string[] = summary.your_obligations || []
@@ -277,39 +314,19 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
           </div>
 
           <div className="space-y-2">
-            {sidebarItems.map((item, index) => (
+            {sidebarConfig.map((item, index) => (
               <button
-                key={item}
+                key={item.id}
                 type="button"
-                onClick={() => {
-                  if (item === 'Ask AI') {
-                    navigate('/chat')
-                    return
-                  }
-                  if (item === 'Overview') {
-                    scrollToSection('overview')
-                    return
-                  }
-                  if (item === 'Key Points') {
-                    scrollToSection('key-points')
-                    return
-                  }
-                  if (item === 'All Clauses') {
-                    scrollToSection('all-clauses')
-                    return
-                  }
-                  if (item === 'Risk Warnings') {
-                    scrollToSection('risk-warnings')
-                  }
-                }}
+                onClick={item.onClick}
                 className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition ${
-                  (activeTab === 'summary' && index < 2) || (activeTab === 'clauses' && item === 'All Clauses')
+                  item.isActive
                     ? 'bg-white/10 text-[#f5c26b]'
                     : 'text-slate-400 hover:bg-white/[0.03] hover:text-white'
                 }`}
               >
                 <span className="text-xs text-slate-500">{String(index + 1).padStart(2, '0')}</span>
-                <span>{item}</span>
+                <span>{item.label}</span>
               </button>
             ))}
           </div>
@@ -410,6 +427,12 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
                     <span className="text-slate-500">Type</span>
                     <span>{summary.document_type}</span>
                   </div>
+                  {summary.language && (
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-500">Language</span>
+                      <span>{summary.language}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-slate-500">Parties</span>
                     <span>{summary.parties.length || 0}</span>
@@ -573,6 +596,30 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
                   ))
                 )}
               </div>
+            </Card>
+          )}
+
+          {activeTab === 'consequences' && insightDocId && (
+            <Card as="section" ref={consequencesRef} variant="section" className="scroll-mt-28 rounded-[30px] p-5 sm:p-6">
+              <div className="mb-4">
+                <h3 className="text-2xl font-semibold text-white">What Happens If I Sign?</h3>
+                <p className="mt-2 text-sm text-slate-400">
+                  A realistic simulation of the consequences you could face if you sign this document as-is.
+                </p>
+              </div>
+              <ConsequencesPanel documentId={insightDocId} />
+            </Card>
+          )}
+
+          {activeTab === 'negotiation' && insightDocId && (
+            <Card as="section" ref={negotiationRef} variant="section" className="scroll-mt-28 rounded-[30px] p-5 sm:p-6">
+              <div className="mb-4">
+                <h3 className="text-2xl font-semibold text-white">Negotiate Better Terms</h3>
+                <p className="mt-2 text-sm text-slate-400">
+                  Safer alternatives and copy-ready counter-wording for the clauses that are risky for you.
+                </p>
+              </div>
+              <NegotiationPanel documentId={insightDocId} />
             </Card>
           )}
         </div>

@@ -114,13 +114,42 @@ async def set_analysis(document_id: str, data: dict, ttl: int) -> None:
 async def delete_analysis(document_id: str) -> None:
     """
     Evict a cached entry — call when force_reanalyze=True or cache is cleared.
-    Never raises.
+    Also evicts the cached extracted text. Never raises.
     """
     if _redis is None:
         return
     try:
-        await _redis.delete(_key(document_id))
+        await _redis.delete(_key(document_id), _text_key(document_id))
         logger.debug("[cache] DEL  document_id=%s", document_id)
     except Exception as exc:
         logger.warning("[cache] DEL failed for %s: %s", document_id, exc)
         _capture_silent(exc, {"document_id": document_id, "op": "delete"})
+
+
+# ── Extracted-text cache (so chat doesn't re-parse the PDF every question) ─────
+
+def _text_key(document_id: str) -> str:
+    return f"doctext:{document_id}"
+
+
+async def get_doc_text(document_id: str) -> str | None:
+    """Return cached extracted PDF text, or None on miss/error. Never raises."""
+    if _redis is None:
+        return None
+    try:
+        return await _redis.get(_text_key(document_id))
+    except Exception as exc:
+        logger.warning("[cache] text GET failed for %s: %s", document_id, exc)
+        _capture_silent(exc, {"document_id": document_id, "op": "get_text"})
+        return None
+
+
+async def set_doc_text(document_id: str, text: str, ttl: int) -> None:
+    """Cache extracted PDF text with the given TTL (seconds). Never raises."""
+    if _redis is None or not text:
+        return
+    try:
+        await _redis.set(_text_key(document_id), text, ex=ttl)
+    except Exception as exc:
+        logger.warning("[cache] text SET failed for %s: %s", document_id, exc)
+        _capture_silent(exc, {"document_id": document_id, "op": "set_text"})

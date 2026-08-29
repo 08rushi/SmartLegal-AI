@@ -1,28 +1,46 @@
 """
-Business License Hub Guidance and Tracker Router.
+Business License Hub Guidance and Tracker Router  (SL-009 / SL-011 refactor).
 
-Provides:
-1. Public endpoints: list business types, get full guidance (no auth required)
-2. Auth-protected endpoints: create/manage applications and track progress
+HTTP-adapter layer — all business logic lives in:
+  services.application_service  (application CRUD + ownership)
+  services.checklist_service    (checklist engine)
+  services.business_kb          (knowledge-base / guidance data)
 
-All public endpoints (GET methods) return static guidance data.
-Auth-protected endpoints implement ownership verification.
+This router only:
+  • Validates HTTP input (Pydantic schemas)
+  • Calls the appropriate service function
+  • Maps the result to an HTTP response
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from datetime import datetime
-import uuid
 
 from database import get_db
 from limiter import limiter
 from routers.auth import get_current_user
-from services.business_kb import get_all_business_types, get_business_guidance, get_business_checklist, _normalize_business_type
+from services.business_kb import (
+    get_all_business_types, get_business_guidance, get_business_checklist, _normalize_business_type,
+)
+from services.application_service import (
+    create_application as svc_create,
+    list_applications as svc_list,
+    get_application as svc_get,
+    update_application as svc_update,
+    delete_application as svc_delete,
+)
+from services.checklist_service import (
+    get_checklist as svc_checklist_get,
+    save_checklist as svc_checklist_save,
+    seed_checklist,
+)
 
 router = APIRouter()
 
+DOMAIN = "business"
+VALID_STATUSES = {"in_progress", "submitted", "received", "completed"}
 
-# ── Schemas ────────────────────────────────────────────────────────────────
+
+# ── Request / Response Schemas ────────────────────────────────────────────────
 
 class ApplicationCreate(BaseModel):
     business_type: str
@@ -70,7 +88,33 @@ class BusinessTypeOut(BaseModel):
     official_portal: str
 
 
-# ── Auth-Protected Routes (must come before /{business_type} catch-all) ──────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _to_app_out(app: dict) -> ApplicationOut:
+    return ApplicationOut(
+        id=app["id"],
+        business_type=app.get("business_type", app.get("type_key", "")),
+        service=app["service"],
+        status=app["status"],
+        notes=app.get("notes", ""),
+        created_at=app["created_at"],
+        updated_at=app["updated_at"],
+    )
+
+
+def _to_checklist_out(items: list[dict]) -> list[ChecklistItemOut]:
+    return [
+        ChecklistItemOut(
+            id=it["id"],
+            item_text=it["item_text"],
+            is_done=bool(it["is_done"]),
+            updated_at=it["updated_at"],
+        )
+        for it in items
+    ]
+
+
+# ── Auth-Protected Routes ─────────────────────────────────────────────────────
 
 @router.post("/applications", response_model=ApplicationOut, status_code=201)
 @limiter.limit("30/minute")
@@ -80,56 +124,29 @@ async def create_application(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """
-    Create a new application tracker for a business registration service.
-    Logged-in users only.
-    """
-    # Validate and normalize business type
-    normalized_business_type = _normalize_business_type(data.business_type)
-    if not normalized_business_type:
+    """Create a new Business License application tracker (authenticated users only)."""
+    normalized = _normalize_business_type(data.business_type)
+    if not normalized or not get_business_guidance(normalized):
         raise HTTPException(status_code=400, detail=f"Invalid business type: {data.business_type}")
 
-    guidance = get_business_guidance(normalized_business_type)
-    if not guidance:
-        raise HTTPException(status_code=400, detail=f"Invalid business type: {data.business_type}")
-
-    # Validate service exists for this business type (case-insensitive)
-    checklist = get_business_checklist(normalized_business_type, data.service)
-    if checklist is None:
+    checklist_items = get_business_checklist(normalized, data.service)
+    if checklist_items is None:
         raise HTTPException(
             status_code=400,
-            detail=f"Service '{data.service}' not found for business type '{data.business_type}'"
+            detail=f"Service '{data.service}' not found for business type '{data.business_type}'",
         )
 
-    app_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
-
-    await db.execute(
-        """INSERT INTO business_applications
-           (id, user_id, business_type, service, status, notes, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)""",
-        app_id, current_user["id"], normalized_business_type, data.service, "in_progress", data.notes, now, now,
-    )
-
-    # Create checklist items from knowledge base
-    for item_text in checklist:
-        item_id = str(uuid.uuid4())
-        await db.execute(
-            """INSERT INTO business_checklist_items
-               (id, application_id, item_text, is_done, updated_at)
-               VALUES ($1, $2, $3, $4, $5)""",
-            item_id, app_id, item_text, 0, now,
-        )
-
-    return ApplicationOut(
-        id=app_id,
-        business_type=data.business_type,
+    app = await svc_create(
+        db,
+        user_id=current_user["id"],
+        domain=DOMAIN,
+        type_key=normalized,
         service=data.service,
-        status="in_progress",
         notes=data.notes,
-        created_at=now,
-        updated_at=now,
     )
+    await seed_checklist(db, app["id"], DOMAIN, checklist_items)
+    app["business_type"] = app.get("type_key", normalized)
+    return _to_app_out(app)
 
 
 @router.get("/applications", response_model=dict)
@@ -139,29 +156,9 @@ async def list_applications(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """
-    List all applications for the current user.
-    """
-    rows = await db.fetch(
-        """SELECT id, business_type, service, status, notes, created_at, updated_at
-           FROM business_applications WHERE user_id = $1 ORDER BY created_at DESC""",
-        current_user["id"],
-    )
-
-    applications = [
-        ApplicationOut(
-            id=row["id"],
-            business_type=row["business_type"],
-            service=row["service"],
-            status=row["status"],
-            notes=row["notes"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-        )
-        for row in rows
-    ]
-
-    return {"applications": applications}
+    """List all Business License applications for the current user."""
+    apps = await svc_list(db, user_id=current_user["id"], domain=DOMAIN)
+    return {"applications": [_to_app_out(a) for a in apps]}
 
 
 @router.get("/applications/{app_id}", response_model=ApplicationOut)
@@ -172,30 +169,9 @@ async def get_application(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """
-    Get a specific application by ID.
-    Ownership check: user can only view their own applications.
-    """
-    app = await db.fetchrow(
-        "SELECT * FROM business_applications WHERE id = $1",
-        app_id,
-    )
-
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-
-    if app["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    return ApplicationOut(
-        id=app["id"],
-        business_type=app["business_type"],
-        service=app["service"],
-        status=app["status"],
-        notes=app["notes"],
-        created_at=app["created_at"],
-        updated_at=app["updated_at"],
-    )
+    """Get a specific Business License application (ownership enforced)."""
+    app = await svc_get(db, user_id=current_user["id"], application_id=app_id, domain=DOMAIN)
+    return _to_app_out(app)
 
 
 @router.patch("/applications/{app_id}", response_model=ApplicationOut)
@@ -207,43 +183,18 @@ async def update_application(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """
-    Update an application's status or notes.
-    Ownership check: user can only update their own applications.
-    """
-    app = await db.fetchrow(
-        "SELECT * FROM business_applications WHERE id = $1",
-        app_id,
-    )
-
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-
-    if app["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Validate status if provided
-    if data.status and data.status not in ("in_progress", "submitted", "received", "completed"):
+    """Update a Business License application's status or notes (ownership enforced)."""
+    if data.status and data.status not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail="Invalid status value")
-
-    now = datetime.utcnow().isoformat()
-    status = data.status if data.status else app["status"]
-    notes = data.notes if data.notes is not None else app["notes"]
-
-    await db.execute(
-        "UPDATE business_applications SET status = $1, notes = $2, updated_at = $3 WHERE id = $4",
-        status, notes, now, app_id,
+    app = await svc_update(
+        db,
+        user_id=current_user["id"],
+        application_id=app_id,
+        domain=DOMAIN,
+        status=data.status,
+        notes=data.notes,
     )
-
-    return ApplicationOut(
-        id=app["id"],
-        business_type=app["business_type"],
-        service=app["service"],
-        status=status,
-        notes=notes,
-        created_at=app["created_at"],
-        updated_at=now,
-    )
+    return _to_app_out(app)
 
 
 @router.delete("/applications/{app_id}")
@@ -254,27 +205,8 @@ async def delete_application(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """
-    Delete an application and its checklist items.
-    Ownership check: user can only delete their own applications.
-    """
-    app = await db.fetchrow(
-        "SELECT * FROM business_applications WHERE id = $1",
-        app_id,
-    )
-
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-
-    if app["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Delete checklist items first
-    await db.execute("DELETE FROM business_checklist_items WHERE application_id = $1", app_id)
-
-    # Delete application
-    await db.execute("DELETE FROM business_applications WHERE id = $1", app_id)
-
+    """Delete a Business License application and its checklist (ownership enforced)."""
+    await svc_delete(db, user_id=current_user["id"], application_id=app_id, domain=DOMAIN)
     return {"message": "Application deleted"}
 
 
@@ -286,40 +218,9 @@ async def get_checklist(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """
-    Get checklist items for an application.
-    Ownership check: user can only view their own application's checklist.
-    """
-    # Verify ownership
-    app = await db.fetchrow(
-        "SELECT user_id FROM business_applications WHERE id = $1",
-        app_id,
-    )
-
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-
-    if app["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Fetch checklist items
-    items = await db.fetch(
-        "SELECT id, item_text, is_done, updated_at FROM business_checklist_items WHERE application_id = $1",
-        app_id,
-    )
-
-    return {
-        "application_id": app_id,
-        "items": [
-            ChecklistItemOut(
-                id=item["id"],
-                item_text=item["item_text"],
-                is_done=bool(item["is_done"]),
-                updated_at=item["updated_at"],
-            )
-            for item in items
-        ],
-    }
+    """Return checklist items for a Business License application (ownership enforced)."""
+    items = await svc_checklist_get(db, user_id=current_user["id"], application_id=app_id, domain=DOMAIN)
+    return {"application_id": app_id, "items": _to_checklist_out(items)}
 
 
 @router.post("/applications/{app_id}/checklist")
@@ -331,78 +232,31 @@ async def save_checklist(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """
-    Update checklist item progress for an application.
-    Ownership check: user can only update their own application's checklist.
-    """
-    # Verify ownership
-    app = await db.fetchrow(
-        "SELECT user_id FROM business_applications WHERE id = $1",
-        app_id,
+    """Bulk-update checklist completion states for a Business License application."""
+    items = await svc_checklist_save(
+        db,
+        user_id=current_user["id"],
+        application_id=app_id,
+        domain=DOMAIN,
+        items=[it.model_dump() for it in data.items],
     )
-
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-
-    if app["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    now = datetime.utcnow().isoformat()
-
-    # Update each item using id (preferred) or item_text (fallback)
-    for item in data.items:
-        if item.id:
-            await db.execute(
-                "UPDATE business_checklist_items SET is_done = $1, updated_at = $2 WHERE id = $3 AND application_id = $4",
-                1 if item.is_done else 0, now, item.id, app_id,
-            )
-        else:
-            await db.execute(
-                "UPDATE business_checklist_items SET is_done = $1, updated_at = $2 WHERE application_id = $3 AND item_text = $4",
-                1 if item.is_done else 0, now, app_id, item.item_text,
-            )
-
-    # Return updated checklist
-    items = await db.fetch(
-        "SELECT id, item_text, is_done, updated_at FROM business_checklist_items WHERE application_id = $1",
-        app_id,
-    )
-
-    return {
-        "application_id": app_id,
-        "items": [
-            ChecklistItemOut(
-                id=item["id"],
-                item_text=item["item_text"],
-                is_done=bool(item["is_done"]),
-                updated_at=item["updated_at"],
-            )
-            for item in items
-        ],
-    }
+    return {"application_id": app_id, "items": _to_checklist_out(items)}
 
 
-# ── Public Routes (no auth required) ───────────────────────────────────────
+# ── Public Routes ─────────────────────────────────────────────────────────────
 
 @router.get("/", response_model=dict)
 @limiter.limit("100/minute")
 async def list_business_types(request: Request):
-    """
-    List all 9 supported business registration types.
-    Returns summary data for frontend hub card grid.
-    """
+    """List all 9 supported business registration types (no auth required)."""
     return {"business_types": get_all_business_types()}
 
 
 @router.get("/{business_type}")
 @limiter.limit("100/minute")
 async def get_guidance(request: Request, business_type: str):
-    """
-    Get full guidance for one business registration type.
-    Includes services, fees, timelines, FAQs, legal protections.
-    """
+    """Get full guidance for one business registration type (no auth required)."""
     guidance = get_business_guidance(business_type)
     if not guidance:
         raise HTTPException(status_code=404, detail=f"Business type '{business_type}' not found")
-
     return {"guidance": guidance}

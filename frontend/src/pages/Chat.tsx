@@ -1,19 +1,65 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addUserMessage, fetchChatHistory, sendChatMessage, setDocumentId } from '../store/chatSlice'
+import { analyzeDocument } from '../store/analysisSlice'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { trackEvent } from '../utils/posthog'
 import { Card } from '../components/Card'
+import MarkdownMessage from '../components/MarkdownMessage'
+import type { AnalysisResult } from '../types'
 
 import { demoDocument } from '../utils/demoData'
 
-const suggestedQuestions = [
-  'Can my landlord increase rent mid-year?',
-  'What happens if I break the contract early?',
-  'How much notice do I need to give?',
-  'Is there any penalty clause I should watch for?',
-  'What are my rights if the other party wants to terminate?',
+// Shown only when no analysis is available for the current document.
+const GENERIC_QUESTIONS = [
+  'What is this document about?',
+  'What are the main risks for me?',
+  'What are my key obligations?',
+  'Are there any important dates or deadlines?',
+  'Which parts are in my favour?',
 ]
+
+function truncate(text: string, max = 52): string {
+  const t = text.trim()
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t
+}
+
+/**
+ * Build suggested questions from the CURRENT document's analysis, so the chips are
+ * specific to what the user actually uploaded (a rental clause, an FIR charge, a
+ * cheque-bounce notice, etc.) rather than one static rental-only list.
+ */
+function buildSuggestedQuestions(analysis: AnalysisResult | null, docId?: string): string[] {
+  if (!analysis || (docId && analysis.document_id !== docId)) return GENERIC_QUESTIONS
+
+  const s = analysis.summary
+  const docType = (s.document_type || 'document').trim()
+  const out: string[] = []
+
+  out.push(`What does this ${docType} mean for me?`)
+  if ((s.high_risk_count ?? 0) > 0) out.push('What are the biggest risks I should worry about?')
+
+  // Reference the actual highest-risk points from the document.
+  const seen = new Set<string>()
+  const ranked = [...(analysis.clauses || [])].sort((a, b) => (b.risk_score || 0) - (a.risk_score || 0))
+  for (const c of ranked) {
+    if (out.length >= 4) break
+    const label = (c.title || c.clause_type || '').trim()
+    if (!label) continue
+    const key = label.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(`Explain: "${truncate(label)}"`)
+  }
+
+  if (s.your_obligations && s.your_obligations.length) out.push('What do I need to do next?')
+  if (s.other_party_rights && s.other_party_rights.length) out.push('What can the other party do?')
+  if (s.beneficial_clauses && s.beneficial_clauses.length) out.push('Which points are in my favour?')
+
+  // De-duplicate and cap.
+  const unique = Array.from(new Set(out))
+  return unique.slice(0, 5)
+}
 
 export default function Chat() {
   const dispatch = useAppDispatch()
@@ -25,12 +71,24 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  const suggestedQuestions = useMemo(
+    () => buildSuggestedQuestions(analysis, currentDoc?.id),
+    [analysis, currentDoc?.id]
+  )
+  const loadedAnalysisRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (currentDoc && currentDoc.id !== 'demo') {
       dispatch(setDocumentId(currentDoc.id))
       dispatch(fetchChatHistory(currentDoc.id))
+      // Load this document's SAVED analysis (cached — no re-analyze) so the
+      // suggested questions reflect the actual uploaded document.
+      if (analysis?.document_id !== currentDoc.id && loadedAnalysisRef.current !== currentDoc.id) {
+        loadedAnalysisRef.current = currentDoc.id
+        dispatch(analyzeDocument(currentDoc.id))
+      }
     }
-  }, [currentDoc, dispatch, navigate])
+  }, [currentDoc, dispatch])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -187,9 +245,11 @@ export default function Chat() {
                       </p>
                     )}
 
-                    <p className="whitespace-pre-wrap">
-                      {msg.content}
-                    </p>
+                    {msg.role === 'assistant' ? (
+                      <MarkdownMessage content={msg.content} />
+                    ) : (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
 
                     <p
                       className={`mt-1 text-[9px] ${

@@ -49,6 +49,49 @@ export const loginWithGoogle = createAsyncThunk(
   }
 )
 
+export const forgotPassword = createAsyncThunk(
+  'auth/forgotPassword',
+  async (email: string, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post<{ message: string; reset_token?: string }>(
+        '/auth/forgot-password',
+        { email }
+      )
+      return response.data
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } }
+      return rejectWithValue(error.response?.data?.detail || 'Could not process the request.')
+    }
+  }
+)
+
+export const resetPassword = createAsyncThunk(
+  'auth/resetPassword',
+  async (payload: { token: string; new_password: string }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post<{ message: string }>('/auth/reset-password', payload)
+      return response.data
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } }
+      return rejectWithValue(error.response?.data?.detail || 'Could not reset your password.')
+    }
+  }
+)
+
+export const logoutAllSessions = createAsyncThunk(
+  'auth/logoutAll',
+  async (_, { rejectWithValue }) => {
+    try {
+      await apiClient.post('/auth/logout-all')
+      localStorage.removeItem('sl_token')
+      return true
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } }
+      return rejectWithValue(error.response?.data?.detail || 'Could not sign out other sessions.')
+    }
+  }
+)
+
 export const fetchCurrentUser = createAsyncThunk(
   'auth/me',
   async (_, { rejectWithValue }) => {
@@ -134,6 +177,13 @@ const authSlice = createSlice({
         state.isLoading = false
         state.error = action.payload as string
       })
+
+    // Sign out of all sessions → clear local auth
+    builder.addCase(logoutAllSessions.fulfilled, (state) => {
+      state.user = null
+      state.token = null
+      state.error = null
+    })
 
     // Fetch current user
     builder

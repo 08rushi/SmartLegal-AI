@@ -138,106 +138,192 @@ async def create_tables():
     if _db_pool is None:
         return
 
+    # In production, log schema authority notice
+    if getattr(settings, 'env', 'development') == 'production':
+        print("[DB] Production environment detected: Database schema is governed by Alembic migrations.")
+
     async with _db_pool.acquire() as conn:
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
+                id            TEXT PRIMARY KEY,
+                name          TEXT NOT NULL,
+                email         TEXT UNIQUE NOT NULL,
+                password      TEXT NOT NULL,
+                created_at    TEXT NOT NULL,
+                token_version INTEGER DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS password_resets (
                 id          TEXT PRIMARY KEY,
-                name        TEXT NOT NULL,
-                email       TEXT UNIQUE NOT NULL,
-                password    TEXT NOT NULL,
+                user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token_hash  TEXT NOT NULL,
+                expires_at  TEXT NOT NULL,
+                used        INTEGER DEFAULT 0,
                 created_at  TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS documents (
                 id              TEXT PRIMARY KEY,
-                user_id         TEXT NOT NULL,
+                user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 filename        TEXT NOT NULL,
                 file_url        TEXT NOT NULL,
                 file_size       INTEGER NOT NULL,
                 document_type   TEXT DEFAULT '',
+                file_hash       TEXT DEFAULT '',
                 status          TEXT DEFAULT 'ready',
-                uploaded_at     TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                uploaded_at     TEXT NOT NULL
             );
+            ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_hash TEXT DEFAULT '';
+            CREATE INDEX IF NOT EXISTS idx_documents_file_hash ON documents(user_id, file_hash);
+
 
             CREATE TABLE IF NOT EXISTS analyses (
                 id              TEXT PRIMARY KEY,
-                document_id     TEXT UNIQUE NOT NULL,
+                document_id     TEXT UNIQUE NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
                 result_json     TEXT NOT NULL,
-                analyzed_at     TEXT NOT NULL,
-                FOREIGN KEY (document_id) REFERENCES documents(id)
+                analyzed_at     TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS analysis_jobs (
+                id              TEXT PRIMARY KEY,
+                document_id     TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+                stage           TEXT NOT NULL,
+                progress_pct    INTEGER DEFAULT 0,
+                retries         INTEGER DEFAULT 0,
+                error_message   TEXT DEFAULT '',
+                started_at      TEXT NOT NULL,
+                updated_at      TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_analysis_jobs_doc_id ON analysis_jobs(document_id);
+
 
             CREATE TABLE IF NOT EXISTS chat_messages (
                 id              TEXT PRIMARY KEY,
-                document_id     TEXT NOT NULL,
+                document_id     TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
                 user_id         TEXT NOT NULL,
                 role            TEXT NOT NULL,
                 content         TEXT NOT NULL,
-                timestamp       TEXT NOT NULL,
-                FOREIGN KEY (document_id) REFERENCES documents(id)
+                timestamp       TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS document_insights (
+                id              TEXT PRIMARY KEY,
+                document_id     TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+                kind            TEXT NOT NULL,
+                result_json     TEXT NOT NULL,
+                created_at      TEXT NOT NULL,
+                UNIQUE (document_id, kind)
             );
 
             CREATE TABLE IF NOT EXISTS id_applications (
                 id              TEXT PRIMARY KEY,
-                user_id         TEXT NOT NULL,
+                user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 id_type         TEXT NOT NULL,
                 service         TEXT NOT NULL,
                 status          TEXT DEFAULT 'in_progress',
                 notes           TEXT DEFAULT '',
                 created_at      TEXT NOT NULL,
-                updated_at      TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                updated_at      TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS id_checklist_items (
                 id              TEXT PRIMARY KEY,
-                application_id  TEXT NOT NULL,
+                application_id  TEXT NOT NULL REFERENCES id_applications(id) ON DELETE CASCADE,
                 item_text       TEXT NOT NULL,
                 is_done         INTEGER DEFAULT 0,
-                updated_at      TEXT NOT NULL,
-                FOREIGN KEY (application_id) REFERENCES id_applications(id)
+                updated_at      TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS property_applications (
                 id              TEXT PRIMARY KEY,
-                user_id         TEXT NOT NULL,
+                user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 property_type   TEXT NOT NULL,
                 service         TEXT NOT NULL,
                 status          TEXT DEFAULT 'in_progress',
                 notes           TEXT DEFAULT '',
                 created_at      TEXT NOT NULL,
-                updated_at      TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                updated_at      TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS property_checklist_items (
                 id              TEXT PRIMARY KEY,
-                application_id  TEXT NOT NULL,
+                application_id  TEXT NOT NULL REFERENCES property_applications(id) ON DELETE CASCADE,
                 item_text       TEXT NOT NULL,
                 is_done         INTEGER DEFAULT 0,
-                updated_at      TEXT NOT NULL,
-                FOREIGN KEY (application_id) REFERENCES property_applications(id)
+                updated_at      TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS business_applications (
                 id              TEXT PRIMARY KEY,
-                user_id         TEXT NOT NULL,
+                user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 business_type   TEXT NOT NULL,
                 service         TEXT NOT NULL,
                 status          TEXT DEFAULT 'in_progress',
                 notes           TEXT DEFAULT '',
                 created_at      TEXT NOT NULL,
-                updated_at      TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                updated_at      TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS business_checklist_items (
                 id              TEXT PRIMARY KEY,
-                application_id  TEXT NOT NULL,
+                application_id  TEXT NOT NULL REFERENCES business_applications(id) ON DELETE CASCADE,
                 item_text       TEXT NOT NULL,
                 is_done         INTEGER DEFAULT 0,
-                updated_at      TEXT NOT NULL,
-                FOREIGN KEY (application_id) REFERENCES business_applications(id)
+                updated_at      TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS yojana_schemes (
+                id                  TEXT PRIMARY KEY,
+                scheme_code         TEXT UNIQUE NOT NULL,
+                title               TEXT NOT NULL,
+                government_level    TEXT NOT NULL,
+                state_name          TEXT DEFAULT 'ALL',
+                category            TEXT NOT NULL,
+                summary_english     TEXT NOT NULL,
+                summary_hindi       TEXT NOT NULL,
+                benefits_json       TEXT NOT NULL,
+                eligibility_json    TEXT NOT NULL,
+                required_docs_json  TEXT NOT NULL,
+                official_portal_url TEXT NOT NULL,
+                last_updated_at     TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS yojana_blogs (
+                id                  TEXT PRIMARY KEY,
+                scheme_id           TEXT REFERENCES yojana_schemes(id) ON DELETE SET NULL,
+                title               TEXT NOT NULL,
+                slug                TEXT UNIQUE NOT NULL,
+                summary             TEXT NOT NULL,
+                content_markdown    TEXT NOT NULL,
+                image_url           TEXT NOT NULL,
+                official_links_json TEXT NOT NULL,
+                published_at        TEXT NOT NULL
             );
         """)
+
+        # Performance B-Tree indexes (SL-004) & FK Cascades (SL-005)
+        index_statements = [
+            "ALTER TABLE id_applications DROP CONSTRAINT IF EXISTS id_applications_user_id_fkey, ADD CONSTRAINT id_applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+            "ALTER TABLE property_applications DROP CONSTRAINT IF EXISTS property_applications_user_id_fkey, ADD CONSTRAINT property_applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+            "ALTER TABLE business_applications DROP CONSTRAINT IF EXISTS business_applications_user_id_fkey, ADD CONSTRAINT business_applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+            "ALTER TABLE id_checklist_items DROP CONSTRAINT IF EXISTS id_checklist_items_application_id_fkey, ADD CONSTRAINT id_checklist_items_application_id_fkey FOREIGN KEY (application_id) REFERENCES id_applications(id) ON DELETE CASCADE",
+            "ALTER TABLE property_checklist_items DROP CONSTRAINT IF EXISTS property_checklist_items_application_id_fkey, ADD CONSTRAINT property_checklist_items_application_id_fkey FOREIGN KEY (application_id) REFERENCES property_applications(id) ON DELETE CASCADE",
+            "ALTER TABLE business_checklist_items DROP CONSTRAINT IF EXISTS business_checklist_items_application_id_fkey, ADD CONSTRAINT business_checklist_items_application_id_fkey FOREIGN KEY (application_id) REFERENCES business_applications(id) ON DELETE CASCADE",
+            "ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0",
+            "CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_chat_messages_doc_time ON chat_messages(document_id, timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_analyses_doc_id ON analyses(document_id)",
+            "CREATE INDEX IF NOT EXISTS idx_id_applications_user_id ON id_applications(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_property_applications_user_id ON property_applications(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_business_applications_user_id ON business_applications(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_yojana_schemes_cat_state ON yojana_schemes(category, state_name)",
+            "CREATE INDEX IF NOT EXISTS idx_yojana_blogs_slug ON yojana_blogs(slug)",
+        ]
+        for stmt in index_statements:
+            try:
+                await conn.execute(stmt)
+            except Exception:
+                pass  # constraint/column/index already exists
+
+
+

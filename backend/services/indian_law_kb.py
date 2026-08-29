@@ -738,3 +738,26 @@ Key Laws to reference in your analysis:
 
 INSTRUCTION: For every risk you flag, cite the specific Indian law and section number.
 Never give generic risk warnings — always tie to an actual Indian law."""
+
+
+def get_statute_by_keyword(query: str) -> list[dict]:
+    query_lower = query.lower()
+    results = []
+    for doc_type, data in INDIAN_LAW_KB.items():
+        for rule in data.get("rules", []):
+            topic = rule.get("topic", "")
+            law = rule.get("law", "")
+            if any(k in query_lower for k in rule.get("violation_keywords", [])) or query_lower in topic.lower() or query_lower in law.lower():
+                results.append({
+                    "title": topic,
+                    "act": law,
+                    "summary": rule.get("rule", ""),
+                    "doc_type": doc_type
+                })
+    return results
+
+
+def get_relevant_acts(doc_type: str) -> list[str]:
+    kb = INDIAN_LAW_KB.get(doc_type.lower(), {})
+    return kb.get("primary_laws", ["Indian Contract Act, 1872"])
+

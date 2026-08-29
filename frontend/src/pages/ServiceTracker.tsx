@@ -6,7 +6,7 @@ import { fetchPropertyApplications } from '../store/propertySlice'
 import { fetchBusinessApplications } from '../store/businessSlice'
 import { Card } from '../components/Card'
 
-type TrackerKind = 'legal-id' | 'property' | 'business'
+type TrackerKind = 'legal-id' | 'property' | 'business' | 'yojana'
 
 interface TrackerApplication {
   id: string
@@ -47,7 +47,9 @@ const serviceLabel: Record<TrackerKind, string> = {
   'legal-id': 'Legal ID',
   property: 'Property',
   business: 'Business',
+  yojana: 'Jan-Yojana',
 }
+
 
 function readReminders(): Reminder[] {
   try {

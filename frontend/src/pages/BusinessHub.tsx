@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { fetchBusinessTypes, fetchBusinessApplications } from '../store/businessSlice'
-import type { BusinessType } from '../types'
-import ServiceArt from '../components/ServiceArt'
-import { Card } from '../components/Card'
+import { ServiceHub, ServiceTypeItem, ServiceApplicationItem } from '../components/ServiceHub'
 
 export default function BusinessHub() {
   const navigate = useNavigate()
@@ -25,148 +23,41 @@ export default function BusinessHub() {
     }
   }, [mounted, dispatch, token])
 
-  const handleCardClick = (businessType: BusinessType) => {
-    navigate(`/business-hub/${businessType.key}`)
-  }
+  const serviceItems: ServiceTypeItem[] = businessTypes.map((t) => ({
+    key: t.key,
+    name: t.display_name,
+    description: `Official business license registration, compliance guidance, and checklist for ${t.display_name}.`,
+    icon_slug: t.key,
+  }))
+
+  const mappedApps: ServiceApplicationItem[] = applications.map((a) => ({
+    id: a.id,
+    service_name: a.service,
+    type_label: a.business_type.replace(/_/g, ' '),
+    status: a.status,
+    updated_at: a.updated_at || a.created_at,
+    notes: a.notes,
+  }))
 
   return (
-    <div className="content-wrap py-5 sm:py-6">
-      <Card variant="section" className="mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
-        {/* ─ Hero Section ─ */}
-        <div>
-          <p className="section-eyebrow">Government Services</p>
-          <h1 className="text-4xl font-bold text-white mt-4">
-            Business License Hub
-          </h1>
-          <p className="text-sm mt-3 text-white/60">
-            Guidance for 9 Indian business registrations — GST, FSSAI, MSME, Shop Act, IEC, Trade License, Professional Tax, PAN/TAN, Startup India
-          </p>
-        </div>
+    <ServiceHub
+      title="Business License Hub"
+      hubName="business"
+      eyebrow="Commercial & Business Licensing Services"
+      subtitle="Guidance for 9 Indian business registrations — GST, FSSAI Food License, MSME Udyam, Shop Act, Import Export Code (IEC), Trade License, Professional Tax, PAN/TAN, and Startup India."
 
-        {/* ─ Business Type Cards Grid ─ */}
-        <div className="py-8">
-          {isLoading ? (
-            <div className="text-center py-12">
-              <div className="inline-block">
-                <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              </div>
-              <p className="mt-4 text-white/40">Loading business types...</p>
-            </div>
-          ) : error ? (
-            <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-6">
-              <p className="text-red-400">{error}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {businessTypes.map((businessType) => (
-                <Card
-                  key={businessType.key}
-                  variant="section"
-                  hoverLift
-                  onClick={() => handleCardClick(businessType)}
-                  className="group hub-service-card relative overflow-hidden rounded-xl p-8 cursor-pointer"
-                >
-                  <div className="hub-service-card__art" aria-hidden="true">
-                    <ServiceArt hub="business" serviceKey={businessType.key} />
-                  </div>
-                  <div className="relative z-10">
-                    <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">
-                      {businessType.display_name}
-                    </h3>
-                    <p className="text-sm text-white/60 mt-2">
-                      {businessType.authority}
-                    </p>
-                    <a
-                      href={businessType.official_portal}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-block text-xs text-blue-400 hover:text-blue-300 mt-4 underline"
-                    >
-                      Official Portal →
-                    </a>
-                    <div className="mt-6 flex items-center text-sm text-blue-400 font-medium group-hover:translate-x-1 transition-transform">
-                      View Guide
-                      <span className="ml-2">→</span>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ─ My Applications Panel ─ */}
-        {token && (
-          <div className="border-t border-white/10 pt-8">
-            <h2 className="text-2xl font-bold text-white mb-8">My Applications</h2>
-
-            {applications.length === 0 ? (
-              <Card variant="outline" className="p-8 text-center">
-                <p className="text-white/60">
-                  No applications yet. Click on a business registration type to get started.
-                </p>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {applications.map((app) => (
-                  <Card
-                    key={app.id}
-                    variant="outline"
-                    hoverLift
-                    className="p-6"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white">
-                          {app.business_type.charAt(0).toUpperCase() + app.business_type.slice(1)}
-                        </h3>
-                        <p className="text-sm text-white/60 mt-1">
-                          {app.service}
-                        </p>
-                        {app.notes && (
-                          <p className="text-sm text-white/50 mt-2">
-                            {app.notes}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                          app.status === 'completed'
-                            ? 'bg-green-500/20 text-green-400'
-                            : app.status === 'submitted'
-                            ? 'bg-blue-500/20 text-blue-400'
-                            : 'bg-yellow-500/20 text-yellow-400'
-                        }`}>
-                          {app.status}
-                        </span>
-                        <p className="text-xs text-white/40 mt-2">
-                          {new Date(app.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ─ Login Prompt ─ */}
-        {!token && (
-          <Card variant="outline" className="mt-8 p-8 text-center">
-            <p className="text-white/60 mb-4">
-              Sign in to track your business registrations
-            </p>
-            <button
-              onClick={() => navigate('/login')}
-              className="btn-primary inline-flex items-center gap-2 px-6 py-2"
-            >
-              Sign In
-            </button>
-          </Card>
-        )}
-      </Card>
-    </div>
+      items={serviceItems}
+      applications={mappedApps}
+      isLoading={isLoading}
+      error={error}
+      onSelectService={(item) => navigate(`/business-hub/${item.key}`)}
+      onViewApplication={(appId) => {
+        const app = applications.find((a) => a.id === appId)
+        if (app) navigate(`/business-hub/${app.business_type}`)
+        else navigate('/service-tracker')
+      }}
+      onRetry={() => dispatch(fetchBusinessTypes())}
+    />
   )
 }
+

@@ -10,7 +10,7 @@ Security:
 - Validates issuer (iss claim) is Google
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 from datetime import datetime
 import uuid
@@ -19,7 +19,7 @@ import json
 
 from database import get_db
 from config import get_settings
-from routers.auth import create_access_token, UserOut, TokenResponse
+from routers.auth import create_access_token, UserOut, TokenResponse, _set_auth_cookie
 
 router = APIRouter()
 settings = get_settings()
@@ -32,18 +32,11 @@ class GoogleTokenRequest(BaseModel):
 
 
 @router.post("/google", response_model=TokenResponse, status_code=200)
-async def google_signin(data: GoogleTokenRequest, db=Depends(get_db)):
+async def google_signin(data: GoogleTokenRequest, response: Response, db=Depends(get_db)):
     """
     Verify Google ID token and sign the user in / create account.
     Frontend sends the credential from Google Identity Services.
-
-    Validates:
-    1. Token signature with Google
-    2. Token audience matches our Client ID (GOOGLE_CLIENT_ID)
-    3. Token is not expired
-    4. Issuer is Google
     """
-
     if not settings.google_client_id:
         raise HTTPException(
             status_code=500,
@@ -58,77 +51,46 @@ async def google_signin(data: GoogleTokenRequest, db=Depends(get_db)):
                 params={"id_token": data.credential},
                 timeout=5.0,
             )
-        except Exception as e:
-            raise HTTPException(
-                status_code=503,
-                detail="Google service temporarily unavailable"
-            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=401, detail="Invalid Google token")
+            payload = resp.json()
+        except httpx.RequestError:
+            raise HTTPException(status_code=502, detail="Failed to verify token with Google")
 
-    if resp.status_code != 200:
-        error_detail = "Invalid or expired Google token"
-        try:
-            error_data = resp.json()
-            if "error_description" in error_data:
-                error_detail = error_data["error_description"]
-        except:
-            pass
-        raise HTTPException(status_code=401, detail=error_detail)
+    # Validate audience
+    if payload.get("aud") != settings.google_client_id:
+        raise HTTPException(status_code=401, detail="Google token was not issued for this client")
 
-    google_data = resp.json()
+    # Validate issuer
+    if payload.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+        raise HTTPException(status_code=401, detail="Invalid token issuer")
 
-    # 1. Validate audience claim (CRITICAL: must match our Client ID)
-    token_aud = google_data.get("aud")
-    if not token_aud or token_aud != settings.google_client_id:
-        raise HTTPException(
-            status_code=401,
-            detail="Token audience mismatch. Token not intended for this app."
-        )
+    email = payload.get("email", "").lower().strip()
+    name = payload.get("name", "").strip() or email.split("@")[0]
 
-    # 2. Validate issuer is Google
-    token_iss = google_data.get("iss")
-    if token_iss not in ("https://accounts.google.com", "accounts.google.com"):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid token issuer"
-        )
-
-    # 3. Extract and validate email
-    email = google_data.get("email")
     if not email:
-        raise HTTPException(status_code=400, detail="No email in Google token")
+        raise HTTPException(status_code=400, detail="Google account has no email address")
 
-    # 4. Verify email is verified by Google
-    email_verified = google_data.get("email_verified", False)
-    if not email_verified:
-        raise HTTPException(
-            status_code=400,
-            detail="Email not verified by Google. Please verify your email first."
-        )
-
-    email = email.lower().strip()
-    name = google_data.get("name", email.split("@")[0])  # fallback to email prefix
-
-    # Check if user exists
     user = await db.fetchrow("SELECT * FROM users WHERE email = $1", email)
-
     now = datetime.utcnow().isoformat()
 
     if user:
-        # User exists: return without modification (preserves their existing data)
         user_id = user["id"]
         user_name = user["name"]
         created_at = user["created_at"]
+        token_version = dict(user).get("token_version", 0)
     else:
-        # Create new user (no password for Google OAuth users)
         user_id = str(uuid.uuid4())
         user_name = name
         created_at = now
+        token_version = 0
         await db.execute(
             "INSERT INTO users (id, name, email, password, created_at) VALUES ($1, $2, $3, $4, $5)",
             user_id, name, email, "", now,
         )
 
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, token_version)
+    _set_auth_cookie(response, token)
     return TokenResponse(
         user=UserOut(id=user_id, name=user_name, email=email, created_at=created_at),
         access_token=token,
