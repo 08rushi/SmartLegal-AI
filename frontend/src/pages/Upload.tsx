@@ -5,12 +5,13 @@ import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { analyzeDocument } from '../store/analysisSlice'
 import { clearDocumentError, uploadDocument } from '../store/documentSlice'
 import { trackEvent } from '../utils/posthog'
+import { Card } from '../components/Card'
 
 const documentTypes = [
-  'Rental Agreement',
-  'Employment Contract',
-  'Loan Agreement',
-  'Service Contract',
+  'Agreements & Deeds — rent, employment, loan, sale, gift, POA, NDA, will',
+  'Court & case files — FIR, charge sheet, bail, plaint, judgment, summons',
+  'Family matters — divorce, maintenance, custody, domestic violence',
+  'Notices & complaints — legal notice, cheque bounce (s.138), consumer, RTI',
 ]
 
 const steps = ['Upload', 'Preview', 'Analyze', 'Results']
@@ -83,6 +84,7 @@ export default function Upload() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   useEffect(() => {
+    window.scrollTo(0, 0)
     dispatch(clearDocumentError())
   }, [dispatch])
 
@@ -116,6 +118,9 @@ export default function Upload() {
     onDrop,
     accept: {
       'application/pdf': ['.pdf'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp'],
     },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024,
@@ -163,11 +168,11 @@ export default function Upload() {
   return (
     <div className="content-wrap py-5 sm:py-5">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[0.86fr_1.14fr]">
-        <div className="section-card rounded-[32px] p-6 sm:p-6">
+        <Card variant="section" className="rounded-[32px] p-6 sm:p-6">
           <span className="section-eyebrow">03 Upload Document</span>
-          <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">Upload Your PDF Document</h1>
+          <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">Upload Your Document</h1>
           <p className="mt-2 text-sm leading-6 text-slate-400 sm:text-base">
-            Drop a PDF contract, preview it first, then run analysis when you are sure it is the right file.
+            Drop a PDF, or a photo/scan of a printed document. Preview it first, then run analysis. Scanned & regional-language documents are read automatically.
           </p>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -187,14 +192,14 @@ export default function Upload() {
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {documentTypes.map((type) => (
-              <div key={type} className="info-card rounded-[20px] px-4 py-3 text-sm text-slate-300">
+              <Card key={type} variant="info" className="rounded-[20px] px-4 py-3 text-sm text-slate-300">
                 {type}
-              </div>
+              </Card>
             ))}
           </div>
-        </div>
+        </Card>
 
-        <div className="section-card rounded-[32px] p-5 sm:p-8">
+        <Card variant="section" className="rounded-[32px] p-5 sm:p-8">
           <div
             {...getRootProps()}
             className={`upload-dropzone relative overflow-hidden rounded-[30px] border border-dashed px-5 py-6 text-center transition-all duration-300 sm:px-8 sm:py-7 ${
@@ -277,7 +282,7 @@ export default function Upload() {
                       <p className="text-sm font-medium text-[#f5c26b]">Before you analyze</p>
                       <ul className="mt-2 space-y-1.5 text-sm leading-6 text-slate-300">
                         <li>• Confirm this is the exact document version you want reviewed.</li>
-                        <li>• Text-based PDF files are supported up to 10MB.</li>
+                        <li>• PDFs and images (JPG/PNG/WebP) up to 10MB. Scans & photos are read with OCR.</li>
                         <li>• Analysis can take up to a couple of minutes for long contracts.</li>
                       </ul>
                     </div>
@@ -312,7 +317,7 @@ export default function Upload() {
                     Browse Files
                   </button>
                   <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs uppercase tracking-[0.22em] text-slate-500">
-                    PDF only . Max 10MB
+                    PDF or image (JPG/PNG) . Max 10MB
                   </div>
                 </div>
               </div>
@@ -328,7 +333,7 @@ export default function Upload() {
           {/* <p className="mt-4 text-center text-xs text-slate-500">
             Sign in later if you want saved history and persistent document Q&A.
           </p> */}
-        </div>
+        </Card>
       </div>
     </div>
   )

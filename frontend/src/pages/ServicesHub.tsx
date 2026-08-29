@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '../hooks/redux'
 import CategoryArt from '../components/CategoryArt'
+import { Card } from '../components/Card'
 
 interface ServiceCard {
   key: string
@@ -95,105 +96,106 @@ export default function ServicesHub() {
 
   return (
     <div className="content-wrap py-5 sm:py-6">
-      <div className="section-card mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
-      {/* ─ Hero Section ─ */}
-      <div className="">
+      <Card variant="section" className="mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8">
+        {/* ─ Hero Section ─ */}
         <div>
-          <h1 className="text-4xl font-bold text-white mt-4">
-            Online Service Center
-          </h1>
+          <div>
+            <span className="section-eyebrow">Government Services</span>
+            <h1 className="text-4xl font-bold text-white mt-4">
+              Online Service Center
+            </h1>
             <p className="text-sm mt-3 text-white/60">
               Complete legal guidance for Indians — from government IDs to property transactions to document analysis
             </p>
           </div>
-          <div className="flex flex-wrap gap-3 text-sm mt-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-2">
-              <span className="text-base">✓</span> Expert Guidance
+          <div className="flex flex-wrap gap-3 text-sm mt-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs">
+              <span>✓</span> Expert Guidance
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-2">
-              <span className="text-base">✓</span> Hindi & English
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs">
+              <span>✓</span> Hindi & English
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-2">
-              <span className="text-base">✓</span> AI-Powered
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs">
+              <span>✓</span> AI-Powered
             </span>
           </div>
         </div>
-      </div>
 
-      {/* Services Grid */}
-      <div className="content-wrap py-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {services.map((service) => (
-            <div
-              key={service.key}
-              onClick={() => navigate(service.route)}
-              className="group hub-service-card relative overflow-hidden rounded-2xl p-8 cursor-pointer"
-            >
-              <div className="hub-service-card__art" aria-hidden="true">
-                <CategoryArt art={service.art} className="hub-service-svg" />
-              </div>
+        {/* Services Grid */}
+        <div className="py-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {services.map((service) => (
+              <Card
+                key={service.key}
+                variant="section"
+                hoverLift
+                onClick={() => navigate(service.route)}
+                className="group hub-service-card relative overflow-hidden rounded-2xl p-8 cursor-pointer"
+              >
+                <div className="hub-service-card__art" aria-hidden="true">
+                  <CategoryArt art={service.art} className="hub-service-svg" />
+                </div>
 
-              <div className="relative z-10 space-y-4">
-                {/* Icon & Badge */}
-                <div className="flex items-start justify-between">
-                  <span className="service-icon-badge" aria-label={service.iconLabel}>
-                    {service.icon}
-                  </span>
-                  {service.badge && (
-                    <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold border ${badgeColorMap[service.color]}`}>
-                      {service.badge}
+                <div className="relative z-10 space-y-4">
+                  {/* Icon & Badge */}
+                  <div className="flex items-start justify-between">
+                    <span className="service-icon-badge" aria-label={service.iconLabel}>
+                      {service.icon}
                     </span>
-                  )}
-                </div>
+                    {service.badge && (
+                      <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold border ${badgeColorMap[service.color]}`}>
+                        {service.badge}
+                      </span>
+                    )}
+                  </div>
 
-                {/* Title & Description */}
-                <div>
-                  <h3 className="text-2xl font-bold text-white group-hover:text-white transition-colors">
-                    {service.title}
-                  </h3>
-                  <p className="mt-3 text-sm text-white/60 leading-relaxed">
-                    {service.description}
-                  </p>
-                </div>
+                  {/* Title & Description */}
+                  <div>
+                    <h3 className="text-2xl font-bold text-white group-hover:text-white transition-colors">
+                      {service.title}
+                    </h3>
+                    <p className="mt-3 text-sm text-white/60 leading-relaxed">
+                      {service.description}
+                    </p>
+                  </div>
 
-                {/* CTA */}
-                <div className="flex items-center gap-2 text-sm font-medium text-white/70 group-hover:text-white transition-colors pt-4">
-                  <span>Explore</span>
-                  <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  {/* CTA */}
+                  <div className="flex items-center gap-2 text-sm font-medium text-white/70 group-hover:text-white transition-colors pt-4">
+                    <span>Explore</span>
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              </Card>
+            ))}
+          </div>
+
+          {/* Additional Info Section */}
+          {token && (
+            <Card variant="outline" className="mt-16 rounded-2xl p-8">
+              <h2 className="text-2xl font-bold text-white mb-4">Your Progress</h2>
+              <p className="text-white/60">
+                Track your applications, save your progress, and manage your documents across all services — all in one place.
+              </p>
+            </Card>
+          )}
         </div>
 
-        {/* Additional Info Section */}
-        {token && (
-          <div className="mt-16 rounded-2xl border border-white/10 bg-white/[0.02] p-8">
-            <h2 className="text-2xl font-bold text-white mb-4">Your Progress</h2>
-            <p className="text-white/60">
-              Track your applications, save your progress, and manage your documents across all services — all in one place.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Login CTA */}
-      {!token && (
-        <div className="">
-          <div className="content-wrap py-7 text-center">
+        {/* Login CTA */}
+        {!token && (
+          <Card variant="outline" className="mt-6 rounded-2xl p-8 text-center">
             <h2 className="text-2xl font-bold text-white mb-4">Sign In to Save Your Progress</h2>
             <p className="text-white/60 mb-8 max-w-lg mx-auto">
               Create an account to track your applications, save checklists, and manage all your documents in one place.
             </p>
             <button
               onClick={() => navigate('/login')}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#f5c26b] px-8 py-3 font-medium text-slate-900 hover:bg-[#ffd966] transition-colors"
+              className="btn-primary inline-flex items-center gap-2 px-8 py-3"
             >
               Sign In Now
             </button>
-          </div>
-        </div>
-      )}
+          </Card>
+        )}
+      </Card>
     </div>
   )
 }

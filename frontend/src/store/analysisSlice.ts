@@ -21,21 +21,40 @@ function normalizeAnalyzeArgs(args: AnalyzeDocumentArgs) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Poll GET /analyze/{id}/status until status is "done" or "error". */
-async function pollUntilDone(documentId: string): Promise<AnalysisResult> {
+/** Sleep that rejects immediately if the AbortSignal fires. */
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'))
+    const timer = setTimeout(resolve, ms)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        reject(new DOMException('Aborted', 'AbortError'))
+      },
+      { once: true }
+    )
+  })
+}
+
+/** Poll GET /analyze/{id}/status until status is "done" or "error".
+ *  Stops early (and cancels the in-flight request) when `signal` aborts —
+ *  e.g. the user navigated away from the analysis page. */
+async function pollUntilDone(documentId: string, signal?: AbortSignal): Promise<AnalysisResult> {
   const INTERVAL_MS = 3000   // check every 3 s
   const MAX_WAIT_MS = 5 * 60 * 1000  // give up after 5 min
 
   const deadline = Date.now() + MAX_WAIT_MS
 
   while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, INTERVAL_MS))
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    await abortableSleep(INTERVAL_MS, signal)
 
     const { data } = await apiClient.get<{
       status: 'processing' | 'done' | 'error'
       analysis?: AnalysisResult
       error?: string
-    }>(`/analyze/${documentId}/status`)
+    }>(`/analyze/${documentId}/status`, { signal })
 
     if (data.status === 'done' && data.analysis) {
       return data.analysis
@@ -53,7 +72,7 @@ async function pollUntilDone(documentId: string): Promise<AnalysisResult> {
 
 export const analyzeDocument = createAsyncThunk(
   'analysis/analyze',
-  async (args: AnalyzeDocumentArgs, { rejectWithValue }) => {
+  async (args: AnalyzeDocumentArgs, { rejectWithValue, signal }) => {
     const { documentId, forceReanalyze } = normalizeAnalyzeArgs(args)
     try {
       // Kick off analysis (may return immediately with cached result, or 202 processing)
@@ -63,17 +82,23 @@ export const analyzeDocument = createAsyncThunk(
       >('/analyze', {
         document_id: documentId,
         force_reanalyze: forceReanalyze,
-      })
+      }, { signal })
 
       // Cached result returned straight away
       if ('analysis' in data) return data.analysis
 
-      // Background task — poll until done
-      return await pollUntilDone(documentId)
+      // Background task — poll until done (cancellable)
+      return await pollUntilDone(documentId, signal)
     } catch (err: unknown) {
       const error = err as {
+        name?: string
+        code?: string
         message?: string
         response?: { data?: { detail?: string } }
+      }
+      // Cancelled (navigated away) — don't surface as an error.
+      if (error.name === 'AbortError' || error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        return rejectWithValue('cancelled')
       }
       return rejectWithValue(
         error.response?.data?.detail ?? error.message ?? 'Analysis failed'
@@ -145,7 +170,8 @@ const analysisSlice = createSlice({
       })
       .addCase(analyzeDocument.rejected, (state, action) => {
         state.isLoading = false
-        state.error = action.payload as string
+        // A cancelled request (user navigated away) is not a real error.
+        state.error = action.payload === 'cancelled' ? null : (action.payload as string)
       })
 
     builder.addCase(

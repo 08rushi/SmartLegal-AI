@@ -4,8 +4,9 @@ import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { fetchApplications as fetchLegalIdApplications } from '../store/legalIdSlice'
 import { fetchPropertyApplications } from '../store/propertySlice'
 import { fetchBusinessApplications } from '../store/businessSlice'
+import { Card } from '../components/Card'
 
-type TrackerKind = 'legal-id' | 'property' | 'business'
+type TrackerKind = 'legal-id' | 'property' | 'business' | 'yojana'
 
 interface TrackerApplication {
   id: string
@@ -46,7 +47,9 @@ const serviceLabel: Record<TrackerKind, string> = {
   'legal-id': 'Legal ID',
   property: 'Property',
   business: 'Business',
+  yojana: 'Jan-Yojana',
 }
+
 
 function readReminders(): Reminder[] {
   try {
@@ -218,7 +221,7 @@ export default function ServiceTracker() {
   if (!token) {
     return (
       <div className="content-wrap py-8">
-        <div className="glass-panel mx-auto max-w-2xl rounded-[28px] p-8 text-center">
+        <Card variant="glass" className="mx-auto max-w-2xl rounded-[28px] p-8 text-center">
           <p className="section-eyebrow">Service Tracker</p>
           <h1 className="mt-4 text-3xl font-bold text-white">Sign in to track applications</h1>
           <p className="mt-3 text-slate-400">
@@ -228,7 +231,7 @@ export default function ServiceTracker() {
             <Link to="/login" className="btn-primary">Login</Link>
             <Link to="/services" className="btn-secondary">View Services</Link>
           </div>
-        </div>
+        </Card>
       </div>
     )
   }
@@ -258,36 +261,41 @@ export default function ServiceTracker() {
       </div>
 
       <div className="mb-8 grid gap-4 md:grid-cols-3">
-        <div className="panel-muted rounded-[22px] p-5">
+        <Card variant="metric" className="rounded-[22px] p-5">
           <p className="text-sm text-slate-500">Active</p>
           <p className="mt-2 text-3xl font-semibold text-white">{activeCount}</p>
-        </div>
-        <div className="panel-muted rounded-[22px] p-5">
+        </Card>
+        <Card variant="metric" className="rounded-[22px] p-5">
           <p className="text-sm text-slate-500">Completed</p>
           <p className="mt-2 text-3xl font-semibold text-white">{completedCount}</p>
-        </div>
-        <div className="panel-muted rounded-[22px] p-5">
+        </Card>
+        <Card variant="metric" className="rounded-[22px] p-5">
           <p className="text-sm text-slate-500">Reminders</p>
           <p className="mt-2 text-3xl font-semibold text-white">{upcomingReminders}</p>
-        </div>
+        </Card>
       </div>
 
       {isLoading && applications.length === 0 ? (
-        <div className="glass-panel rounded-[28px] p-10 text-center text-slate-400">Loading tracker...</div>
+        <Card variant="glass" className="rounded-[28px] p-10 text-center text-slate-400">Loading tracker...</Card>
       ) : applications.length === 0 ? (
-        <div className="glass-panel rounded-[28px] p-10 text-center">
+        <Card variant="glass" className="rounded-[28px] p-10 text-center">
           <h2 className="text-2xl font-semibold text-white">No tracked applications yet</h2>
           <p className="mt-3 text-slate-400">Start from a service hub, create an application tracker, then it will appear here.</p>
           <button type="button" onClick={() => navigate('/services')} className="btn-primary mt-6">
             Browse Services
           </button>
-        </div>
+        </Card>
       ) : (
         <div className="grid gap-5">
           {applications.map((app) => {
             const reminder = reminders.find((item) => item.appId === app.id)
             return (
-              <article key={`${app.kind}-${app.id}`} className={`hub-service-card hub-service-card--${app.kind} glass-panel rounded-[24px] p-5`}>
+              <Card
+                key={`${app.kind}-${app.id}`}
+                as="article"
+                variant="glass"
+                className={`hub-service-card hub-service-card--${app.kind} rounded-[24px] p-5`}
+              >
                 <div className="hub-service-card__art" aria-hidden="true">
                   <span />
                   <span />
@@ -348,7 +356,7 @@ export default function ServiceTracker() {
                     </div>
                   </div>
                 </div>
-              </article>
+              </Card>
             )
           })}
         </div>

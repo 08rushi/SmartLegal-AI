@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # CORS
     allowed_origins: str = "http://localhost:5173"
 
+    # Runtime environment — "production" enables durable-storage enforcement etc.
+    environment: str = Field(default="development", alias="ENVIRONMENT")
+
     # Sentry — leave blank to disable
     sentry_dsn: str = ""
     sentry_environment: str = "development"
@@ -41,6 +44,30 @@ class Settings(BaseSettings):
     # Redis — leave blank to disable (falls back to PostgreSQL-only cache)
     redis_url: str = ""
     redis_cache_ttl: int = 86400  # seconds — default 24 hours
+
+    # Analysis jobs — a background analysis stuck in "processing" longer than this
+    # (e.g. worker restarted mid-run) is reaped and marked as error.
+    analysis_timeout_seconds: int = 600          # 10 minutes
+    analysis_reaper_interval_seconds: int = 120  # sweep every 2 minutes
+
+    # Password reset token lifetime.
+    reset_token_expire_minutes: int = 30
+
+    # OCR (scanned / photographed documents) — Tesseract via pytesseract.
+    ocr_enabled: bool = Field(default=True, alias="OCR_ENABLED")
+    # Path to the tesseract binary if it isn't on PATH (e.g. Windows install).
+    tesseract_cmd: str = Field(default="", alias="TESSERACT_CMD")
+    # Languages to attempt (only those actually installed as tessdata are used).
+    ocr_languages: str = Field(
+        default="eng+hin+mar+tel+tam+ben+guj+kan+mal+pan+ori+urd",
+        alias="OCR_LANGUAGES",
+    )
+    # Cap OCR to this many pages so a huge scan can't run forever.
+    ocr_max_pages: int = Field(default=15, alias="OCR_MAX_PAGES")
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.strip().lower() in ("production", "prod")
 
     @property
     def origins_list(self) -> list[str]:

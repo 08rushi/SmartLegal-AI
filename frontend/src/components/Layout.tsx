@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
-import { logout } from '../store/authSlice'
+import { logout, logoutAllSessions } from '../store/authSlice'
 import { trackEvent } from '../utils/posthog'
 import CategoryArt from './CategoryArt'
+import AdvocateIcon from './AdvocateIcon'
 import { type Category } from '../lib/serviceColors'
 
 const navItems = [
@@ -37,12 +38,20 @@ const serviceCards: { key: string; title: string; art: Category; description: st
     to: '/business-hub'
   },
   {
+    key: 'yojana',
+    title: 'Jan-Yojana AI Hub',
+    art: 'all',
+    description: 'Central & State Scheme Eligibility',
+    to: '/yojana'
+  },
+  {
     key: 'tracker',
     title: 'Service Tracker',
     art: 'tracker',
     description: 'Checklists and reminders',
     to: '/tracker'
   },
+
   {
     key: 'all-services',
     title: 'View All Services',
@@ -95,6 +104,7 @@ export default function Layout() {
   }, [])
 
   useEffect(() => {
+    window.scrollTo(0, 0)
     trackEvent('page_viewed', {
       path: location.pathname,
       search: location.search,
@@ -113,6 +123,16 @@ export default function Layout() {
     navigate('/')
   }
 
+  async function handleLogoutAll() {
+    setUserMenuOpen(false)
+    try {
+      await dispatch(logoutAllSessions()).unwrap()
+    } catch {
+      dispatch(logout()) // fall back to local sign-out if the call fails
+    }
+    navigate('/login')
+  }
+
   // Get user initials for avatar
   const initials = user?.name
     ? user.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
@@ -125,9 +145,8 @@ export default function Layout() {
       <div className="ambient-wave" />
       <div className="ambient-grid" />
 
-      <header className="sticky top-0 z-50 px-3 pt-3 sm:px-5">
-        <div className="content-wrap">
-          <div className="glass-nav mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-5">
+      <header className="sticky top-0 z-50 px-4 pt-3 sm:px-6 lg:px-8">
+        <div className="glass-nav mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6 sm:py-3">
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3" onClick={handleNavClick}>
@@ -201,6 +220,21 @@ export default function Layout() {
                   </div>
                 )}
               </div>
+
+              {/* Legal Advisor — highlighted */}
+              <NavLink
+                to="/advisor"
+                className={({ isActive }) =>
+                  `flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'border-[#f5c26b]/40 bg-[#f5c26b]/15 text-[#f5c26b]'
+                      : 'border-[#f5c26b]/25 bg-[#f5c26b]/8 text-[#f5c26b] hover:bg-[#f5c26b]/15'
+                  }`
+                }
+              >
+                <AdvocateIcon className="h-4 w-4" />
+                Legal Advisor
+              </NavLink>
             </nav>
 
             {/* Desktop auth area */}
@@ -255,6 +289,13 @@ export default function Layout() {
                           className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-[#fb7185] transition hover:bg-[#fb7185]/10"
                         >
                           <span>↩</span> Sign Out
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleLogoutAll}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-slate-400 transition hover:bg-white/8 hover:text-white"
+                        >
+                          <span>⇥</span> Sign out everywhere
                         </button>
                       </div>
                     </div>
@@ -342,6 +383,18 @@ export default function Layout() {
                   )}
                 </div>
 
+                <NavLink
+                  to="/advisor"
+                  onClick={handleNavClick}
+                  className={({ isActive }) =>
+                    `rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                      isActive ? 'bg-[#f5c26b]/15 text-[#f5c26b]' : 'border border-[#f5c26b]/25 bg-[#f5c26b]/8 text-[#f5c26b] hover:bg-[#f5c26b]/15'
+                    }`
+                  }
+                >
+                  <span className="inline-flex items-center gap-2"><AdvocateIcon className="h-4 w-4" /> Legal Advisor</span>
+                </NavLink>
+
                 {token && user && (
                   <>
                     <Link to="/tracker" onClick={handleNavClick} className="rounded-2xl px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition">
@@ -367,6 +420,13 @@ export default function Layout() {
                     >
                       Sign Out
                     </button>
+                    <button
+                      type="button"
+                      onClick={handleLogoutAll}
+                      className="btn-secondary justify-center sm:col-span-2"
+                    >
+                      Sign out everywhere
+                    </button>
                   </>
                 ) : (
                   <>
@@ -383,7 +443,6 @@ export default function Layout() {
               </div>
             </div>
           )}
-        </div>
       </header>
 
       <main className="relative z-10">
@@ -411,11 +470,11 @@ export default function Layout() {
                 </div>
               </div>
               <p className="max-w-xl text-sm leading-7 text-slate-400">
-                Upload agreements, review risk warnings, and ask follow-up questions in one premium workspace built for real document decisions.
+                Upload agreements, deeds, or court-case files — get plain-language explanations, risk warnings, and next steps grounded in Indian law and Acts, in English and Hindi.
               </p>
               <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.24em] text-slate-500">
-                <span>Smooth workflow</span>
-                <span>Dark premium UI</span>
+                <span>Indian law &amp; Acts</span>
+                <span>40+ document types</span>
                 <span>Hindi + English</span>
               </div>
             </div>
@@ -437,9 +496,16 @@ export default function Layout() {
             </div>
 
             <div className="space-y-4">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Built For</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Analyzes</p>
               <div className="grid gap-3">
-                {['Rental agreements', 'Employment contracts', 'Loan documents', 'Freelance service agreements'].map((item) => (
+                {[
+                  'Rental, sale & gift deeds',
+                  'Employment & loan contracts',
+                  'FIR & court-case files',
+                  'Divorce & family matters',
+                  'Cheque bounce & consumer',
+                  'Wills, POA & affidavits',
+                ].map((item) => (
                   <div key={item} className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
                     {item}
                   </div>
@@ -447,8 +513,28 @@ export default function Layout() {
               </div>
             </div>
           </div>
+
+          {/* Disclaimer + copyright bar */}
+          <div className="mx-auto mt-4 flex max-w-7xl flex-col gap-3 px-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>© {new Date().getFullYear()} SmartLegal AI. All rights reserved.</p>
+            <p className="sm:text-right">
+              AI-assisted analysis grounded in Indian law — informational only, not a substitute for advice from a qualified advocate.
+            </p>
+          </div>
         </div>
       </footer>
+
+      {/* Sticky "Ask AI Lawyer" floating button — on every page except the advisor itself */}
+      {location.pathname !== '/advisor' && !isAuthRoute && (
+        <Link
+          to="/advisor"
+          aria-label="Ask the AI Legal Advisor"
+          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-[#f5c26b]/40 bg-[linear-gradient(180deg,#f5c26b,#cf9b42)] px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_16px_40px_rgba(245,194,107,0.35)] transition hover:brightness-105 sm:bottom-6 sm:right-6"
+        >
+          <AdvocateIcon className="h-5 w-5" />
+          <span className="hidden sm:inline">Ask AI Lawyer</span>
+        </Link>
+      )}
     </div>
   )
 }

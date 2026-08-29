@@ -76,6 +76,31 @@ export const fetchDocumentHistory = createAsyncThunk(
   }
 )
 
+// ── Delete one or more documents (and their saved analysis) ───────────────────
+export const deleteDocuments = createAsyncThunk(
+  'document/delete',
+  async (documentIds: string[], { rejectWithValue }) => {
+    try {
+      const results = await Promise.allSettled(
+        documentIds.map((id) => apiClient.delete(`/upload/${id}`))
+      )
+      // Ids that were deleted (or already gone → treat 404 as success).
+      const deleted = documentIds.filter((_id, i) => {
+        const r = results[i]
+        if (r.status === 'fulfilled') return true
+        const status = (r.reason as { response?: { status?: number } })?.response?.status
+        return status === 404
+      })
+      if (deleted.length === 0) {
+        return rejectWithValue('Failed to delete the selected document(s).')
+      }
+      return deleted
+    } catch {
+      return rejectWithValue('Failed to delete the selected document(s).')
+    }
+  }
+)
+
 export const fetchDocumentById = createAsyncThunk(
   'document/fetchById',
   async (documentId: string, { rejectWithValue }) => {
@@ -158,13 +183,13 @@ const documentSlice = createSlice({
     // Fetch history from backend — replaces in-memory list with real DB data
     builder
       .addCase(fetchDocumentHistory.fulfilled, (state, action: PayloadAction<UploadedDocument[]>) => {
-        if (action.payload.length > 0) {
-          state.history = action.payload
-          // Keep current pointer valid if it exists in the fresh list
-          if (state.current) {
-            const fresh = action.payload.find(d => d.id === state.current?.id)
-            if (fresh) state.current = fresh
-          }
+        // Always reflect the server's list — including an empty list, so a user who
+        // deleted all documents doesn't keep seeing a stale history.
+        state.history = action.payload
+        // Keep the current pointer valid if it still exists in the fresh list.
+        if (state.current) {
+          const fresh = action.payload.find((d) => d.id === state.current?.id)
+          if (fresh) state.current = fresh
         }
       })
 
@@ -172,6 +197,15 @@ const documentSlice = createSlice({
       state.current = action.payload
       if (!state.history.find((doc) => doc.id === action.payload.id)) {
         state.history.unshift(action.payload)
+      }
+    })
+
+    // Remove deleted documents from history (and clear current if it was deleted)
+    builder.addCase(deleteDocuments.fulfilled, (state, action: PayloadAction<string[]>) => {
+      const removed = new Set(action.payload)
+      state.history = state.history.filter((doc) => !removed.has(doc.id))
+      if (state.current && removed.has(state.current.id)) {
+        state.current = null
       }
     })
   },

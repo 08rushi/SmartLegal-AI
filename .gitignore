@@ -1,28 +1,52 @@
-# Node
+# ── Node & Frontend ─────────────────────────────────────────────────────────
 node_modules/
 dist/
-.env
+dist-ssr/
+*.local
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
+playwright-report/
+test-results/
 
-# Python
+# ── Python & Backend ────────────────────────────────────────────────────────
 __pycache__/
-*.pyc
-*.pyo
-.venv/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
 venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
 *.db
-.env
+*.sqlite3
 
-# Editor
+# ── Uploads & Runtime Artifacts ─────────────────────────────────────────────
+backend/uploads/*
+!backend/uploads/.gitkeep
+tmp/
+*.log
+
+# ── IDE & Editor ────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
+*.swo
+*.sublime-workspace
+.project
 
-# OS
+# ── Environment & Keys ──────────────────────────────────────────────────────
+.env
+*.pem
+*.key
+
+# ── Operating System ────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
-
-# Uploads
-/tmp/*.pdf
-/tmp/*.png
-/tmp/*.jpg
+desktop.ini

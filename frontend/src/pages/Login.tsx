@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { loginUser, loginWithGoogle, clearAuthError } from '../store/authSlice'
 
@@ -24,16 +24,18 @@ export default function Login() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { isLoading, error, token } = useAppSelector((s) => s.auth)
+  const location = useLocation()
+  const redirectTo = (location.state as { from?: string } | null)?.from || '/upload'
   const googleBtnRef = useRef<HTMLDivElement>(null)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
-  // Redirect if already logged in
+  // Redirect if already logged in (back to where the user was headed, if known)
   useEffect(() => {
-    if (token) navigate('/upload', { replace: true })
-  }, [token, navigate])
+    if (token) navigate(redirectTo, { replace: true })
+  }, [token, navigate, redirectTo])
 
   // Clear errors when component mounts
   useEffect(() => {
@@ -90,7 +92,7 @@ export default function Login() {
 
   return (
     <div className="content-wrap py-5 sm:py-8">
-      <div className="mx-auto grid max-w-6xl overflow-hidden rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,22,38,0.94),rgba(11,18,31,0.92))] shadow-[0_30px_70px_rgba(0,0,0,0.35)] lg:grid-cols-[0.92fr_1.08fr]">
+      <div className="mx-auto grid max-w-7xl overflow-hidden rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,22,38,0.94),rgba(11,18,31,0.92))] shadow-[0_30px_70px_rgba(0,0,0,0.35)] lg:grid-cols-[0.92fr_1.08fr]">
 
         {/* Left decorative panel */}
         <div className="relative hidden min-h-[620px] overflow-hidden border-r border-white/10 lg:block">
@@ -206,9 +208,9 @@ export default function Login() {
             </form>
 
             <div className="mt-5 flex items-center justify-between gap-3 text-sm">
-              <button type="button" className="text-slate-500 transition hover:text-[#f5c26b]">
+              <Link to="/forgot-password" className="text-slate-500 transition hover:text-[#f5c26b]">
                 Forgot Password?
-              </button>
+              </Link>
               <Link to="/register" className="text-slate-400 transition hover:text-white">
                 Create an account
               </Link>

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
-import type { LegalIdState, LegalIdType, LegalIdGuidance, IdApplication, ChecklistItem } from '../types'
+import type { LegalIdState, LegalIdType, LegalIdGuidance, IdApplication, ChecklistItem, ChecklistSaveItem } from '../types'
 import { apiClient } from '../services/api'
 
 // ─── Async Thunks ─────────────────────────────────────────────────────────
@@ -100,7 +100,7 @@ export const fetchChecklist = createAsyncThunk(
 
 export const saveChecklist = createAsyncThunk(
   'legalId/saveChecklist',
-  async (data: { app_id: string; items: { item_text: string; is_done: boolean }[] }, { rejectWithValue }) => {
+  async (data: { app_id: string; items: ChecklistSaveItem[] }, { rejectWithValue }) => {
     try {
       const response = await apiClient.post<{ items: ChecklistItem[] }>(`/legal-id/applications/${data.app_id}/checklist`, {
         items: data.items,

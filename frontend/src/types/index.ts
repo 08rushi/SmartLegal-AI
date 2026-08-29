@@ -26,6 +26,7 @@ export interface UploadedDocument {
   document_type: string   // e.g. "Rental Agreement", "Employment Contract"
   uploaded_at: string
   status: DocumentStatus
+  analyzed?: boolean       // true once a saved analysis exists for this document
 }
 
 export interface DocumentState {
@@ -47,6 +48,8 @@ export interface Clause {
   original_text: string
   plain_english: string
   plain_hindi: string
+  plain_source?: string       // explanation in the document's own language
+  source_language?: string    // e.g. "Marathi", "Telugu", "English"
   risk_level: RiskLevel
   risk_score: number        // 1–10
   risk_reason: string       // why it's risky
@@ -58,6 +61,7 @@ export interface Clause {
 
 export interface DocumentSummary {
   document_type: string
+  language?: string           // detected document language, e.g. "Marathi"
   parties: string[]
   key_dates: { label: string; date: string }[]
   overall_risk: RiskLevel
@@ -83,6 +87,55 @@ export interface AnalysisState {
   result: AnalysisResult | null
   comparisonResult: AnalysisResult | null
   isLoading: boolean
+  error: string | null
+}
+
+// ─── Insights: "What happens if I sign?" + Negotiation helper ────────────────
+
+export interface ConsequenceScenario {
+  id: string
+  category: string
+  title: string
+  trigger: string
+  outcome: string
+  worst_case: string
+  severity: RiskLevel
+  likelihood: RiskLevel
+  plain_english: string
+  plain_hindi: string
+  related_clause: string
+}
+
+export interface ConsequenceResult {
+  overview: string
+  overall_exposure: RiskLevel
+  scenarios: ConsequenceScenario[]
+}
+
+export interface NegotiationItem {
+  id: string
+  clause_title: string
+  risk_level: RiskLevel
+  current_problem: string
+  suggested_change: string
+  counter_text: string
+  talking_point: string
+  plain_hindi: string
+}
+
+export interface NegotiationResult {
+  summary: string
+  items: NegotiationItem[]
+}
+
+export type InsightStatus = 'idle' | 'loading' | 'ready' | 'error'
+
+export interface InsightsState {
+  documentId: string | null
+  consequences: ConsequenceResult | null
+  negotiation: NegotiationResult | null
+  consequencesStatus: InsightStatus
+  negotiationStatus: InsightStatus
   error: string | null
 }
 
@@ -181,6 +234,13 @@ export interface ChecklistItem {
   item_text: string
   is_done: boolean
   updated_at: string
+}
+
+/** Shape sent to the checklist save endpoints (id optional for new items). */
+export interface ChecklistSaveItem {
+  id?: string
+  item_text: string
+  is_done: boolean
 }
 
 export interface LegalIdState {
@@ -299,3 +359,78 @@ export interface BusinessState {
   isLoading: boolean
   error: string | null
 }
+
+// ─── Jan-Yojana Central & State Schemes ────────────────────────────────────────
+
+export interface YojanaScheme {
+  id: string
+  scheme_code: string
+  title: string
+  government_level: 'central' | 'state'
+  state_name: string
+  category: string
+  summary_english: string
+  summary_hindi: string
+  benefits: string[]
+  eligibility: {
+    occupations?: string[]
+    income_max?: number
+    min_age?: number
+    max_age?: number
+    gender?: string
+    states?: string[]
+    requires_landholding?: boolean
+    max_land_acres?: number
+    requires_bpl_or_secc?: boolean
+  }
+  required_docs: string[]
+  official_portal_url: string
+  last_updated_at: string
+}
+
+export interface YojanaMatchProfile {
+  state: string
+  district?: string
+  age: number
+  gender: 'male' | 'female' | 'all'
+  occupation: string
+  annual_income: number
+  category: string
+  land_holding_acres: number
+  is_pregnant_or_lactating: boolean
+  is_disabled: boolean
+}
+
+export interface YojanaMatchResult {
+  scheme: YojanaScheme
+  match_score: number
+  status: 'eligible' | 'partial' | 'ineligible'
+  gap_analysis: string[]
+  benefits: string[]
+  required_docs: string[]
+  official_portal_url: string
+}
+
+export interface YojanaBlog {
+  id: string
+  scheme_id?: string
+  title: string
+  slug: string
+  summary: string
+  content_markdown: string
+  image_url: string
+  official_links: { label: string; url: string }[]
+  published_at: string
+}
+
+export interface YojanaState {
+  schemes: YojanaScheme[]
+  matchedResults: YojanaMatchResult[]
+  currentScheme: YojanaScheme | null
+  blogs: YojanaBlog[]
+  currentBlog: YojanaBlog | null
+  profile: YojanaMatchProfile
+  isLoading: boolean
+  error: string | null
+}
+

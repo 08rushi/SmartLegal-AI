@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Clause } from '../types'
 import RiskBadge from './RiskBadge'
+import { Card } from './Card'
 
 interface Props {
   clause: Clause
@@ -30,13 +31,30 @@ const toneMap = {
 
 export default function ClauseCard({ clause, index }: Props) {
   const [expanded, setExpanded] = useState(clause.risk_level === 'high')
-  const [showHindi, setShowHindi] = useState(false)
+  const [lang, setLang] = useState<'en' | 'hi' | 'src'>('en')
   const clauseNum = (clause as Clause & { clause_number?: string }).clause_number
   const pageNum = (clause as Clause & { page_number?: string | number }).page_number
   const tone = toneMap[clause.risk_level]
 
+  // Show the "original language" option only for non-English documents that have it.
+  const sourceLang = (clause.source_language || '').trim()
+  const hasSource =
+    Boolean(clause.plain_source && clause.plain_source.trim()) &&
+    sourceLang.toLowerCase() !== 'english'
+  const langOptions: [typeof lang, string][] = [
+    ['en', 'English'],
+    ['hi', 'हिंदी'],
+    ...(hasSource ? ([['src', sourceLang || 'Original']] as [typeof lang, string][]) : []),
+  ]
+  const plainText =
+    lang === 'hi'
+      ? clause.plain_hindi
+      : lang === 'src'
+      ? clause.plain_source || clause.plain_english
+      : clause.plain_english
+
   return (
-    <div className={`section-card overflow-hidden rounded-[26px] border-l-4 ${tone.line}`}>
+    <Card variant="section" className={`overflow-hidden rounded-[26px] border-l-4 ${tone.line}`}>
       <button
         type="button"
         onClick={() => setExpanded((value) => !value)}
@@ -83,25 +101,26 @@ export default function ClauseCard({ clause, index }: Props) {
                 </div>
               )}
 
-              <div className="info-card rounded-[22px] px-4 py-4">
+              <Card variant="info" className="rounded-[22px] px-4 py-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Plain language</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowHindi((value) => !value)}
-                    className={`rounded-full border px-3 py-1 text-xs transition ${
-                      showHindi
-                        ? 'border-[#f5c26b]/25 bg-[#f5c26b]/10 text-[#f5c26b]'
-                        : 'border-white/10 bg-white/[0.03] text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {showHindi ? 'Hindi' : 'English'}
-                  </button>
+                  <div className="flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.03] p-0.5">
+                    {langOptions.map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setLang(key)}
+                        className={`rounded-full px-3 py-1 text-xs transition ${
+                          lang === key ? 'bg-[#f5c26b]/15 text-[#f5c26b]' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-sm leading-7 text-slate-300">
-                  {showHindi ? clause.plain_hindi : clause.plain_english}
-                </p>
-              </div>
+                <p className="text-sm leading-7 text-slate-300">{plainText}</p>
+              </Card>
             </div>
 
             <details className="info-card h-fit rounded-[22px] px-4 py-4">
@@ -113,6 +132,6 @@ export default function ClauseCard({ clause, index }: Props) {
           </div>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

@@ -19,20 +19,16 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
-// ── Auth response interceptor: clear token & redirect on 401 ──────────────
+// ── Auth response interceptor ──────────────────────────────────────────────
+// Intentionally does NOT hard-redirect on 401. A full-page `window.location`
+// redirect during a background call (e.g. history/checklist fetch) blows away
+// app state and causes a jarring reload. Instead, thunks handle their own 401s,
+// and session expiry is detected by fetchCurrentUser on load — which clears the
+// Redux token so <ProtectedRoute> can redirect via the router. 401s from
+// optional/anonymous calls are simply surfaced to the caller.
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Only redirect if we had a token (avoid redirect loop on login page)
-      const hadToken = !!localStorage.getItem('sl_token')
-      localStorage.removeItem('sl_token')
-      if (hadToken && !window.location.pathname.includes('/login')) {
-        window.location.href = '/login'
-      }
-    }
-    return Promise.reject(error)
-  }
+  (error) => Promise.reject(error)
 )
 
 // ── Google Sign-In helper ──────────────────────────────────────────────────
