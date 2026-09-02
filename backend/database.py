@@ -298,6 +298,83 @@ async def create_tables():
                 official_links_json TEXT NOT NULL,
                 published_at        TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS whatsapp_contacts (
+                id                 TEXT PRIMARY KEY,
+                phone_number       TEXT UNIQUE NOT NULL,
+                user_id            TEXT REFERENCES users(id) ON DELETE SET NULL,
+                preferred_language TEXT DEFAULT NULL,
+                onboarding_status  TEXT NOT NULL DEFAULT 'pending',
+                created_at         TEXT NOT NULL,
+                updated_at         TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS whatsapp_messages (
+                id                  TEXT PRIMARY KEY,
+                contact_id          TEXT NOT NULL REFERENCES whatsapp_contacts(id) ON DELETE CASCADE,
+                direction           TEXT NOT NULL,
+                message_type        TEXT NOT NULL DEFAULT 'text',
+                content             TEXT NOT NULL,
+                media_url           TEXT DEFAULT NULL,
+                metadata_json       TEXT DEFAULT '{}',
+                provider_message_id TEXT DEFAULT NULL,
+                created_at          TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS whatsapp_conversation_context (
+                id                          TEXT PRIMARY KEY,
+                contact_id                  TEXT UNIQUE NOT NULL REFERENCES whatsapp_contacts(id) ON DELETE CASCADE,
+                active_document_id          TEXT REFERENCES documents(id) ON DELETE SET NULL,
+                workflow_state              TEXT NOT NULL DEFAULT 'idle',
+                pending_candidates_json     TEXT NOT NULL DEFAULT '[]',
+                draft_type                  TEXT DEFAULT NULL,
+                draft_requirements_json     TEXT NOT NULL DEFAULT '{}',
+                draft_confirmation_status   TEXT DEFAULT NULL,
+                context_status              TEXT NOT NULL DEFAULT 'active',
+                created_at                  TEXT NOT NULL,
+                updated_at                  TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_wac_context_contact ON whatsapp_conversation_context(contact_id);
+            CREATE INDEX IF NOT EXISTS idx_wac_context_doc ON whatsapp_conversation_context(active_document_id);
+
+            CREATE TABLE IF NOT EXISTS whatsapp_message_processing (
+                id                      TEXT PRIMARY KEY,
+                provider_message_id     TEXT UNIQUE NOT NULL,
+                contact_id              TEXT NOT NULL REFERENCES whatsapp_contacts(id) ON DELETE CASCADE,
+                processing_status       TEXT NOT NULL DEFAULT 'processing',
+                attempt_count           INTEGER DEFAULT 1,
+                started_at              TEXT NOT NULL,
+                completed_at            TEXT DEFAULT NULL,
+                outbound_reply          TEXT DEFAULT NULL,
+                last_error_code         TEXT DEFAULT NULL,
+                created_at              TEXT NOT NULL,
+                updated_at              TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_wmp_provider_msg ON whatsapp_message_processing(provider_message_id);
+            CREATE INDEX IF NOT EXISTS idx_wmp_contact ON whatsapp_message_processing(contact_id);
+
+            CREATE TABLE IF NOT EXISTS whatsapp_outbound_messages (
+                id                          TEXT PRIMARY KEY,
+                idempotency_key             TEXT UNIQUE NOT NULL,
+                inbound_provider_message_id TEXT NOT NULL,
+                contact_id                  TEXT NOT NULL REFERENCES whatsapp_contacts(id) ON DELETE CASCADE,
+                recipient_phone             TEXT NOT NULL,
+                provider                    TEXT NOT NULL DEFAULT 'meta_cloud_api',
+                message_type                TEXT NOT NULL DEFAULT 'text',
+                outbound_payload_json       TEXT NOT NULL,
+                delivery_status             TEXT NOT NULL DEFAULT 'pending',
+                send_claim_id               TEXT NOT NULL,
+                sending_started_at          TEXT NOT NULL,
+                provider_message_id         TEXT DEFAULT NULL,
+                attempt_count               INTEGER DEFAULT 0,
+                last_error_code             TEXT DEFAULT NULL,
+                last_error_class            TEXT DEFAULT NULL,
+                created_at                  TEXT NOT NULL,
+                updated_at                  TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_wom_idempotency ON whatsapp_outbound_messages(idempotency_key);
+            CREATE INDEX IF NOT EXISTS idx_wom_inbound_msg ON whatsapp_outbound_messages(inbound_provider_message_id);
+            CREATE INDEX IF NOT EXISTS idx_wom_contact ON whatsapp_outbound_messages(contact_id);
         """)
 
         # Performance B-Tree indexes (SL-004) & FK Cascades (SL-005)
@@ -317,6 +394,11 @@ async def create_tables():
             "CREATE INDEX IF NOT EXISTS idx_business_applications_user_id ON business_applications(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_yojana_schemes_cat_state ON yojana_schemes(category, state_name)",
             "CREATE INDEX IF NOT EXISTS idx_yojana_blogs_slug ON yojana_blogs(slug)",
+            "CREATE INDEX IF NOT EXISTS idx_whatsapp_contacts_phone ON whatsapp_contacts(phone_number)",
+            "CREATE INDEX IF NOT EXISTS idx_whatsapp_contacts_user_id ON whatsapp_contacts(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_contact_id ON whatsapp_messages(contact_id)",
+            "CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_contact_time ON whatsapp_messages(contact_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_provider_id ON whatsapp_messages(provider_message_id)",
         ]
         for stmt in index_statements:
             try:
