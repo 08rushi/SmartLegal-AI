@@ -88,7 +88,7 @@ export default function Chat() {
         dispatch(analyzeDocument(currentDoc.id))
       }
     }
-  }, [currentDoc, dispatch])
+  }, [currentDoc, dispatch, analysis?.document_id])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

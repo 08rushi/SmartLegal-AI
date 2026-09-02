@@ -27,7 +27,28 @@ SOURCE OF TRUTH:
 Historical PDFs = baseline only.
 
 Last Updated:
-2026-05-28
+2026-08-25
+
+==================================================
+2026-08-25 STATE UPDATE (read first)
+==================================================
+
+Major changes since 2026-05-28 audit:
+- DATABASE: Live Supabase PostgreSQL 17.6 now connected and verified (local SQLite
+  auto-fallback retained). Earlier "two DB access styles" bug FIXED — all routers use
+  uniform asyncpg `$1` style; auth/upload/analyze were broken against the wrapper and
+  are now migrated. Alembic migrations exist (0001, 0002) but drift from app
+  create_tables() — reconcile.
+- AI: Groq is the ONLY runtime provider; model = openai/gpt-oss-120b (llama-3.3-70b
+  was decommissioned on this account). Gemini code + indian_law_kb.py are DEAD (~970 lines).
+  AI output now validated by services/analysis_schema.py.
+- NEW FEATURES SHIPPED: General Legal Advisor (routers/advisor.py + Advisor.tsx),
+  password-reset flow (logic only, NO email delivery), session revocation
+  (token_version + /logout-all), PDF export (pdfExporter.ts), Knowledge Base page
+  (Compare.tsx, static — not doc comparison), orphan-job reaper, doc-text caching.
+- TOP DEBT: ~2,000+ lines of dead/duplicated backend code and ~2,100 lines of
+  triple-hub duplication in the frontend; no route code-splitting; two unused frontend
+  deps (react-pdf, react-hook-form); missing DB indexes on all hot FKs.
 
 ==================================================
 STATUS LEGEND
@@ -102,15 +123,16 @@ Current live project has ownership/privacy gaps that can break user trust and cr
 Core Tasks:
 
 ## 1A. Auth Boundary Decisions
-- [~] Email/password auth works
-- [~] JWT persistence works
-- [~] Google frontend exists
-- [~] Mount + verify Google OAuth backend
+- [x] Email/password auth works (verified on Supabase 2026-08-25)
+- [x] JWT persistence works
+- [x] Session revocation (token_version + /logout-all)
+- [~] Google frontend exists; backend mounted with aud/iss/email_verified checks
+- [!] Google OAuth end-to-end UNTESTED — needs GOOGLE_CLIENT_ID + VITE_GOOGLE_CLIENT_ID
 OR
 - [ ] Remove/disable Google Sign-In until production-ready
 
 Current note:
-- Google OAuth backend route is mounted, but token audience/client ID validation still needs hardening before production.
+- Google OAuth backend validates aud/iss/email_verified but has never been exercised end-to-end.
 
 ## 1B. Ownership Enforcement
 - [x] Secure `GET /upload/{document_id}`
@@ -170,11 +192,11 @@ Current note:
 - [ ] Corrupt PDF safe failure
 
 ## 2C. AI Schema Stability
-- [ ] Backend schema validation
-- [ ] Frontend TypeScript parity
-- [ ] Cached JSON compatibility
+- [x] Backend schema validation (services/analysis_schema.py)
+- [x] Frontend TypeScript parity (Clause/DocumentSummary match AI output)
+- [~] Cached JSON compatibility
 - [ ] Prompt regression fixtures
-- [x] Frontend force-reanalyze retry path bypasses stale failed SQLite analysis rows
+- [x] Frontend force-reanalyze retry path bypasses stale failed analysis rows
 
 Definition of Done:
 - No fake image promise
@@ -200,15 +222,15 @@ Complete real user product loops.
 - [x] Clear stale chat bleed
 
 ## 3B. Documents
-- [ ] My Documents reliability
-- [ ] Better prior-analysis reopening
+- [x] My Documents reliability (history, multi-select delete, reopen analyze/chat)
+- [~] Better prior-analysis reopening
 - [ ] Pagination planning
 
 ## 3C. Placeholder Cleanup
-- [ ] Compare fully implement
-OR
-- [ ] Remove/hide compare
-- [ ] Remove dead UI paths
+- [x] `/compare` repurposed as static Knowledge Base (12 articles)
+- [!] Document-comparison Redux wiring still dead (uploadComparisonDocument /
+      analyzeComparisonDocument / comparisonResult never dispatched) — build UI OR delete
+- [ ] Remove dead code: indian_law_kb.py, Gemini funcs, unused deps (react-pdf, react-hook-form)
 
 Definition of Done:
 - Product feels complete, not prototype-fragmented
