@@ -1,0 +1,1 @@
+"""SmartLegal AI backend schemas."""

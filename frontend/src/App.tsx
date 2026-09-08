@@ -27,6 +27,7 @@ const Register = lazy(() => import('./pages/Register'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const MyDocuments = lazy(() => import('./pages/MyDocuments'))
+const WhatsAppChannelPage = lazy(() => import('./pages/WhatsAppChannelPage'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 import Layout from './components/Layout'
@@ -151,6 +152,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ServiceTracker />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="channels/whatsapp"
+              element={
+                <ProtectedRoute>
+                  <WhatsAppChannelPage />
                 </ProtectedRoute>
               }
             />

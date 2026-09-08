@@ -617,6 +617,24 @@
   }
 }
 
+@keyframes gentle-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-8deg); }
+  40% { transform: rotate(8deg); }
+  60% { transform: rotate(-4deg); }
+  80% { transform: rotate(4deg); }
+}
+
+.animate-gentle-wiggle {
+  animation: gentle-wiggle 0.5s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-gentle-wiggle {
+    animation: none !important;
+  }
+}
+
 @media (max-width: 640px) {
   .upload-dropzone {
     min-height: 240px;

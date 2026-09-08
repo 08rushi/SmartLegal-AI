@@ -8,7 +8,7 @@ from config import get_settings
 from database import init_db_pool, close_db_pool
 from limiter import limiter
 from cache import init_redis, close_redis
-from routers import auth, upload, analyze, chat, advisor, insights, legal_id, property, business, yojana
+from routers import auth, upload, analyze, chat, advisor, insights, legal_id, property, business, yojana, whatsapp
 import auth_google
 
 settings = get_settings()
@@ -113,6 +113,7 @@ app.include_router(legal_id.router,     prefix="/api/v1/legal-id",  tags=["Legal
 app.include_router(property.router,     prefix="/api/v1/property",  tags=["Property"])
 app.include_router(business.router,     prefix="/api/v1/business",  tags=["Business"])
 app.include_router(yojana.router,       prefix="/api/v1/yojana",    tags=["Jan-Yojana"])
+app.include_router(whatsapp.router,     prefix="/api/v1/whatsapp",  tags=["WhatsApp"])
 
 
 

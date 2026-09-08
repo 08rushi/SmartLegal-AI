@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     sentry_dsn: str = ""
     sentry_environment: str = "development"
 
+    # Meta WhatsApp Cloud API (Step 3A/3B/3C/3D)
+    meta_whatsapp_verify_token: str = Field(default="", alias="META_WHATSAPP_VERIFY_TOKEN")
+    meta_whatsapp_access_token: str = Field(default="", alias="META_WHATSAPP_ACCESS_TOKEN")
+    meta_whatsapp_app_secret: str = Field(default="", alias="META_WHATSAPP_APP_SECRET")
+    meta_whatsapp_phone_number_id: str = Field(default="", alias="META_WHATSAPP_PHONE_NUMBER_ID")
+    meta_whatsapp_api_version: str = Field(default="v21.0", alias="META_WHATSAPP_API_VERSION")
+    meta_whatsapp_graph_url: str = Field(default="https://graph.facebook.com", alias="META_WHATSAPP_GRAPH_URL")
+
     # Redis — leave blank to disable (falls back to PostgreSQL-only cache)
     redis_url: str = ""
     redis_cache_ttl: int = 86400  # seconds — default 24 hours

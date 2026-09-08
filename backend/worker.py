@@ -129,7 +129,15 @@ async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) 
                         print(f"[worker] No text layer in '{filename}' → running OCR…")
                         await _update_job_stage(db, document_id, "ocr", 40)
                         _breadcrumb("ocr.pdf.start", {"document_id": document_id})
-                        text = ocr_pdf_scanned(file_bytes)
+                        # Run OCR in a worker thread — it is CPU/subprocess-bound and,
+                        # left on the event loop, freezes the whole server (including
+                        # status polling) for the entire OCR duration. Bounded by the
+                        # same timeout used for the AI step below so a pathological
+                        # scan still fails cleanly instead of hanging forever.
+                        text = await asyncio.wait_for(
+                            asyncio.to_thread(ocr_pdf_scanned, file_bytes),
+                            timeout=settings.analysis_timeout_seconds,
+                        )
                         quality = assess_readability(text)
                         _breadcrumb("ocr.pdf.done", {"chars": len(text), "readable": quality["readable"]})
                         if not quality["readable"]:
@@ -138,6 +146,16 @@ async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) 
                                 "with OCR. Please upload a clearer, higher-resolution scan "
                                 "(300 DPI, well-lit and straight), or a text-based PDF."
                             )
+                        # OCR can legitimately take several minutes on long, multi-language
+                        # scans. Refresh the job's started_at now that the slow OCR stage is
+                        # done, so the AI-analysis stage below gets its own full timeout
+                        # window instead of the reaper killing it for time OCR already used.
+                        _ocr_done_at = datetime.utcnow().isoformat()
+                        await _upsert_analysis(
+                            db, analysis_id, document_id,
+                            json.dumps({"status": "processing", "started_at": _ocr_done_at}),
+                            _ocr_done_at,
+                        )
                     else:
                         raise ValueError(
                             "This looks like a scanned image or photo saved as a PDF, and "
@@ -155,7 +173,10 @@ async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) 
                 print(f"[worker] Image document '{filename}' → running OCR…")
                 await _update_job_stage(db, document_id, "ocr", 40)
                 _breadcrumb("ocr.image.start", {"document_id": document_id})
-                text = ocr_image_bytes(file_bytes)
+                text = await asyncio.wait_for(
+                    asyncio.to_thread(ocr_image_bytes, file_bytes),
+                    timeout=settings.analysis_timeout_seconds,
+                )
                 quality = assess_readability(text)
                 _breadcrumb("ocr.image.done", {"chars": len(text), "readable": quality["readable"]})
                 if not quality["readable"]:
@@ -164,6 +185,12 @@ async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) 
                         "clearer, well-lit, straight photo or scan (300 DPI works best), "
                         "or a text-based PDF."
                     )
+                _ocr_done_at = datetime.utcnow().isoformat()
+                await _upsert_analysis(
+                    db, analysis_id, document_id,
+                    json.dumps({"status": "processing", "started_at": _ocr_done_at}),
+                    _ocr_done_at,
+                )
 
             print(f"[worker] Extracted {len(text)} chars from '{filename}' | script={quality.get('script')}")
 

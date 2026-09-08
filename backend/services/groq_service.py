@@ -160,7 +160,15 @@ async def analyze_legal_document(text: str, filename: str) -> dict:
 
     from services.pdf_parser import split_into_chunks
 
-    chunks = split_into_chunks(text, max_chars=12000)
+    # max_chars is sized so a single chunk request stays safely under Groq's
+    # on-demand-tier 8000 TPM limit even for token-dense scripts (Devanagari/
+    # Tamil/Bengali OCR text tokenizes far less efficiently than English —
+    # measured ~2.5 chars/token worst case vs ~4 for English). At 12000 chars
+    # a dense non-English chunk alone could request >10000 tokens, which the
+    # API rejects outright (413) — that request can never succeed, retry or
+    # not. max_tokens is scaled down by the same ratio so the output budget
+    # per input char is unchanged from before.
+    chunks = split_into_chunks(text, max_chars=6000)
     print(f"[groq] Split text into {len(chunks)} chunks")
 
     all_clauses = []
@@ -169,13 +177,15 @@ async def analyze_legal_document(text: str, filename: str) -> dict:
     if not chunks:
         raise RuntimeError("Groq analysis failed: no text chunks were available.")
 
-    sem = asyncio.Semaphore(3)
+    # Serialized (not parallel) so multiple chunks can't stack past the
+    # account's shared per-minute token budget within the same window.
+    sem = asyncio.Semaphore(1)
 
     async def _process_chunk(i: int, chunk: dict) -> list:
         async with sem:
             prompt = _chunk_prompt(doc_type_name, law_context, chunk["text"], i, mode)
             try:
-                raw = await _call_groq(prompt, max_tokens=5000)
+                raw = await _call_groq(prompt, max_tokens=2500)
                 parsed = _extract_json(raw)
 
                 if isinstance(parsed, list):

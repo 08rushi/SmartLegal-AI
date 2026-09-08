@@ -16,6 +16,9 @@ This document tracks all work sessions, component progress states, and contextua
 | **User Profile & Sessions** | 🟢 Completed | Phase 4B/4C| `/auth/me` endpoint, localStorage token persistence (`sl_token`), Axios interceptors |
 | **Access Control & Ownership (4D)** | 🟢 Completed | Phase 4D | User ownership checks (`WHERE user_id = $1`) on all 24 backend endpoints & frontend `ProtectedRoute` |
 | **Service Hubs (ID, Property, Biz)** | 🟢 Completed | Phase 4D | Guidance pages & trackers active; backend AsyncPG PostgreSQL queries refactored in `business.py` & `property.py` |
+| **Meta WhatsApp Webhook & Media** | 🟢 Completed | Step 3A-3D | HMAC-SHA256 signature verification, 1MB streaming protection, fast ack background task, media downloader with SSRF protection, Step 3C outbound idempotency |
+| **Meta WhatsApp E2E Integration Suite**| 🟢 Completed | Step 3E (Test) | Automated offline integration test suite (148 tests passing) with mocked network boundaries |
+| **Meta WhatsApp Sandbox Live Status** | 🟡 Ready for Live | Step 3E (Live) | Live verification runbook established (`docs/META_WHATSAPP_SANDBOX_VERIFICATION_RUNBOOK.md`); awaiting live Meta credentials |
 | **Document Compare Mode** | 🟡 In Progress | Phase 5 | Redux state & thunks built; dual-column UI component pending in `Compare.tsx` |
 | **Analysis Export Feature** | 🔴 Pending | Phase 5 | PDF / JSON analysis report export modal pending |
 
@@ -23,7 +26,33 @@ This document tracks all work sessions, component progress states, and contextua
 
 ## 📝 Work Session Logs
 
+### Session 3: Production Meta WhatsApp Cloud API Integration (Steps 3A–3E)
+**Date:** September 2, 2026  
+**Objective:** Architect, build, security-harden, and verify production Meta WhatsApp Cloud API channel integration (Steps 3A through 3E).
+
+#### Parts Worked On:
+1. **Step 3A (Meta Webhook Foundation)**: Built provider-neutral webhook endpoint, `MetaWhatsAppAdapter` extraction of batched payloads, and normalized identity routing.
+2. **Step 3B (Real Media Retrieval)**: Implemented `MetaMediaDownloader` with HTTPS scheme validation, exact-host whitelist (`facebook.com`, `fbsbx.com`, `fbcdn.net`), literal IP rejection, DNS resolution safety, non-forwarding of Authorization headers on external redirects, streaming 10 MB limit, and zero-byte file rejection.
+3. **Step 3C (Outbound Messaging & Idempotency)**: Implemented `MetaWhatsAppOutboundAdapter`, `DevWhatsAppOutboundAdapter`, deterministic outbound idempotency key generator (`out_key_...`), DB-level atomic claim with `UNIQUE(idempotency_key)` constraint handling, lease fencing (`send_claim_id`), 120s stale lease recovery, and `httpx.TimeoutException` classification (`unknown` delivery status without double-sends).
+4. **Step 3D (Webhook Security & Fast Ack)**: Implemented raw-byte HMAC-SHA256 signature verification (`X-Hub-Signature-256` against `META_WHATSAPP_APP_SECRET`), 1 MB hard streaming size ceiling, mandatory `wamid` enforcement for user messages, status receipt filtering, constant-time comparisons (`hmac.compare_digest`), app secret masking in logs, and fast async background task handoff (`BackgroundTasks`) with independent DB context lifecycle (`get_db_ctx()`).
+5. **Step 3E (Automated Integration Testing & Sandbox Runbook)**: Created 8 comprehensive end-to-end integration tests in `test_whatsapp_meta_sandbox_e2e.py` mocking network boundaries (148/148 backend tests passing 100% green) and authored the live verification runbook [`docs/META_WHATSAPP_SANDBOX_VERIFICATION_RUNBOOK.md`](file:///c:/Core/SmartLegal-AI/docs/META_WHATSAPP_SANDBOX_VERIFICATION_RUNBOOK.md).
+
+### Session 2: Master Task Tracker Backlog & Database Architecture (SL-001 to SL-006)
+**Date:** August 29, 2026  
+**Objective:** Execute Master Agent Task Backlog tasks SL-001 through SL-006, establish Alembic schema authority, reconcile PostgreSQL native types/indexes/cascades, and build generic application platform. Full details maintained in [`docs/AGENT_EXECUTION_CHANGELOG.md`](file:///c:/Core/SmartLegal-AI/docs/AGENT_EXECUTION_CHANGELOG.md).
+
+#### Parts Worked On:
+1. **Database Schema Authority (SL-001)**: Enforced Alembic as production schema authority (`backend/alembic/versions/0003_schema_authority_reconciliation.py`).
+2. **Schema Drift Reconciliation (SL-002)**: Reconciled canonical DDL across all 14 database tables.
+3. **PostgreSQL-Native Data Types (SL-003)**: Reconciled JSONB and TIMESTAMPTZ column structures.
+4. **Database Indexes (SL-004)**: Added 8 performance indexes (`idx_documents_user_id`, `idx_chat_messages_doc_time`, etc.).
+5. **Cascade & Referential Integrity (SL-005)**: Added `ON DELETE CASCADE` foreign key constraints across child tables.
+6. **Generic Service Platform (SL-006)**: Built `backend/services/application_service.py` unifying CRUD & checklist logic.
+
+---
+
 ### Session 1: Documentation Suite Restructuring & Repository Clean-Up
+
 **Date:** August 22, 2026  
 **Objective:** Perform complete repository code audit, consolidate 21 fragmented temporary `.md` files into a clean `docs/` suite, and establish this persistent Work Log system.
 
