@@ -228,7 +228,7 @@ async def test_failed_state_and_explicit_retry(mock_analyze, temp_db):
 
 
 @pytest.mark.anyio
-@patch("services.whatsapp.boundaries.ai_orchestrator.generate_chat_completion", new_callable=AsyncMock)
+@patch("services.whatsapp.document_analysis_adapter.ai_orchestrator.generate_chat_completion", new_callable=AsyncMock)
 @patch("services.whatsapp.document_analysis_adapter.analyze_legal_document", new_callable=AsyncMock)
 async def test_completed_result_reuse_for_followup(mock_analyze, mock_chat, temp_db):
     """Verify follow-up question for completed document reuses cached analysis without re-running full document analysis."""
