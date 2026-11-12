@@ -8,6 +8,19 @@ from fastapi.testclient import TestClient
 # Ensure backend root is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# The WhatsApp router is disabled by default in the app; keep its test suite working.
+os.environ.setdefault("WHATSAPP_ENABLED", "true")
+# Keep the suite hermetic: never let analysis tests reach the real Gemini API.
+os.environ.setdefault("ANALYSIS_PROVIDER", "groq")
+
+# Tests must NEVER touch the real database configured in backend/.env (Supabase or the
+# developer's smartlegal.db). Force an isolated throwaway SQLite file before the app imports.
+import tempfile
+_test_db = os.path.join(tempfile.gettempdir(), "smartlegal_pytest.db")
+if os.path.exists(_test_db):
+    os.remove(_test_db)
+os.environ["DATABASE_URL"] = f"sqlite:///{_test_db}"
+
 from main import app
 from routers.auth import create_access_token
 

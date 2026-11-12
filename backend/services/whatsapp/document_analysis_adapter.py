@@ -203,7 +203,8 @@ async def execute_whatsapp_document_analysis(
         is_pdf = file_bytes.startswith(b"%PDF")
         if is_pdf:
             try:
-                text = extract_text_from_pdf(file_bytes)
+                pages = extract_text_from_pdf(file_bytes)
+                text = pages.to_text()
                 quality = assess_readability(text)
                 if not quality.get("readable") and ocr_available():
                     text = ocr_pdf_scanned(file_bytes)

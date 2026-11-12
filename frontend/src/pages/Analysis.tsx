@@ -13,97 +13,30 @@ import { trackEvent } from '../utils/posthog'
 import { Card } from '../components/Card'
 import { exportAnalysisToPDF } from '../utils/pdfExporter'
 import { demoAnalysisResult, demoDocument } from '../utils/demoData'
+import { AnalysisProcessingProgress } from '../components/analysis/AnalysisProcessingProgress'
+import { PartialAnalysisAlert } from '../components/analysis/PartialAnalysisAlert'
+import { OptimizationBadge } from '../components/analysis/OptimizationBadge'
+import { DocumentReadabilityBadge } from '../components/analysis/DocumentReadabilityBadge'
+import { LegalDisclaimerBanner } from '../components/ui/LegalDisclaimerBanner'
+import { LawyerEscalationModal } from '../components/ui/LawyerEscalationModal'
 
 type FilterType = 'all' | RiskLevel
 type ActiveTab = 'summary' | 'clauses' | 'consequences' | 'negotiation'
-
-function AnalysisSkeleton() {
-  return (
-    <div className="content-wrap py-6">
-      <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="section-card rounded-[30px] p-5">
-          <div className="skeleton-block h-4 w-28 rounded-full" />
-          <div className="mt-4 skeleton-block h-8 w-40 rounded-2xl" />
-          <div className="mt-3 skeleton-block h-16 w-full rounded-2xl" />
-          <div className="mt-6 space-y-3">
-            {[1, 2, 3, 4, 5].map((item) => (
-              <div key={item} className="skeleton-block h-12 w-full rounded-2xl" />
-            ))}
-          </div>
-        </aside>
-
-        <div className="space-y-6">
-          <section className="section-card rounded-[30px] p-5 sm:p-7">
-            <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
-              <div className="flex-1">
-                <div className="skeleton-block h-4 w-40 rounded-full" />
-                <div className="mt-4 skeleton-block h-10 w-56 rounded-2xl" />
-                <div className="mt-3 skeleton-block h-16 w-full rounded-2xl" />
-              </div>
-              <div className="flex gap-3">
-                <div className="skeleton-block h-11 w-44 rounded-2xl" />
-                <div className="skeleton-block h-11 w-36 rounded-2xl" />
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {[1, 2, 3, 4].map((item) => (
-                <div key={item} className="metric-card rounded-[22px] p-4">
-                  <div className="skeleton-block h-10 w-16 rounded-2xl" />
-                  <div className="mt-3 skeleton-block h-4 w-24 rounded-full" />
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-5 grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
-              <div className="info-card rounded-[24px] p-5">
-                <div className="skeleton-block h-4 w-24 rounded-full" />
-                <div className="mt-4 space-y-3">
-                  <div className="skeleton-block h-4 w-full rounded-full" />
-                  <div className="skeleton-block h-4 w-11/12 rounded-full" />
-                  <div className="skeleton-block h-4 w-4/5 rounded-full" />
-                </div>
-              </div>
-              <div className="info-card rounded-[24px] p-5">
-                <div className="skeleton-block h-4 w-32 rounded-full" />
-                <div className="mt-4 space-y-4">
-                  {[1, 2, 3].map((row) => (
-                    <div key={row} className="flex items-center justify-between gap-3">
-                      <div className="skeleton-block h-4 w-20 rounded-full" />
-                      <div className="skeleton-block h-4 w-24 rounded-full" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="section-card rounded-[30px] p-5 sm:p-6">
-            <div className="space-y-4">
-              {[1, 2, 3].map((item) => (
-                <div key={item} className="info-card rounded-[24px] p-5">
-                  <div className="skeleton-block h-5 w-40 rounded-full" />
-                  <div className="mt-4 space-y-3">
-                    <div className="skeleton-block h-4 w-full rounded-full" />
-                    <div className="skeleton-block h-4 w-10/12 rounded-full" />
-                    <div className="skeleton-block h-4 w-9/12 rounded-full" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { documentId } = useParams()
   
-  const { result: apiResult, isLoading, error } = useAppSelector((s) => s.analysis)
+  const {
+    result: apiResult,
+    isLoading,
+    error,
+    state: analysisState,
+    elapsedSeconds = 0,
+    jobStage,
+    jobProgress,
+  } = useAppSelector((s) => s.analysis)
   const apiDoc = useAppSelector((s) => s.document.current)
 
   const isDemoMode = isDemo || documentId === 'demo' || (!documentId && !apiDoc?.id && !apiResult)
@@ -113,6 +46,7 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
 
   const [filter, setFilter] = useState<FilterType>('all')
   const [activeTab, setActiveTab] = useState<ActiveTab>('summary')
+  const [isEscalationOpen, setIsEscalationOpen] = useState(false)
   const requestedAnalysisRef = useRef<string | null>(null)
   const analyzeReqRef = useRef<{ abort: (reason?: string) => void } | null>(null)
   const trackedViewRef = useRef<string | null>(null)
@@ -201,29 +135,74 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
     })
   }
 
-  const shouldShowSkeleton =
+  const isProcessing =
     !isDemoMode &&
     Boolean(documentId) &&
     !error &&
     (isLoading || !apiResult || apiResult.document_id !== documentId)
 
-  if (shouldShowSkeleton) {
-    return <AnalysisSkeleton />
+  if (isProcessing) {
+    const isRetrying = analysisState === 'retrying_provider'
+    return (
+      <div className="content-wrap py-12 flex items-center justify-center min-h-[60vh]">
+        <AnalysisProcessingProgress
+          stage={
+            analysisState === 'retrying_provider'
+              ? 'retrying_provider'
+              : analysisState === 'queued'
+              ? 'queued'
+              : 'processing'
+          }
+          statusMessage={
+            isRetrying
+              ? 'Reconnecting to AI processing service after server capacity cooldown. Awaiting available worker slot...'
+              : undefined
+          }
+          elapsedSeconds={elapsedSeconds}
+          jobStage={jobStage}
+          jobProgress={jobProgress}
+          onCancel={() => {
+            analyzeReqRef.current?.abort()
+            navigate('/upload')
+          }}
+        />
+      </div>
+    )
   }
-
 
   if (!isDemoMode && !documentId && !isLoading && !apiResult) return null
 
   if (!isDemoMode && error) {
+    const isRateLimited =
+      analysisState === 'provider_unavailable' ||
+      error.toLowerCase().includes('rate limit') ||
+      error.toLowerCase().includes('rate-limit') ||
+      error.toLowerCase().includes('cooloff') ||
+      error.toLowerCase().includes('capacity') ||
+      error.toLowerCase().includes('too many concurrent')
+
     return (
-      <div className="content-wrap py-6">
-        <div className="section-card mx-auto max-w-3xl rounded-[32px] px-6 py-9 text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] border border-[#fb7185]/20 bg-[#fb7185]/10 text-3xl text-[#fecdd3]">
-            !
+      <div className="content-wrap py-8">
+        <div className="section-card mx-auto max-w-2xl rounded-[32px] px-6 py-9 text-center space-y-4 shadow-2xl border border-white/10">
+          <div
+            className={`mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] border text-3xl ${
+              isRateLimited
+                ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+                : 'border-[#fb7185]/20 bg-[#fb7185]/10 text-[#fecdd3]'
+            }`}
+            aria-hidden="true"
+          >
+            {isRateLimited ? '⏳' : '!'}
           </div>
-          <h1 className="mt-6 text-3xl font-semibold text-white">Analysis Failed</h1>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-400">{error}</p>
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
+            {isRateLimited ? 'AI Service Capacity Reached' : 'Analysis Failed'}
+          </h1>
+          <p className="mx-auto max-w-xl text-sm leading-7 text-slate-300">
+            {isRateLimited
+              ? 'Our AI processing servers are currently handling peak volume or cooling down. Please wait a brief moment and retry.'
+              : error}
+          </p>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row pt-2">
             {documentId && (
               <button
                 type="button"
@@ -231,12 +210,16 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
                   requestedAnalysisRef.current = documentId
                   dispatch(analyzeDocument({ documentId, forceReanalyze: true }))
                 }}
-                className="btn-primary"
+                className="btn-primary min-h-[44px] px-6"
               >
-                Retry Analysis
+                {isRateLimited ? 'Retry Analysis Now' : 'Retry Analysis'}
               </button>
             )}
-            <button type="button" onClick={() => navigate('/upload')} className="btn-secondary">
+            <button
+              type="button"
+              onClick={() => navigate('/upload')}
+              className="btn-secondary min-h-[44px] px-6"
+            >
               Upload Another
             </button>
           </div>
@@ -248,6 +231,11 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
   if (!result) return null
 
   const { summary, clauses } = result
+  const isPartial =
+    summary?.is_partial === true ||
+    (result.metadata?.completion_ratio != null && result.metadata.completion_ratio < 1.0) ||
+    Boolean(result.metadata?.incomplete_chunks && result.metadata.incomplete_chunks.length > 0)
+
   const filteredClauses = filter === 'all' ? clauses : clauses.filter((c) => c.risk_level === filter)
   // Insight tabs need a real, owned, analyzed document (not the public demo).
   const insightDocId = !isDemoMode && documentId && documentId !== 'demo' ? documentId : null
@@ -346,11 +334,44 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
         </Card>
 
         <div className="space-y-6">
+          {isPartial && (
+            <PartialAnalysisAlert
+              completionRatio={result.metadata?.completion_ratio}
+              totalChunks={result.metadata?.total_chunks}
+              successfulChunks={result.metadata?.successful_chunks}
+              incompleteChunks={result.metadata?.incomplete_chunks}
+              onReanalyze={() => {
+                if (documentId) {
+                  requestedAnalysisRef.current = documentId
+                  dispatch(analyzeDocument({ documentId, forceReanalyze: true }))
+                }
+              }}
+              onAskAdvocate={() => setIsEscalationOpen(true)}
+              isReanalyzing={isLoading}
+            />
+          )}
+
           <Card as="section" ref={overviewRef} variant="section" className="scroll-mt-28 rounded-[30px] p-5 sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-sm text-slate-500">Document: {currentDoc?.filename || 'Legal Agreement.pdf'}</p>
-                <h2 className="mt-1 text-2xl font-semibold text-white">Analysis Overview</h2>
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <h2 className="text-2xl font-semibold text-white">Analysis Overview</h2>
+                  <DocumentReadabilityBadge
+                    pageType={
+                      result.metadata?.page_types
+                        ? Object.values(result.metadata.page_types).includes('scanned')
+                          ? 'scanned'
+                          : 'digital'
+                        : 'digital'
+                    }
+                    qualityScore={result.metadata?.quality_score}
+                    ocrConfidence={result.metadata?.ocr_confidence}
+                  />
+                  {result.metadata?.optimization && (
+                    <OptimizationBadge optimization={result.metadata.optimization} />
+                  )}
+                </div>
                 <p className="mt-1.5 text-sm leading-6 text-slate-400">
                   Review risk counts, core obligations, and your contract summary in one structured dashboard.
                 </p>
@@ -410,7 +431,24 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
               </button>
               <div className="metric-card rounded-[22px] p-4">
                 <RiskBadge level={summary.overall_risk} />
-                <p className="mt-2 text-sm leading-6 text-slate-400">Overall contract risk profile</p>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  {isPartial ? (
+                    <span>
+                      Preliminary risk profile{' '}
+                      {result.metadata?.completion_ratio != null ? (
+                        <span className="text-amber-400 text-xs font-semibold">
+                          ({Math.round(result.metadata.completion_ratio * 100)}% analyzed)
+                        </span>
+                      ) : (
+                        <span className="text-amber-400 text-xs font-semibold">
+                          (Partial analysis)
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    'Overall contract risk profile'
+                  )}
+                </p>
               </div>
             </div>
 
@@ -622,8 +660,18 @@ export default function Analysis({ isDemo = false }: { isDemo?: boolean }) {
               <NegotiationPanel documentId={insightDocId} />
             </Card>
           )}
+
+          <div className="mt-8">
+            <LegalDisclaimerBanner />
+          </div>
         </div>
       </div>
+
+      <LawyerEscalationModal
+        isOpen={isEscalationOpen}
+        onClose={() => setIsEscalationOpen(false)}
+        documentName={currentDoc?.filename || 'Legal Document'}
+      />
     </div>
   )
 }

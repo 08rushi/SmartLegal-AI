@@ -78,6 +78,13 @@ export default function Compare() {
           </p>
         </div>
 
+        <div
+          role="note"
+          className="mx-auto max-w-3xl rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-center text-sm text-amber-200"
+        >
+          Preview feature: the comparison results below are sample data, not a real analysis of your documents yet.
+        </div>
+
         {/* Selection Area */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#121a2d]/80 border border-slate-800 p-6 sm:p-8 rounded-3xl backdrop-blur-xl">
           {/* Document A Selector */}

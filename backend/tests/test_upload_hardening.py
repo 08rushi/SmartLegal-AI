@@ -10,8 +10,8 @@ import io
 
 
 def test_oversized_file_rejected(client, auth_headers_user_a):
-    """Oversized file (>10MB) must be rejected with 400 Bad Request."""
-    large_content = b"0" * (11 * 1024 * 1024)  # 11 MB
+    """Oversized file (>25MB) must be rejected with 400 Bad Request."""
+    large_content = b"0" * (26 * 1024 * 1024)  # 26 MB
     file_obj = ("huge.pdf", io.BytesIO(large_content), "application/pdf")
 
     resp = client.post(

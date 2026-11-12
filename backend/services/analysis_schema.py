@@ -109,12 +109,13 @@ class AnalysisModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
     summary: SummaryModel = Field(default_factory=SummaryModel)
     clauses: list[ClauseModel] = Field(default_factory=list)
+    metadata: dict = Field(default_factory=dict)
 
 
 def validate_analysis(raw: dict) -> dict:
     """
     Validate & normalize a raw AI analysis dict.
-    Returns a clean {summary, clauses} dict with recomputed counts.
+    Returns a clean {summary, clauses, metadata} dict with recomputed counts.
     Raises ValueError if the response has no usable clauses.
     """
     if not isinstance(raw, dict):
@@ -123,6 +124,7 @@ def validate_analysis(raw: dict) -> dict:
     model = AnalysisModel(
         summary=raw.get("summary") or {},
         clauses=raw.get("clauses") or [],
+        metadata=raw.get("metadata") or {},
     )
 
     if not model.clauses:
@@ -149,4 +151,8 @@ def validate_analysis(raw: dict) -> dict:
     summary["medium_risk_count"] = med
     summary["low_risk_count"] = low
 
-    return {"summary": summary, "clauses": clauses}
+    result: dict[str, Any] = {"summary": summary, "clauses": clauses}
+    if model.metadata:
+        result["metadata"] = dict(model.metadata)
+
+    return result

@@ -443,7 +443,7 @@ export default function Home() {
                 onClick={() => {
                   setSelectedArea(null)
                   window.scrollTo(0, 0)
-                  navigate('/compare')
+                  navigate('/knowledge-base')
                 }}
                 className="btn-secondary px-5 py-2.5 text-xs"
               >

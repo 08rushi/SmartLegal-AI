@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from database import get_db
 from limiter import limiter
+from routers.auth import require_admin
 from services.yojana_ingest import seed_default_schemes_if_empty, parse_scheme_notice_with_llm
 
 router = APIRouter()
@@ -179,7 +180,8 @@ async def get_scheme_details(scheme_id: str, db=Depends(get_db)):
 async def ingest_official_notice(
     request: Request,
     req: IngestNoticeRequest,
-    db=Depends(get_db)
+    db=Depends(get_db),
+    _admin=Depends(require_admin),   # was open to anyone: could overwrite scheme data shown to citizens
 ):
     """
     Automated ingestion endpoint: Parses official press release / gazette text

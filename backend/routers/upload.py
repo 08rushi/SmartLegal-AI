@@ -17,7 +17,8 @@ from routers.auth import get_current_user
 router = APIRouter()
 settings = get_settings()
 
-MAX_SIZE_MB = 10
+MAX_SIZE_MB = settings.max_upload_size_mb
+MAX_PAGE_COUNT = settings.max_page_count
 
 # ── Magic-byte signatures for allowed file types ──────────────────────────────
 # PDFs plus scanned/photographed images (JPG/PNG/WebP) — images go through OCR.
@@ -87,11 +88,11 @@ def _validate_file(content: bytes, filename: str) -> str:
         try:
             import fitz
             doc_pdf = fitz.open(stream=content, filetype="pdf")
-            if doc_pdf.page_count > 50:
+            if doc_pdf.page_count > MAX_PAGE_COUNT:
                 doc_pdf.close()
                 raise HTTPException(
                     status_code=400,
-                    detail="Document exceeds the maximum limit of 50 pages. Please upload a shorter document or excerpt.",
+                    detail=f"Document exceeds the maximum limit of {MAX_PAGE_COUNT} pages. Please upload a shorter document or excerpt.",
                 )
             doc_pdf.close()
         except HTTPException:
@@ -194,6 +195,28 @@ def _store_file(content: bytes, filename: str, user_id: str) -> str:
     return f"local://{local_path}"
 
 
+def _cloudinary_public_id(url: str) -> str | None:
+    """'https://res.cloudinary.com/<cloud>/raw/upload/v123/smartlegal/<user>/<uuid>' → 'smartlegal/<user>/<uuid>'."""
+    import re
+    m = re.search(r"/(?:raw|image|video)/upload/(?:v\d+/)?(.+?)(?:\?.*)?$", url or "")
+    return m.group(1) if m else None
+
+
+def _delete_cloud_file(file_url: str) -> bool:
+    """Best-effort removal of the stored file from Cloudinary when a document is deleted."""
+    public_id = _cloudinary_public_id(file_url)
+    if not public_id or not should_use_cloudinary():
+        return False
+    try:
+        _configure_cloudinary()
+        import cloudinary.uploader
+        result = cloudinary.uploader.destroy(public_id, resource_type="raw", invalidate=True)
+        return result.get("result") in ("ok", "not found")
+    except Exception as exc:
+        print(f"[upload] Cloudinary delete failed for {public_id}: {exc}")
+        return False
+
+
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class DocumentOut(BaseModel):
@@ -221,7 +244,22 @@ async def upload_document(
     token: str | None = Depends(oauth2_scheme),
     db=Depends(get_db),
 ):
-    content = await file.read()
+    # Read in 1 MB pieces and stop as soon as the limit is exceeded, so an oversized upload
+    # can't exhaust server memory before validation runs.
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        piece = await file.read(1024 * 1024)
+        if not piece:
+            break
+        total += len(piece)
+        if total > MAX_SIZE_MB * 1024 * 1024:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Maximum allowed size is {MAX_SIZE_MB} MB.",
+            )
+        chunks.append(piece)
+    content = b"".join(chunks)
     _validate_file(content, file.filename or "")
 
     user_id = _get_user_id_from_token(token)
@@ -236,6 +274,28 @@ async def upload_document(
         user_id, file_hash,
     )
     if existing_doc:
+        # Local development storage uses OS temp storage and can disappear after
+        # reboot/cleanup. A content-hash hit is reusable only while its file exists.
+        existing_url = existing_doc["file_url"] or ""
+        if existing_url.startswith("local://") and not os.path.isfile(existing_url[len("local://"):]):
+            replacement_url = _store_file(content, file.filename or existing_doc["filename"] or "document", user_id)
+            now = datetime.utcnow().isoformat()
+            await db.execute(
+                "UPDATE documents SET file_url = $1, filename = $2, file_size = $3, status = 'ready', uploaded_at = $4 WHERE id = $5",
+                replacement_url, file.filename or existing_doc["filename"], len(content), now, existing_doc["id"],
+            )
+            return UploadResponse(
+                document=DocumentOut(
+                    id=existing_doc["id"],
+                    filename=file.filename or existing_doc["filename"],
+                    file_url=replacement_url,
+                    file_size=len(content),
+                    document_type=existing_doc["document_type"] or "",
+                    status="ready",
+                    uploaded_at=now,
+                ),
+                message="Document file restored from upload; existing document record reused",
+            )
         return UploadResponse(
             document=DocumentOut(
                 id=existing_doc["id"],
@@ -406,6 +466,8 @@ async def delete_document(
             os.remove(file_url.replace("local://", ""))
         except OSError:
             pass
+    else:
+        _delete_cloud_file(file_url)
 
     return {"message": "Document deleted.", "id": document_id}
 

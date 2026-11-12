@@ -65,6 +65,10 @@ async def google_signin(data: GoogleTokenRequest, response: Response, db=Depends
     if payload.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
         raise HTTPException(status_code=401, detail="Invalid token issuer")
 
+    # Only trust verified Google emails (we link/create accounts by email).
+    if str(payload.get("email_verified", "")).lower() != "true":
+        raise HTTPException(status_code=401, detail="Your Google email address is not verified.")
+
     email = payload.get("email", "").lower().strip()
     name = payload.get("name", "").strip() or email.split("@")[0]
 

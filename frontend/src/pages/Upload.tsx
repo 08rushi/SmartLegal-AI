@@ -6,6 +6,7 @@ import { analyzeDocument } from '../store/analysisSlice'
 import { clearDocumentError, uploadDocument } from '../store/documentSlice'
 import { trackEvent } from '../utils/posthog'
 import { Card } from '../components/Card'
+import { MAX_FILE_SIZE_BYTES } from '../config/constants'
 
 const documentTypes = [
   'Agreements & Deeds — rent, employment, loan, sale, gift, POA, NDA, will',
@@ -123,7 +124,7 @@ export default function Upload() {
       'image/webp': ['.webp'],
     },
     maxFiles: 1,
-    maxSize: 10 * 1024 * 1024,
+    maxSize: MAX_FILE_SIZE_BYTES,
     noClick: true,
     disabled: status === 'uploading' || analysisLoading,
   })
@@ -278,25 +279,34 @@ export default function Upload() {
                       </div>
                     </div> */}
 
-                    <div className="rounded-[24px] border border-[#f5c26b]/16 bg-[#1b1720]/80 p-6">
+                    <div className="rounded-[24px] border border-[#f5c26b]/16 bg-[#1b1720]/80 p-6 space-y-3">
                       <p className="text-sm font-medium text-[#f5c26b]">Before you analyze</p>
-                      <ul className="mt-2 space-y-1.5 text-sm leading-6 text-slate-300">
+                      <ul className="space-y-1.5 text-sm leading-6 text-slate-300">
                         <li>• Confirm this is the exact document version you want reviewed.</li>
-                        <li>• PDFs and images (JPG/PNG/WebP) up to 10MB. Scans & photos are read with OCR.</li>
+                        <li>• PDFs and images (JPG/PNG/WebP) up to 25MB. Scans & photos are read with OCR.</li>
                         <li>• Analysis can take up to a couple of minutes for long contracts.</li>
                       </ul>
+
+                      {selectedFile.size > 8 * 1024 * 1024 && (
+                        <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-200">
+                          <span aria-hidden="true">⚡</span>
+                          <span>
+                            File is {formatSize(selectedFile.size)}. Adaptive document optimization will be applied automatically for high-speed processing.
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <button type="button" onClick={handleAnalyze} className="btn-primary" disabled={isLoading}>
+                <div className="flex flex-col gap-3 sm:flex-row pt-2">
+                  <button type="button" onClick={handleAnalyze} className="btn-primary min-h-[44px]" disabled={isLoading}>
                     Analyze Document
                   </button>
-                  <button type="button" onClick={open} className="btn-secondary">
+                  <button type="button" onClick={open} className="btn-secondary min-h-[44px]">
                     Replace File
                   </button>
-                  <button type="button" onClick={handleClearSelection} className="btn-secondary">
+                  <button type="button" onClick={handleClearSelection} className="btn-secondary min-h-[44px]">
                     Remove
                   </button>
                 </div>
@@ -313,11 +323,11 @@ export default function Upload() {
                   </p>
                 </div>
                 <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                  <button type="button" onClick={open} className="btn-primary">
+                  <button type="button" onClick={open} className="btn-primary min-h-[44px]">
                     Browse Files
                   </button>
                   <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs uppercase tracking-[0.22em] text-slate-500">
-                    PDF or image (JPG/PNG) . Max 10MB
+                    PDF or image (JPG/PNG) . Max 25MB
                   </div>
                 </div>
               </div>
@@ -325,8 +335,26 @@ export default function Upload() {
           </div>
 
           {error && (
-            <div className="mt-4 rounded-[24px] border border-[#fb7185]/25 bg-[#2a1320]/65 px-5 py-4 text-sm text-[#fecdd3]">
-              {error}
+            <div
+              role="alert"
+              aria-live="polite"
+              className="mt-4 rounded-[24px] border border-[#fb7185]/30 bg-[#2a1320]/80 p-5 text-sm text-[#fecdd3] shadow-lg flex items-start justify-between gap-4"
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-xl" aria-hidden="true">⚠️</span>
+                <div className="space-y-1">
+                  <p className="font-semibold text-white">Upload / Processing Notice</p>
+                  <p className="text-xs text-rose-200/90 leading-relaxed">{error}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => dispatch(clearDocumentError())}
+                className="text-xs text-rose-300 hover:text-white underline shrink-0 min-h-[44px] px-2"
+                aria-label="Dismiss error notice"
+              >
+                Dismiss
+              </button>
             </div>
           )}
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
@@ -10,6 +10,7 @@ import uuid
 
 from database import get_db
 from config import get_settings
+from limiter import limiter
 
 router = APIRouter()
 settings = get_settings()
@@ -24,6 +25,23 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
+
+    @field_validator("name")
+    @classmethod
+    def _name_not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v or len(v) > 120:
+            raise ValueError("Name is required (max 120 characters).")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def _password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters.")
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Password must be at most 72 bytes (bcrypt limit).")
+        return v
 
 
 class UserOut(BaseModel):
@@ -100,6 +118,14 @@ async def get_current_user(
     return dict(user)
 
 
+async def require_admin(current_user=Depends(get_current_user)):
+    """Allow only users whose email is listed in ADMIN_EMAILS (comma-separated). Empty list = nobody."""
+    allowed = {e.strip().lower() for e in (settings.admin_emails or "").split(",") if e.strip()}
+    if (current_user.get("email") or "").lower() not in allowed:
+        raise HTTPException(status_code=403, detail="Administrator access required.")
+    return current_user
+
+
 def _set_auth_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         key="sl_token",
@@ -114,7 +140,8 @@ def _set_auth_cookie(response: Response, token: str) -> None:
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(data: RegisterRequest, response: Response, db=Depends(get_db)):
+@limiter.limit("10/hour")
+async def register(request: Request, data: RegisterRequest, response: Response, db=Depends(get_db)):
     email = data.email.lower().strip()
     existing = await db.fetchrow("SELECT id FROM users WHERE email = $1", email)
     if existing:
@@ -137,7 +164,8 @@ async def register(data: RegisterRequest, response: Response, db=Depends(get_db)
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(response: Response, form: OAuth2PasswordRequestForm = Depends(), db=Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, response: Response, form: OAuth2PasswordRequestForm = Depends(), db=Depends(get_db)):
     email = form.username.lower().strip()
     user = await db.fetchrow("SELECT * FROM users WHERE email = $1", email)
 
@@ -189,7 +217,8 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/forgot-password")
-async def forgot_password(data: ForgotPasswordRequest, db=Depends(get_db)):
+@limiter.limit("5/hour")
+async def forgot_password(request: Request, data: ForgotPasswordRequest, db=Depends(get_db)):
     """
     Begin a password reset. Always returns the same message (never reveals whether
     an email is registered). A single-use, time-limited token is stored hashed.
@@ -212,15 +241,17 @@ async def forgot_password(data: ForgotPasswordRequest, db=Depends(get_db)):
         "VALUES ($1, $2, $3, $4, 0, $5)",
         str(uuid.uuid4()), user["id"], _hash_token(token), expires, now,
     )
-    print(f"[auth] Password reset token for {email}: {token} (expires {expires})")
-
+    # No email provider is wired up yet. Only expose/log the token outside production —
+    # a reset token in production logs would let anyone with log access take over accounts.
     if not settings.is_production:
+        print(f"[auth] Password reset token for {email}: {token} (expires {expires})")
         return {**generic, "reset_token": token, "expires_at": expires}
     return generic
 
 
 @router.post("/reset-password")
-async def reset_password(data: ResetPasswordRequest, db=Depends(get_db)):
+@limiter.limit("10/hour")
+async def reset_password(request: Request, data: ResetPasswordRequest, db=Depends(get_db)):
     """Complete a password reset: set the new password and revoke all old sessions."""
     if len(data.new_password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")

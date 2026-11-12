@@ -4,7 +4,7 @@ media.py — Dedicated WhatsApp Media Downloader Boundary & Adapters.
 Enforces:
 1. Normalized DownloadedMedia interface.
 2. SSRF protection (strict domain whitelist + IP validation + redirect token isolation).
-3. Canonical 10 MB download size ceiling and connection timeouts.
+3. Canonical 25 MB download size ceiling and connection timeouts.
 4. Clean separation of provider media downloads from document validation and storage.
 """
 
@@ -25,7 +25,7 @@ from routers.upload import MAX_SIZE_MB
 
 logger = logging.getLogger(__name__)
 
-MAX_MEDIA_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024  # Canonical 10 MB ceiling
+MAX_MEDIA_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024  # Canonical 25 MB ceiling
 
 # SSRF Domain Whitelist
 META_EXACT_DOMAINS = {"facebook.com", "graph.facebook.com", "fbsbx.com", "fbcdn.net"}
@@ -223,7 +223,7 @@ class MetaMediaDownloader(BaseMediaDownloader):
     """
     Production Meta WhatsApp Cloud API Media Downloader.
     Retrieves media metadata from Meta Graph API, validates URLs via strict SSRF rules,
-    isolates Bearer tokens across redirects, streams binary payload up to 10 MB limit.
+    isolates Bearer tokens across redirects, streams binary payload up to 25 MB limit.
     """
 
     async def download_media(
@@ -312,7 +312,7 @@ class MetaMediaDownloader(BaseMediaDownloader):
                             if int(content_len_hdr) > MAX_MEDIA_SIZE_BYTES:
                                 raise ValueError(f"Media exceeds maximum allowed size of {MAX_SIZE_MB} MB.")
 
-                        # Stream Byte Payload up to 10 MB limit
+                        # Stream Byte Payload up to 25 MB limit
                         async for chunk in dl_resp.aiter_bytes():
                             content_bytes.extend(chunk)
                             if len(content_bytes) > MAX_MEDIA_SIZE_BYTES:

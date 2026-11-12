@@ -16,7 +16,13 @@ export const loginUser = createAsyncThunk(
       return response.data
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Login failed')
+      return rejectWithValue(
+        error.response?.data?.detail ||
+          // No HTTP response at all = server down, wrong URL, or a CORS block.
+          (error.response === undefined
+            ? 'Cannot reach the server. Make sure the backend is running on http://localhost:8000 and you opened the app at http://localhost:5173.'
+            : 'Login failed')
+      )
     }
   }
 )
@@ -29,8 +35,13 @@ export const registerUser = createAsyncThunk(
       localStorage.setItem('sl_token', response.data.access_token)
       return response.data
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Registration failed')
+      const error = err as { response?: { data?: { detail?: string | { msg?: string }[] } } }
+      const detail = error.response?.data?.detail
+      // FastAPI validation errors (422) come back as a list of {msg}; show them as readable text.
+      const message = Array.isArray(detail)
+        ? detail.map((d) => (d?.msg || '').replace(/^Value error, /, '')).filter(Boolean).join(' ')
+        : detail
+      return rejectWithValue(message || 'Registration failed')
     }
   }
 )

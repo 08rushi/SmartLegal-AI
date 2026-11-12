@@ -13,6 +13,7 @@ from services.whatsapp.intent import WhatsAppIntent, IntentType
 from services.whatsapp.language import LanguageCode, get_localized_continuation_message
 from services.whatsapp.media import DevMediaDownloader, get_whatsapp_media_downloader
 from services.whatsapp.document_adapter import process_whatsapp_document_intake
+from routers.upload import MAX_SIZE_MB
 from services.whatsapp.document_analysis_adapter import (
     execute_whatsapp_document_analysis,
     answer_document_followup,
@@ -309,10 +310,10 @@ class WhatsAppCapabilityRouter:
                 error_msg = str(exc)
                 if "exceeds" in error_msg.lower() or "too large" in error_msg.lower():
                     if language == LanguageCode.MARATHI:
-                        return "❌ फाइल खूप मोठी आहे. कमाल परवानगी असलेली मर्यादा 10 MB आहे."
+                        return f"❌ फाइल खूप मोठी आहे. कमाल परवानगी असलेली मर्यादा {MAX_SIZE_MB} MB आहे."
                     elif language == LanguageCode.HINDI:
-                        return "❌ फ़ाइल बहुत बड़ी है। अधिकतम अनुमत आकार 10 MB है।"
-                    return "❌ File is too large. Maximum allowed size is 10 MB."
+                        return f"❌ फ़ाइल बहुत बड़ी है। अधिकतम अनुमत आकार {MAX_SIZE_MB} MB है।"
+                    return f"❌ File is too large. Maximum allowed size is {MAX_SIZE_MB} MB."
 
                 if language == LanguageCode.MARATHI:
                     return "❌ कागदपत्र स्वीकारताना त्रुटी आली. कृपया वैध PDF किंवा फोटो पाठवा."

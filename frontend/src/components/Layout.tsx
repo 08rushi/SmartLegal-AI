@@ -13,7 +13,7 @@ const navItems = [
   { to: '/upload', label: 'Upload' },
   { to: '/analysis', label: 'Review' },
   { to: '/chat', label: 'Ask AI' },
-  { to: '/compare', label: 'Knowledge Base' },
+  { to: '/knowledge-base', label: 'Knowledge Base' },
 ]
 
 const serviceCards: { key: string; title: string; art: Category; description: string; to: string }[] = [

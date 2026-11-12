@@ -4,7 +4,7 @@ export default function WhatsAppDocumentUseCase() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
         <div className="space-y-4 max-w-xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
-            <span>Supported Formats: PDF & Image (Up to 10 MB)</span>
+            <span>Supported Formats: PDF & Image (Up to 25 MB)</span>
           </div>
 
           <h2 className="text-2xl font-bold text-white sm:text-3xl tracking-tight">

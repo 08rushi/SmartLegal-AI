@@ -83,7 +83,8 @@ async def init_db_pool():
     url = settings.database_url.strip()
     if url.startswith("sqlite"):
         _is_sqlite = True
-        _db_pool = SQLitePoolWrapper(_sqlite_path)
+        # Honour the path in DATABASE_URL (sqlite:///path/to.db); default to smartlegal.db.
+        _db_pool = SQLitePoolWrapper(url.split("sqlite:///", 1)[1] if "sqlite:///" in url and url.split("sqlite:///", 1)[1] else _sqlite_path)
         await create_tables()
         return
 
@@ -139,7 +140,7 @@ async def create_tables():
         return
 
     # In production, log schema authority notice
-    if getattr(settings, 'env', 'development') == 'production':
+    if settings.is_production:
         print("[DB] Production environment detected: Database schema is governed by Alembic migrations.")
 
     async with _db_pool.acquire() as conn:
@@ -173,7 +174,6 @@ async def create_tables():
                 status          TEXT DEFAULT 'ready',
                 uploaded_at     TEXT NOT NULL
             );
-            CREATE INDEX IF NOT EXISTS idx_documents_file_hash ON documents(user_id, file_hash);
 
 
             CREATE TABLE IF NOT EXISTS analyses (
@@ -375,6 +375,51 @@ async def create_tables():
             CREATE INDEX IF NOT EXISTS idx_wom_idempotency ON whatsapp_outbound_messages(idempotency_key);
             CREATE INDEX IF NOT EXISTS idx_wom_inbound_msg ON whatsapp_outbound_messages(inbound_provider_message_id);
             CREATE INDEX IF NOT EXISTS idx_wom_contact ON whatsapp_outbound_messages(contact_id);
+
+            CREATE TABLE IF NOT EXISTS shadow_analyses (
+                id                      TEXT PRIMARY KEY,
+                experiment_id           TEXT NOT NULL,
+                document_id             TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+                candidate_provider      TEXT NOT NULL,
+                candidate_model         TEXT NOT NULL,
+                candidate_version       TEXT NOT NULL,
+                source_document_hash    TEXT NOT NULL,
+                result_json             TEXT NOT NULL,
+                execution_status        TEXT NOT NULL,
+                failure_category        TEXT,
+                prompt_tokens           INTEGER DEFAULT 0,
+                completion_tokens       INTEGER DEFAULT 0,
+                estimated_cost_usd      REAL DEFAULT 0.0,
+                started_at              TEXT NOT NULL,
+                completed_at            TEXT NOT NULL,
+                latency_ms              INTEGER NOT NULL,
+                rollout_stage           TEXT DEFAULT 'shadow',
+                created_at              TEXT NOT NULL,
+                CONSTRAINT uq_exp_doc UNIQUE (experiment_id, document_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_shadow_analyses_exp_doc ON shadow_analyses(experiment_id, document_id);
+            CREATE INDEX IF NOT EXISTS idx_shadow_analyses_doc_id ON shadow_analyses(document_id);
+
+            CREATE TABLE IF NOT EXISTS shadow_comparisons (
+                id                      TEXT PRIMARY KEY,
+                experiment_id           TEXT NOT NULL,
+                document_id             TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+                primary_analysis_id     TEXT,
+                shadow_analysis_id      TEXT REFERENCES shadow_analyses(id) ON DELETE CASCADE,
+                cer                     REAL DEFAULT 0.0,
+                wer                     REAL DEFAULT 0.0,
+                risk_concordance        REAL DEFAULT 0.0,
+                citation_recall         REAL DEFAULT 0.0,
+                sequence_similarity     REAL DEFAULT 0.0,
+                latency_delta_ms        INTEGER DEFAULT 0,
+                token_delta             INTEGER DEFAULT 0,
+                cost_delta_usd          REAL DEFAULT 0.0,
+                metrics_json            TEXT DEFAULT '{}',
+                created_at              TEXT NOT NULL,
+                CONSTRAINT uq_comparison UNIQUE (experiment_id, document_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_shadow_comparisons_exp_doc ON shadow_comparisons(experiment_id, document_id);
+            CREATE INDEX IF NOT EXISTS idx_shadow_comparisons_doc_id ON shadow_comparisons(document_id);
         """)
 
         # Performance B-Tree indexes (SL-004) & FK Cascades (SL-005)
@@ -385,6 +430,8 @@ async def create_tables():
             "ALTER TABLE id_checklist_items DROP CONSTRAINT IF EXISTS id_checklist_items_application_id_fkey, ADD CONSTRAINT id_checklist_items_application_id_fkey FOREIGN KEY (application_id) REFERENCES id_applications(id) ON DELETE CASCADE",
             "ALTER TABLE property_checklist_items DROP CONSTRAINT IF EXISTS property_checklist_items_application_id_fkey, ADD CONSTRAINT property_checklist_items_application_id_fkey FOREIGN KEY (application_id) REFERENCES property_applications(id) ON DELETE CASCADE",
             "ALTER TABLE business_checklist_items DROP CONSTRAINT IF EXISTS business_checklist_items_application_id_fkey, ADD CONSTRAINT business_checklist_items_application_id_fkey FOREIGN KEY (application_id) REFERENCES business_applications(id) ON DELETE CASCADE",
+            "ALTER TABLE documents ADD COLUMN file_hash TEXT DEFAULT ''",
+            "CREATE INDEX IF NOT EXISTS idx_documents_file_hash ON documents(user_id, file_hash)",
             "ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0",
             "CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_chat_messages_doc_time ON chat_messages(document_id, timestamp)",

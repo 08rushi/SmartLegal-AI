@@ -278,8 +278,8 @@ async def test_zero_byte_download_rejected(mock_stream, mock_get):
 @pytest.mark.anyio
 @patch("httpx.AsyncClient.get")
 @patch("httpx.AsyncClient.stream")
-async def test_oversized_10mb_download_streaming_aborted(mock_stream, mock_get):
-    """Verify downloading payload exceeding canonical 10 MB limit aborts streaming."""
+async def test_oversized_25mb_download_streaming_aborted(mock_stream, mock_get):
+    """Verify downloading payload exceeding canonical 25 MB limit aborts streaming."""
     settings = get_settings()
     settings.meta_whatsapp_access_token = "token_123"
 
@@ -303,7 +303,7 @@ async def test_oversized_10mb_download_streaming_aborted(mock_stream, mock_get):
     mock_stream.return_value = mock_stream_ctx
 
     downloader = MetaMediaDownloader()
-    with pytest.raises(ValueError, match="exceeds maximum allowed size of 10 MB"):
+    with pytest.raises(ValueError, match="exceeds maximum allowed size of 25 MB"):
         await downloader.download_media("media_oversized")
 
 

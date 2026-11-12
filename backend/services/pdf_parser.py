@@ -5,42 +5,118 @@ Preserves page numbers and positions for accurate clause references.
 
 import fitz  # PyMuPDF
 import re
+from typing import List
+
+from services.page_content import (
+    PageContent,
+    PageContentList,
+    calculate_digital_quality,
+    classify_page,
+    classify_document_pages,
+    pages_to_text,
+)
 
 
-def extract_text_from_pdf(file_bytes: bytes) -> str:
+def extract_text_from_pdf(file_bytes: bytes) -> PageContentList:
     """
-    Extract all text from a PDF file with page number markers.
-    Returns cleaned plain text with [Page X] markers preserved.
+    Extract per-page text and metadata from a PDF file using PyMuPDF.
+
+    Returns:
+        PageContentList: A list of PageContent instances with full telemetry,
+        deterministic classification, and .to_text() / .document_type properties.
     """
     try:
         doc = fitz.open(stream=file_bytes, filetype="pdf")
-        pages_text = []
+        pages = PageContentList()
 
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
-            text = page.get_text("text")
-            if text.strip():
-                pages_text.append(f"[Page {page_num + 1}]\n{text.strip()}")
+            raw_text = page.get_text("text") or ""
+            text = raw_text.replace("\xa0", " ").strip()
+
+            # Inspect embedded raster image streams
+            images = page.get_images(full=True)
+            has_images = len(images) > 0
+            image_count = len(images)
+
+            # Linguistic script detection (preserves Indic and Latin scripts)
+            script = detect_script(text)
+
+            # Deterministic digital quality & signal computation
+            quality_score, is_unclear, signals = calculate_digital_quality(text)
+
+            # Structural page classification based purely on measurable signals:
+            # - Meaningful native text: alpha_count >= 20 and letter_ratio >= 0.40 -> 'digital'
+            # - Insufficient text and has raster images -> 'scanned'
+            # - Insufficient text and no raster images -> 'empty'
+            page_type = classify_page(
+                alpha_count=signals["alpha_count"],
+                letter_ratio=signals["letter_ratio"],
+                has_images=has_images,
+            )
+
+            # For empty or scanned pages without text, ensure quality_score reflects no text
+            if page_type == "empty":
+                quality_score = 0.0
+                is_unclear = True
+            elif page_type == "scanned" and not text:
+                quality_score = 0.0
+                is_unclear = True
+
+            word_count = len(text.split()) if text else 0
+
+            pages.append(
+                PageContent(
+                    page_num=page_num + 1,
+                    text=text,
+                    extraction_source="pymupdf",
+                    script=script,
+                    ocr_confidence=None,  # Strictly None for PyMuPDF digital pages
+                    char_count=len(text),
+                    word_count=word_count,
+                    has_images=has_images,
+                    image_count=image_count,
+                    raw_signals=signals,
+                    page_type=page_type,
+                    quality_score=quality_score,
+                    is_unclear=is_unclear,
+                )
+            )
 
         doc.close()
-
-        full_text = "\n\n".join(pages_text)
-        full_text = re.sub(r'\n{3,}', '\n\n', full_text)
-        full_text = "\n".join(
-            line for line in full_text.splitlines() if line.strip()
-        )
-        return full_text
+        return pages
 
     except Exception as e:
         raise ValueError(f"Failed to parse PDF: {str(e)}")
 
 
-def split_into_chunks(text: str, max_chars: int = 18000) -> list[dict]:
+def extract_text_from_pdf_str(file_bytes: bytes) -> str:
+    """
+    Direct string-only convenience function for legacy callers.
+    Returns plain text with [Page X] markers preserved.
+    """
+    pages = extract_text_from_pdf(file_bytes)
+    return pages.to_text()
+
+
+def split_into_chunks(
+    text: str,
+    max_chars: int = 18000,
+    max_tokens: int | None = None,
+) -> list[dict]:
     """
     Split document text into chunks, preserving page boundaries.
     Each chunk includes metadata about which pages it covers.
     Returns list of: { text, start_page, end_page, chunk_index }
+
+    If max_tokens is provided, delegates to token-aware ChunkingService.
+    Otherwise, preserves the legacy character-based chunking.
     """
+    if max_tokens is not None:
+        from services.chunking_service import ChunkingService
+        service = ChunkingService(max_chunk_tokens=max_tokens)
+        return [c.to_dict() for c in service.chunk_text(text)]
+
     chunks = []
     current_chunk = []
     current_chars = 0

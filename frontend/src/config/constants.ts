@@ -32,4 +32,4 @@ export const SUPPORTED_FILE_TYPES = [
   'image/webp',
 ]
 
-export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
+export const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024 // 25 MB

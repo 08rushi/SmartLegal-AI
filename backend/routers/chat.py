@@ -11,7 +11,8 @@ from limiter import limiter
 from routers.auth import get_current_user
 from services.groq_service import answer_question_about_document
 from services.gemini_service import detect_document_type, get_law_context
-from services.pdf_parser import extract_text_from_pdf
+from services.pdf_parser import extract_text_from_pdf_str
+from services.retrieval import select_relevant_text
 
 router = APIRouter()
 settings = get_settings()
@@ -55,7 +56,7 @@ async def chat(
                     resp = await client.get(file_url)
                     file_bytes = resp.content
 
-            doc_text = extract_text_from_pdf(file_bytes)
+            doc_text = extract_text_from_pdf_str(file_bytes)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Could not read document: {str(e)}")
         await set_doc_text(req.document_id, doc_text, ttl=settings.redis_cache_ttl)
@@ -97,7 +98,8 @@ async def chat(
 
     try:
         answer = await answer_question_about_document(
-            doc_text,
+            # Long documents: send the opening + the pages that match the question, not just the first 12K chars.
+            select_relevant_text(doc_text, req.question),
             req.question,
             doc_type_name=doc_type_name,
             law_context=law_context,
@@ -180,7 +182,12 @@ async def multi_document_chat(
         raise HTTPException(status_code=404, detail="No readable documents found for multi-document Q&A.")
 
     context_str = "\n".join(combined_sources)
-    answer = answer_question_about_document(context_str, req.question, "multi_document")
+    try:
+        answer = await answer_question_about_document(
+            context_str, req.question, doc_type_name="multiple documents"
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"AI failed to answer: {exc}")
 
     return {
         "question": req.question,

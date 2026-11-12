@@ -8,6 +8,7 @@ Text-only: No image support.
 
 import json
 import asyncio
+import time
 from typing import Union
 
 from groq import Groq
@@ -31,6 +32,128 @@ def _get_groq_client() -> Groq:
     return _groq_client
 
 
+# ── Gemini REST fallback (text-only) ─────────────────────────────────────────
+# Models tried in order when the primary Groq provider is unavailable.
+# These are real, supported model IDs on the generativelanguage v1beta API.
+_GEMINI_TEXT_FALLBACK_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-3.5-flash",
+    "gemini-2.5-pro",
+]
+
+_gemini_permanently_unavailable: bool = False
+
+
+class GeminiPermanentError(RuntimeError):
+    """Raised when Gemini returns a non-retryable error (401, 403, 404)."""
+
+
+class GeminiRateLimitError(RuntimeError):
+    """Raised when Gemini returns 429 — caller should back off and retry."""
+
+
+async def _call_gemini_rest(model: str, prompt: str, max_tokens: int, api_key: str) -> str:
+    """Single attempt against one Gemini model via the REST API.
+
+    Raises:
+        GeminiPermanentError: for 401, 403, 404 — skip this model, don't retry.
+        GeminiRateLimitError: for 429 — caller should wait and retry.
+        RuntimeError: for other HTTP errors or empty responses.
+    """
+    global _gemini_permanently_unavailable
+    import httpx
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": min(max_tokens, 8192)},
+    }
+    async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=10.0)) as client:
+        response = await client.post(url, headers={"x-goog-api-key": api_key}, json=payload)
+
+    code = response.status_code
+    if code in (401, 403, 404):
+        # Parse a safe error message — never include the api_key in the log
+        try:
+            detail = response.json().get("error", {}).get("message", response.text[:200])
+        except Exception:
+            detail = response.text[:200]
+        if code in (401, 403):
+            # Project-level access denial or invalid key affects all models under this project
+            _gemini_permanently_unavailable = True
+        raise GeminiPermanentError(
+            f"Gemini model '{model}' permanently unavailable (HTTP {code}): {detail}"
+        )
+    if code == 429:
+        raise GeminiRateLimitError(f"Gemini model '{model}' rate-limited (HTTP 429).")
+    if code != 200:
+        raise RuntimeError(f"Gemini model '{model}' failed (HTTP {code}): {response.text[:200]}")
+
+    data = response.json()
+    candidates = data.get("candidates") or []
+    parts = (candidates[0].get("content") or {}).get("parts") or [] if candidates else []
+    content = "".join(str(p.get("text", "")) for p in parts if isinstance(p, dict)).strip()
+    if not content:
+        raise RuntimeError(f"Gemini model '{model}' returned no text content.")
+    return content
+
+
+async def _fallback_to_gemini(prompt: str, max_tokens: int = 4000) -> str:
+    """Try Gemini text models in order as a provider fallback.
+
+    Model selection order:
+      1. GEMINI_TEXT_MODEL (if set)
+      2. GEMINI_VISION_MODEL (if set and not disabled)
+      3. _GEMINI_TEXT_FALLBACK_MODELS list
+
+    Skips models that return permanent errors (401/403/404).
+    Raises RuntimeError if all models fail.
+    """
+    global _gemini_permanently_unavailable
+    if _gemini_permanently_unavailable:
+        raise GeminiPermanentError("Gemini fallback skipped: Google project permanently denied access or unauthorized.")
+
+    api_key = getattr(settings, "gemini_api_key", "")
+    if not api_key:
+        raise RuntimeError("Gemini fallback is not configured (GEMINI_API_KEY is empty).")
+
+    # Build ordered model list: configured text/vision model first (if set), then fallbacks
+    models_to_try = []
+    text_model = getattr(settings, "gemini_text_model", "").strip()
+    if text_model and text_model not in models_to_try:
+        models_to_try.append(text_model)
+    vision_model = getattr(settings, "gemini_vision_model", "").strip()
+    if vision_model and vision_model not in models_to_try:
+        models_to_try.append(vision_model)
+    for m in _GEMINI_TEXT_FALLBACK_MODELS:
+        if m not in models_to_try:
+            models_to_try.append(m)
+
+    last_error: Exception = RuntimeError("No Gemini models configured.")
+    for model in models_to_try:
+        try:
+            print(f"[gemini-fallback] Trying model '{model}'...")
+            result = await _call_gemini_rest(model, prompt, max_tokens, api_key)
+            print(f"[gemini-fallback] Success with model '{model}'.")
+            return result
+        except GeminiPermanentError as exc:
+            print(f"[gemini-fallback] Model '{model}' permanently unavailable — skipping. ({exc})")
+            last_error = exc
+            if _gemini_permanently_unavailable:
+                # Stop immediately if project-level authorization failed
+                break
+            continue  # try next model
+        except GeminiRateLimitError as exc:
+            print(f"[gemini-fallback] Model '{model}' rate-limited — skipping remaining models.")
+            last_error = exc
+            break  # rate-limited: no point trying more models immediately
+        except Exception as exc:
+            print(f"[gemini-fallback] Model '{model}' failed: {exc}")
+            last_error = exc
+            continue
+
+    raise RuntimeError(f"All Gemini fallback models failed. Last error: {last_error}")
+
+
 # ── Reuse Gemini Service Helpers ──────────────────────────────────────────────
 
 from services.gemini_service import (
@@ -50,38 +173,217 @@ from services.gemini_service import (
 
 # ── Groq API Calls ───────────────────────────────────────────────────────────
 
+def _reasoning_kwargs(effort: str) -> dict:
+    """gpt-oss models 'think' before answering and that thinking eats max_tokens (default effort
+    truncated JSON mid-way). Ask for less reasoning; other models ignore this."""
+    if "gpt-oss" in (settings.groq_model or ""):
+        return {"extra_body": {"reasoning_effort": effort}}
+    return {}
+
+
+def _estimate_request_tokens(text: str, max_tokens: int) -> int:
+    """Realistic token cost of one call: prompt + the output we actually expect (not the max_tokens cap)."""
+    from services.chunking_service import estimate_tokens
+    prompt_tokens = estimate_tokens(text)
+    # Measured on real runs: output ≈ 0.6-0.9x the prompt for clause extraction, so don't
+    # reserve the full max_tokens (that made the pacer ~2x too conservative).
+    expected_out = max(800, min(max_tokens, 3500, int(prompt_tokens * 0.9)))
+    est = prompt_tokens + expected_out
+    limit = int(getattr(settings, "groq_tpm_limit", 8000) or 8000)
+    return max(1, min(est, limit - 100))  # a single call must always be able to fit the window
+
+
+async def _wait_for_groq_slot(request_tokens: int, cap, max_wait: float = 75.0) -> bool:
+    """
+    Free-tier Groq allows only ~8K tokens/minute. When the window is full, WAIT for it to
+    clear (≤ max_wait seconds) instead of failing the chunk. Long limits (e.g. the daily cap,
+    retry-after of many minutes) return False immediately so callers can fall back / report.
+    """
+    from services.provider_budget_manager import budget_manager
+
+    waited = 0.0
+    while True:
+        if await budget_manager.can_send(request_tokens, cap):
+            return True
+        status = budget_manager.get_provider_status("groq") if hasattr(budget_manager, "get_provider_status") else {}
+        wait = status.get("retry_after_remaining", 0.0) or 0.0
+        if wait <= 0:
+            hdr = getattr(budget_manager, "_header_states", {}).get("groq", {})
+            wait = hdr.get("reset_tokens") or hdr.get("reset_requests") or 5.0
+        if wait > max_wait - waited:
+            return False  # long cooldown (daily limit etc.) — don't sit here
+        wait = max(1.0, min(float(wait), 30.0)) + 0.5
+        print(f"[groq] Rate-limit window full — waiting {wait:.0f}s for capacity...")
+        await asyncio.sleep(wait)
+        waited += wait
+
+
 async def _call_groq(prompt: str, max_tokens: int = 4000) -> str:
-    """Call Groq API synchronously (wrapped in async)."""
+    """Call Groq API with token accounting and automatic OpenRouter fallback."""
+    from services.model_capabilities import get_capability
+    from services.provider_budget_manager import budget_manager, parse_rate_limit_headers
+    from services.openrouter_service import is_openrouter_configured, call_openrouter
+
+    cap = get_capability(settings.groq_model)
+    can_send_groq = await _wait_for_groq_slot(_estimate_request_tokens(prompt, max_tokens), cap)
+    if not can_send_groq:
+        if is_openrouter_configured():
+            try:
+                print(f"[groq] Groq budget/cooldown blocked ({max_tokens} tokens). Falling back to OpenRouter.")
+                return await call_openrouter(prompt, max_tokens=max_tokens)
+            except Exception as fallback_exc:
+                print(f"[groq] OpenRouter fallback failed: {fallback_exc}")
+        if getattr(settings, "gemini_api_key", "") and not _gemini_permanently_unavailable:
+            try:
+                print("[groq] Groq unavailable; falling back to Gemini text generation.")
+                return await _fallback_to_gemini(prompt, max_tokens=max_tokens)
+            except Exception as fb_exc:
+                print(f"[groq] Gemini fallback failed: {fb_exc}")
+        status = budget_manager.get_provider_status("groq") if hasattr(budget_manager, "get_provider_status") else {}
+        cooloff = status.get("retry_after_remaining", 0.0) or 0.0
+        if cooloff <= 0:
+            header_info = getattr(budget_manager, "_header_states", {}).get("groq", {})
+            reset_tok = header_info.get("reset_tokens")
+            if reset_tok:
+                rec_at = header_info.get("recorded_at", time.monotonic())
+                cooloff = max(1.0, (rec_at + reset_tok) - time.monotonic())
+            else:
+                cooloff = 5.0
+        raise RuntimeError(f"Groq is currently rate-limited or in cooloff ({cooloff:.1f}s remaining); primary AI provider is temporarily unavailable.")
+
     loop = asyncio.get_event_loop()
 
     def _sync_call():
         client = _get_groq_client()
-        response = client.chat.completions.create(
-            model=settings.groq_model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.1,
-        )
-        return response.choices[0].message.content or ""
+        try:
+            raw_res = client.chat.completions.with_raw_response.create(
+                model=settings.groq_model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=0.1,
+                **_reasoning_kwargs("low"),
+            )
+            completion = raw_res.parse()
+            headers = dict(raw_res.headers)
+            tokens = getattr(getattr(completion, "usage", None), "total_tokens", max_tokens)
+            content = completion.choices[0].message.content or ""
+            return content, tokens, headers
+        except AttributeError:
+            completion = client.chat.completions.create(
+                model=settings.groq_model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=0.1,
+                **_reasoning_kwargs("low"),
+            )
+            tokens = getattr(getattr(completion, "usage", None), "total_tokens", max_tokens)
+            content = completion.choices[0].message.content or ""
+            return content, tokens, {}
 
-    return await loop.run_in_executor(None, _sync_call)
+    try:
+        content, tokens_used, headers = await loop.run_in_executor(None, _sync_call)
+        await budget_manager.record_success("groq", settings.groq_model, tokens_used, headers=headers)
+        return content
+    except Exception as exc:
+        resp = getattr(exc, "response", None)
+        headers = dict(getattr(resp, "headers", {})) if resp else {}
+        is_429 = getattr(exc, "status_code", None) == 429 or "429" in str(exc) or "rate limit" in str(exc).lower()
+        if is_429:
+            parsed = parse_rate_limit_headers(headers)
+            retry_after = parsed.get("retry_after") or 60.0
+            await budget_manager.record_rate_limit("groq", int(round(retry_after)), headers=headers)
+
+        if is_openrouter_configured():
+            try:
+                print(f"[groq] Groq call failed ({exc}). Executing OpenRouter fallback...")
+                return await call_openrouter(prompt, max_tokens=max_tokens)
+            except Exception as fallback_exc:
+                print(f"[groq] OpenRouter fallback failed: {fallback_exc}")
+        if getattr(settings, "gemini_api_key", "") and not _gemini_permanently_unavailable:
+            try:
+                print(f"[groq] Groq call failed ({exc}); trying Gemini fallback...")
+                return await _fallback_to_gemini(prompt, max_tokens=max_tokens)
+            except Exception as fb_exc:
+                print(f"[groq] Gemini fallback failed: {fb_exc}")
+        raise exc
 
 
 async def _call_groq_chat(messages: list[dict], max_tokens: int = 1800, temperature: float = 0.2) -> str:
-    """Call Groq with a full messages array (system + conversation)."""
+    """Call Groq chat with token accounting and automatic OpenRouter fallback."""
+    from services.model_capabilities import get_capability
+    from services.provider_budget_manager import budget_manager, parse_rate_limit_headers
+    from services.openrouter_service import is_openrouter_configured, call_openrouter_chat
+
+    cap = get_capability(settings.groq_model)
+    chat_text = " ".join(str(m.get("content", "")) for m in messages)
+    can_send_groq = await _wait_for_groq_slot(_estimate_request_tokens(chat_text, max_tokens), cap)
+    if not can_send_groq:
+        if is_openrouter_configured():
+            try:
+                print(f"[groq] Groq budget/cooldown blocked ({max_tokens} tokens). Falling back to OpenRouter chat.")
+                return await call_openrouter_chat(messages, max_tokens=max_tokens, temperature=temperature)
+            except Exception as fallback_exc:
+                print(f"[groq] OpenRouter chat fallback failed: {fallback_exc}")
+        if getattr(settings, "gemini_api_key", ""):
+            prompt = "\n\n".join(f"{m.get('role', 'user').upper()}: {m.get('content', '')}" for m in messages)
+            print("[groq] Groq unavailable; falling back to Gemini chat generation.")
+            return await _fallback_to_gemini(prompt, max_tokens=max_tokens)
+        status = budget_manager.get_provider_status("groq") if hasattr(budget_manager, "get_provider_status") else {}
+        cooloff = status.get("retry_after_remaining", 60.0) or 60.0
+        raise RuntimeError(f"Groq is currently rate-limited or in cooloff ({cooloff:.1f}s remaining); configure Gemini or OpenRouter fallback to continue.")
+
     loop = asyncio.get_event_loop()
 
     def _sync_call():
         client = _get_groq_client()
-        response = client.chat.completions.create(
-            model=settings.groq_model,
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
-        return response.choices[0].message.content or ""
+        try:
+            raw_res = client.chat.completions.with_raw_response.create(
+                model=settings.groq_model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                **_reasoning_kwargs("medium"),
+            )
+            completion = raw_res.parse()
+            headers = dict(raw_res.headers)
+            tokens = getattr(getattr(completion, "usage", None), "total_tokens", max_tokens)
+            content = completion.choices[0].message.content or ""
+            return content, tokens, headers
+        except AttributeError:
+            completion = client.chat.completions.create(
+                model=settings.groq_model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                **_reasoning_kwargs("medium"),
+            )
+            tokens = getattr(getattr(completion, "usage", None), "total_tokens", max_tokens)
+            content = completion.choices[0].message.content or ""
+            return content, tokens, {}
 
-    return await loop.run_in_executor(None, _sync_call)
+    try:
+        content, tokens_used, headers = await loop.run_in_executor(None, _sync_call)
+        await budget_manager.record_success("groq", settings.groq_model, tokens_used, headers=headers)
+        return content
+    except Exception as exc:
+        resp = getattr(exc, "response", None)
+        headers = dict(getattr(resp, "headers", {})) if resp else {}
+        is_429 = getattr(exc, "status_code", None) == 429 or "429" in str(exc) or "rate limit" in str(exc).lower()
+        if is_429:
+            parsed = parse_rate_limit_headers(headers)
+            retry_after = parsed.get("retry_after") or 60.0
+            await budget_manager.record_rate_limit("groq", int(round(retry_after)), headers=headers)
+
+        if is_openrouter_configured():
+            try:
+                print(f"[groq] Groq chat call failed ({exc}). Executing OpenRouter fallback...")
+                return await call_openrouter_chat(messages, max_tokens=max_tokens, temperature=temperature)
+            except Exception as fallback_exc:
+                print(f"[groq] OpenRouter chat fallback failed: {fallback_exc}")
+        if getattr(settings, "gemini_api_key", ""):
+            prompt = "\n\n".join(f"{m.get('role', 'user').upper()}: {m.get('content', '')}" for m in messages)
+            return await _fallback_to_gemini(prompt, max_tokens=max_tokens)
+        raise exc
 
 
 # ── Virtual Legal Advisor (general Indian-law consultation, no document) ───────
@@ -129,6 +431,51 @@ async def get_legal_advice(message: str, history: list[dict] | None = None) -> s
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _normalize_clause_payload(parsed: object) -> list[dict]:
+    """Normalize common model response wrappers to the canonical clause list."""
+    if isinstance(parsed, list):
+        clauses = parsed
+    elif isinstance(parsed, dict):
+        clauses = None
+        for key in (
+            "clauses", "items", "results", "extracted_clauses", "analysis",
+            "data", "sections", "provisions", "content", "points"
+        ):
+            value = parsed.get(key)
+            if isinstance(value, list):
+                clauses = value
+                break
+            if isinstance(value, dict):
+                nested = value.get("clauses") or value.get("items") or value.get("results")
+                if isinstance(nested, list):
+                    clauses = nested
+                    break
+        if clauses is None:
+            # Check if any top-level key contains a list of items/dicts
+            for val in parsed.values():
+                if isinstance(val, list) and len(val) > 0 and isinstance(val[0], (dict, str)):
+                    clauses = val
+                    break
+        if clauses is None and any(k in parsed for k in ("original_text", "clause_text", "title", "clause_title")):
+            clauses = [parsed]
+        if clauses is None:
+            raise ValueError(
+                "AI returned a JSON object without a clause array. "
+                f"Available keys: {', '.join(map(str, parsed.keys()))[:200]}"
+            )
+    else:
+        raise ValueError(f"AI clause response must be an array or wrapped object, got {type(parsed).__name__}")
+
+    normalized = []
+    for item in clauses:
+        if isinstance(item, dict):
+            normalized.append(item)
+        elif isinstance(item, str) and item.strip():
+            normalized.append({"title": "Extracted legal point", "original_text": item.strip()})
+    if not normalized:
+        raise ValueError("AI returned no usable clauses for this document section.")
+    return normalized
+
 async def analyze_legal_document(text: str, filename: str) -> dict:
     """
     Analyze a legal document text using Groq (text-only, PDFs only).
@@ -140,6 +487,13 @@ async def analyze_legal_document(text: str, filename: str) -> dict:
     Returns:
         {summary, clauses} with same schema
     """
+    # Long documents: prefer Gemini's 1M-token context (1-3 calls instead of ~20 rate-limited
+    # Groq chunks). Returns None when Gemini isn't configured/usable/fails → Groq path below.
+    from services.gemini_analysis import try_gemini_analysis
+    gemini_result = await try_gemini_analysis(text, filename)
+    if gemini_result is not None:
+        return gemini_result
+
     doc_type, doc_type_name = detect_document_type(text, filename)
     law_context = get_law_context(doc_type)
     mode = get_doc_mode(doc_type)
@@ -158,88 +512,104 @@ async def analyze_legal_document(text: str, filename: str) -> dict:
     except Exception as exc:
         print(f"[groq] Classification step failed, using keyword detection: {exc}")
 
-    from services.pdf_parser import split_into_chunks
+    from services.chunking_service import (
+        ChunkingService,
+        DocumentChunk,
+        execute_chunks_with_retry,
+    )
+    from services.model_capabilities import get_capability
+    from services.provider_budget_manager import budget_manager
 
-    # max_chars is sized so a single chunk request stays safely under Groq's
-    # on-demand-tier 8000 TPM limit even for token-dense scripts (Devanagari/
-    # Tamil/Bengali OCR text tokenizes far less efficiently than English —
-    # measured ~2.5 chars/token worst case vs ~4 for English). At 12000 chars
-    # a dense non-English chunk alone could request >10000 tokens, which the
-    # API rejects outright (413) — that request can never succeed, retry or
-    # not. max_tokens is scaled down by the same ratio so the output budget
-    # per input char is unchanged from before.
-    chunks = split_into_chunks(text, max_chars=6000)
-    print(f"[groq] Split text into {len(chunks)} chunks")
-
-    all_clauses = []
-    chunk_errors = []
+    # Sized safely based on configured ModelCapability and safety margins
+    cap = get_capability(settings.groq_model)
+    from services.chunking_service import estimate_tokens
+    # Long documents switch to compact output + bigger chunks (fewer calls, less prompt overhead,
+    # ~40-60% fewer tokens in total) so free-tier limits can still finish them.
+    compact = estimate_tokens(text) > 6000   # ≈ more than 5-6 dense pages
+    chunker = ChunkingService(
+        max_chunk_tokens=2000,   # dense clauses emit ~1.4x as many output tokens as input — keep chunks small
+        safety_margin=1200,
+        capability=cap,
+    )
+    chunks = chunker.chunk_text(text)
+    print(f"[groq] Split text into {len(chunks)} token-bounded chunks (compact_mode={compact})")
 
     if not chunks:
         raise RuntimeError("Groq analysis failed: no text chunks were available.")
 
-    # Serialized (not parallel) so multiple chunks can't stack past the
-    # account's shared per-minute token budget within the same window.
-    sem = asyncio.Semaphore(1)
+    async def _process_chunk_fn(chunk: DocumentChunk) -> list[dict]:
+        prompt = _chunk_prompt(doc_type_name, law_context, chunk.text, chunk.chunk_index, mode, compact=compact)
+        # Check remaining budget to choose safe max_tokens between 3000 and 6000
+        header_info = getattr(budget_manager, "_header_states", {}).get("groq", {})
+        rem_tok = header_info.get("remaining_tokens")
+        if compact:
+            target_max_tokens = 4500
+        elif rem_tok is not None and rem_tok >= 2500 and rem_tok < 6000:
+            target_max_tokens = min(4000, rem_tok)
+        else:
+            target_max_tokens = 6000
+        raw = await _call_groq(prompt, max_tokens=target_max_tokens)
+        parsed = _normalize_clause_payload(_extract_json(raw))
 
-    async def _process_chunk(i: int, chunk: dict) -> list:
-        async with sem:
-            prompt = _chunk_prompt(doc_type_name, law_context, chunk["text"], i, mode)
+        for clause in parsed:
+            clause.setdefault("page_number", chunk.page_start)
+            clause.setdefault("chunk_index", chunk.chunk_index)
+            if clause.get("risk_level") not in ("low", "medium", "high"):
+                clause["risk_level"] = "medium"
             try:
-                raw = await _call_groq(prompt, max_tokens=2500)
-                parsed = _extract_json(raw)
+                score = int(clause.get("risk_score", 5))
+                clause["risk_score"] = max(1, min(10, score))
+            except (ValueError, TypeError):
+                clause["risk_score"] = 5
 
-                if isinstance(parsed, list):
-                    for clause in parsed:
-                        clause.setdefault("page_number", chunk.get("start_page", 1))
-                        clause.setdefault("chunk_index", i)
-                        if clause.get("risk_level") not in ("low", "medium", "high"):
-                            clause["risk_level"] = "medium"
-                        try:
-                            score = int(clause.get("risk_score", 5))
-                            clause["risk_score"] = max(1, min(10, score))
-                        except (ValueError, TypeError):
-                            clause["risk_score"] = 5
-                    print(f"[groq] Chunk {i + 1} done: {len(parsed)} clauses extracted")
-                    return parsed
-                else:
-                    msg = f"Chunk {i + 1}: unexpected response shape {type(parsed).__name__}"
-                    chunk_errors.append(msg)
-                    print(f"[groq] {msg}, skipping")
-            except Exception as exc:
-                msg = f"Chunk {i + 1} failed: {exc}"
-                chunk_errors.append(msg)
-                print(f"[groq] {msg}")
-            return []
+        print(f"[groq] Chunk {chunk.chunk_id} done: {len(parsed)} clauses extracted")
+        return parsed
 
-    chunk_results = await asyncio.gather(*[_process_chunk(i, chunk) for i, chunk in enumerate(chunks)])
-    for res in chunk_results:
-        all_clauses.extend(res)
-
-
-    if not all_clauses:
-        detail = "; ".join(chunk_errors[:3]) if chunk_errors else "the model returned no clauses"
-        raise RuntimeError(
-            "We couldn't extract any clauses from this document. It may be a scanned "
-            "image, use a non-Unicode font, or not be a legal document. Please try a "
-            f"text-based PDF where the text can be selected. (detail: {detail})"
-        )
+    # Execute with bounded retries and partial-failure preservation
+    all_clauses, chunk_meta = await execute_chunks_with_retry(
+        chunks=chunks,
+        chunk_processor=_process_chunk_fn,
+        max_retries=3,
+        base_backoff_seconds=1.0,
+    )
 
     # ── Summary ───────────────────────────────────────────────────────────────
+    compact_clauses = [
+        {
+            "id": c.get("id"),
+            "title": c.get("title"),
+            "risk_level": c.get("risk_level"),
+            "risk_reason": c.get("risk_reason", "")[:120],
+        }
+        for c in all_clauses[:20]
+    ]
     summary_prompt = _summary_prompt(
-        doc_type_name, law_context, json.dumps(all_clauses[:20], indent=2), mode
+        doc_type_name, law_context, json.dumps(compact_clauses, indent=2), mode
     )
     try:
-        raw_summary = await _call_groq(summary_prompt, max_tokens=2600)
+        raw_summary = await _call_groq(summary_prompt, max_tokens=2500)
         summary = _extract_json(raw_summary)
         summary["total_clauses"] = len(all_clauses)
         summary["high_risk_count"] = sum(1 for c in all_clauses if c.get("risk_level") == "high")
         summary["medium_risk_count"] = sum(1 for c in all_clauses if c.get("risk_level") == "medium")
         summary["low_risk_count"] = sum(1 for c in all_clauses if c.get("risk_level") == "low")
+        summary["is_partial"] = chunk_meta.get("is_partial", False)
     except Exception as exc:
         print(f"[groq] Summary failed: {exc}")
         summary = _build_fallback_summary(doc_type_name, all_clauses)
+        summary["is_partial"] = chunk_meta.get("is_partial", False)
 
-    return {"summary": summary, "clauses": all_clauses}
+    return {
+        "summary": summary,
+        "clauses": all_clauses,
+        "metadata": {
+            "completion_ratio": chunk_meta.get("completion_ratio", 1.0),
+            "incomplete_chunks": chunk_meta.get("incomplete_chunks", []),
+            "total_chunks": chunk_meta.get("total_chunks", len(chunks)),
+            "successful_chunks": chunk_meta.get("successful_chunks", len(chunks)),
+            "compact_mode": compact,
+        },
+    }
 
 
 async def answer_question_about_document(
@@ -372,3 +742,4 @@ async def generate_negotiation(doc_type_name: str, summary: dict, clauses: list)
         it["risk_level"] = _norm_level(it.get("risk_level"))
     data["items"] = items
     return data
+

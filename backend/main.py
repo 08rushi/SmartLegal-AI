@@ -8,8 +8,9 @@ from config import get_settings
 from database import init_db_pool, close_db_pool
 from limiter import limiter
 from cache import init_redis, close_redis
-from routers import auth, upload, analyze, chat, advisor, insights, legal_id, property, business, yojana, whatsapp
+from routers import auth, upload, analyze, chat, advisor, insights, legal_id, property, business, yojana, whatsapp, internal_shadow
 import auth_google
+
 
 settings = get_settings()
 
@@ -93,9 +94,13 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
+# In development accept the frontend on any localhost/127.0.0.1 port (Vite moves to
+# 5174, 5175… when 5173 is busy, and browsers treat 127.0.0.1 as a different origin).
+# Production uses only the explicit ALLOWED_ORIGINS list.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.origins_list,
+    allow_origin_regex=None if settings.is_production else r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -113,7 +118,12 @@ app.include_router(legal_id.router,     prefix="/api/v1/legal-id",  tags=["Legal
 app.include_router(property.router,     prefix="/api/v1/property",  tags=["Property"])
 app.include_router(business.router,     prefix="/api/v1/business",  tags=["Business"])
 app.include_router(yojana.router,       prefix="/api/v1/yojana",    tags=["Jan-Yojana"])
-app.include_router(whatsapp.router,     prefix="/api/v1/whatsapp",  tags=["WhatsApp"])
+# WhatsApp bot is a planned future integration: its code stays in the repo but is not
+# mounted unless WHATSAPP_ENABLED=true (its dev endpoints are unauthenticated).
+if settings.whatsapp_enabled:
+    app.include_router(whatsapp.router, prefix="/api/v1/whatsapp", tags=["WhatsApp"])
+app.include_router(internal_shadow.router,                          tags=["Internal Shadow"])
+app.include_router(internal_shadow.router, prefix="/api/v1",         tags=["Internal Shadow"])
 
 
 

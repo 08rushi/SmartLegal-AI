@@ -17,7 +17,8 @@ pip install -r requirements.txt
 
 # Create your .env configuration
 cp .env.example .env
-# Edit .env and insert your GROQ_API_KEY / GEMINI_API_KEY and DATABASE_URL
+# Edit .env: set GROQ_API_KEY, DATABASE_URL and SECRET_KEY (>= 32 random chars,
+# e.g. `openssl rand -hex 32`). GEMINI_API_KEY / OPENROUTER_API_KEY are optional fallbacks.
 
 # Launch the FastAPI dev server
 uvicorn main:app --reload --port 8000
@@ -46,13 +47,13 @@ npm run dev
 | Layer | Technology | Description |
 |---|---|---|
 | **Frontend** | React 18, TypeScript, Vite | Single Page Application with fast module reloading |
-| **State Management** | Redux Toolkit | 7 modular slices (`auth`, `document`, `analysis`, `chat`, `legalId`, `property`, `business`) |
+| **State Management** | Redux Toolkit | 10 slices (`auth`, `document`, `analysis`, `chat`, `advisor`, `insights`, `legalId`, `property`, `business`, `yojana`) |
 | **Styling** | Custom Glassmorphic CSS + Tailwind | Custom dark theme with glowing risk indicators & dynamic micro-animations |
 | **Backend API** | Python 3.12, FastAPI, Uvicorn | Async ASGI server with rate limiting & Sentry error tracing |
-| **Database** | Supabase PostgreSQL + `asyncpg` | Relational store with connection pooling |
-| **Caching Layer** | Redis (`redis.asyncio`) | L1 cache for sub-millisecond document analysis retrieval |
-| **AI LLM Engine** | Groq API (`llama-3.3-70b`) & Gemini 2.5 | Dual-provider LLM pipeline with fallback support |
-| **PDF Extraction** | PyMuPDF (`fitz`) | High-speed PDF text parsing with page marker tracking |
+| **Database** | Supabase PostgreSQL + `asyncpg` (auto-fallback to local SQLite) | Relational store with connection pooling |
+| **Cache / Jobs** | Redis (optional) + ARQ | L1 analysis cache and durable analysis worker; inline fallback without Redis |
+| **AI LLM Engine** | Groq (default `openai/gpt-oss-120b`, set via `GROQ_MODEL`) → OpenRouter → Gemini | Primary provider with automatic fallback chain |
+| **Extraction / OCR** | PyMuPDF; Gemini Vision → PaddleOCR → Tesseract for scans & images | PDFs and JPG/PNG/WebP up to 25 MB / 50 pages |
 | **Security & Auth** | JWT (`python-jose`) + Google OAuth 2.0 | bcrypt password hashing + Google Identity Services integration |
 
 ---

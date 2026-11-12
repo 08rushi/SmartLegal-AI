@@ -22,8 +22,12 @@ Graceful degradation:
 
 import asyncio
 import json
+import os
+import shutil
+import tempfile
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from config import get_settings
 
@@ -86,6 +90,27 @@ async def _update_job_stage(db, document_id: str, stage: str, progress_pct: int,
     )
 
 
+# ── Size-aware time budget ────────────────────────────────────────────────────
+
+def _analysis_timeout_for(file_bytes: bytes) -> int:
+    """Seconds this document may take: grows with page count, between the base timeout and the max."""
+    pages = 1
+    if file_bytes[:5].startswith(b"%PDF"):
+        try:
+            import fitz
+            with fitz.open(stream=file_bytes, filetype="pdf") as d:
+                pages = max(1, d.page_count)
+        except Exception:
+            pass
+    base = settings.analysis_timeout_seconds
+    wanted = 120 + pages * settings.analysis_seconds_per_page
+    return int(min(settings.analysis_max_timeout_seconds, max(base, wanted)))
+
+
+def _processing_payload(started_at: str, timeout_s: int) -> str:
+    return json.dumps({"status": "processing", "started_at": started_at, "timeout_seconds": timeout_s})
+
+
 # ── Core analysis logic (extracted from analyze.py) ───────────────────────────
 
 async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) -> None:
@@ -96,100 +121,174 @@ async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) 
     from database import get_db_ctx
     from cache import set_analysis, set_doc_text
     from services.pdf_parser import extract_text_from_pdf, assess_readability
+    from services.page_content import PageContentList
+    from services.vision_pipeline import VisualDocumentPipeline
     from services.ocr_service import ocr_available, ocr_image_bytes, ocr_pdf_scanned
     from services.groq_service import analyze_legal_document
     from services.analysis_schema import validate_analysis
     from services.legal_reference_service import enrich_clause_citations
     from services.prompt_registry import PROMPT_VERSION
+    from services.document_inspector import DocumentSuitabilityInspector
+    from services.adaptive_optimizer import AdaptiveOptimizationEngine, OptimizationTelemetry
+    from services.page_splitter import DeterministicPageSplitter, recombine_pages
+
+    scratch_dir = os.path.join(tempfile.gettempdir(), f"sl_opt_{document_id}_{uuid.uuid4().hex[:6]}")
+    optimization_telemetry: Optional[OptimizationTelemetry] = None
+    timeout_s = _analysis_timeout_for(file_bytes)
+    print(f"[worker] Time budget for '{filename}': {timeout_s}s")
 
     async with get_db_ctx() as db:
+        # ── Step 0: Initialise job tracking ───────────────────────────────────
         analysis_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
-
-        # Initial job stage: queued → extracting
         await _update_job_stage(db, document_id, "extracting", 20)
         await _upsert_analysis(
             db, analysis_id, document_id,
-            json.dumps({"status": "processing", "started_at": now}), now,
+            _processing_payload(now, timeout_s), now,
         )
 
         text = ""
         try:
-            # ── Step 1: Text extraction ───────────────────────────────────────
+            # ── Step 1: Document Inspection, Optimization & Text extraction ────
             _breadcrumb("pdf.extract.start", {"document_id": document_id, "bytes": len(file_bytes)})
             is_pdf = file_bytes[:5].startswith(b"%PDF")
 
-            if is_pdf:
-                text = extract_text_from_pdf(file_bytes)
-                quality = assess_readability(text)
-                _breadcrumb("pdf.extract.done", {"chars": len(text), "readable": quality["readable"]})
+            inspector = DocumentSuitabilityInspector()
+            profile = inspector.inspect(file_bytes, filename)
+            optimizer = AdaptiveOptimizationEngine()
 
-                if not quality["readable"]:
-                    if ocr_available():
-                        print(f"[worker] No text layer in '{filename}' → running OCR…")
-                        await _update_job_stage(db, document_id, "ocr", 40)
-                        _breadcrumb("ocr.pdf.start", {"document_id": document_id})
-                        # Run OCR in a worker thread — it is CPU/subprocess-bound and,
-                        # left on the event loop, freezes the whole server (including
-                        # status polling) for the entire OCR duration. Bounded by the
-                        # same timeout used for the AI step below so a pathological
-                        # scan still fails cleanly instead of hanging forever.
-                        text = await asyncio.wait_for(
-                            asyncio.to_thread(ocr_pdf_scanned, file_bytes),
-                            timeout=settings.analysis_timeout_seconds,
-                        )
-                        quality = assess_readability(text)
-                        _breadcrumb("ocr.pdf.done", {"chars": len(text), "readable": quality["readable"]})
-                        if not quality["readable"]:
-                            raise ValueError(
-                                "We couldn't read enough text from this scanned PDF even "
-                                "with OCR. Please upload a clearer, higher-resolution scan "
-                                "(300 DPI, well-lit and straight), or a text-based PDF."
+            if is_pdf and profile.recommended_strategy == "page_split":
+                splitter = DeterministicPageSplitter(max_pages_per_part=20)
+                parts = splitter.split(file_bytes, document_id=document_id)
+                part_results = []
+                for part in parts:
+                    part_bytes, _ = optimizer.optimize(part.content_bytes, filename)
+                    part_pages = extract_text_from_pdf(part_bytes)
+                    part_doc_type = getattr(part_pages, "document_type", "digital_pdf")
+                    part_text = part_pages.to_text() if hasattr(part_pages, "to_text") else str(part_pages)
+                    if part_doc_type in ("scanned_pdf", "mixed_pdf") or not assess_readability(part_text)["readable"]:
+                        can_visual = ocr_available() or (settings.cloud_vision_enabled and not settings.privacy_mode and bool(settings.gemini_api_key))
+                        if can_visual:
+                            pipeline = VisualDocumentPipeline()
+                            transcriptions = await asyncio.wait_for(
+                                pipeline.process_pdf_pages(part_bytes, part_pages),
+                                timeout=timeout_s,
                             )
-                        # OCR can legitimately take several minutes on long, multi-language
-                        # scans. Refresh the job's started_at now that the slow OCR stage is
-                        # done, so the AI-analysis stage below gets its own full timeout
-                        # window instead of the reaper killing it for time OCR already used.
-                        _ocr_done_at = datetime.utcnow().isoformat()
-                        await _upsert_analysis(
-                            db, analysis_id, document_id,
-                            json.dumps({"status": "processing", "started_at": _ocr_done_at}),
-                            _ocr_done_at,
-                        )
-                    else:
-                        raise ValueError(
-                            "This looks like a scanned image or photo saved as a PDF, and "
-                            "OCR is not enabled on the server. Please upload a text-based "
-                            "PDF (where the text can be selected/copied), or ask the admin "
-                            "to enable OCR (install Tesseract)."
-                        )
-            else:
-                if not ocr_available():
-                    raise ValueError(
-                        "This is an image document, and OCR is not enabled on the server "
-                        "yet, so we can't read text from images. Please upload a text-based "
-                        "PDF, or ask the admin to enable OCR (install Tesseract)."
-                    )
-                print(f"[worker] Image document '{filename}' → running OCR…")
-                await _update_job_stage(db, document_id, "ocr", 40)
-                _breadcrumb("ocr.image.start", {"document_id": document_id})
-                text = await asyncio.wait_for(
-                    asyncio.to_thread(ocr_image_bytes, file_bytes),
-                    timeout=settings.analysis_timeout_seconds,
-                )
+                            part_pages = PageContentList([t.to_page_content() for t in transcriptions])
+                            part_quality = assess_readability(part_pages.to_text())
+                            if not part_quality["readable"]:
+                                raise ValueError(
+                                    f"OCR could not recover enough readable text from pages {part.start_page}-{part.end_page}. "
+                                    "Please upload a clearer scan or enable a supported OCR provider."
+                                )
+                        else:
+                            raise ValueError(
+                                f"Pages {part.start_page}-{part.end_page} appear to be scanned images, but OCR is unavailable. "
+                                "Install/configure Tesseract or enable Gemini Vision, then re-upload the document."
+                            )
+                    part_results.append((part, part_pages))
+                pages = recombine_pages(part_results)
+                text = pages.to_text() if hasattr(pages, "to_text") else str(pages)
+                doc_type = getattr(pages, "document_type", "digital_pdf")
                 quality = assess_readability(text)
-                _breadcrumb("ocr.image.done", {"chars": len(text), "readable": quality["readable"]})
                 if not quality["readable"]:
                     raise ValueError(
-                        "We couldn't read enough text from this image. Please upload a "
-                        "clearer, well-lit, straight photo or scan (300 DPI works best), "
-                        "or a text-based PDF."
+                        "The document was split for processing, but too little readable text was extracted. "
+                        "For scanned PDFs, enable OCR or upload a clearer/searchable PDF."
                     )
-                _ocr_done_at = datetime.utcnow().isoformat()
-                await _upsert_analysis(
-                    db, analysis_id, document_id,
-                    json.dumps({"status": "processing", "started_at": _ocr_done_at}),
-                    _ocr_done_at,
+                optimization_telemetry = OptimizationTelemetry(
+                    original_size_bytes=len(file_bytes),
+                    optimized_size_bytes=sum(p.file_size_bytes for p in parts),
+                    optimization_applied=True,
+                    optimization_method="page_split",
+                    pages_optimized=len(pages),
+                    pages_split=len(parts),
+                    optimization_reason=profile.reason,
+                    technical_quality_score=quality.get("quality_score", 1.0) if isinstance(quality, dict) else 1.0,
+                    technical_readability_metrics={"parts": len(parts), "pages": len(pages)},
+                )
+            else:
+                processing_bytes, optimization_telemetry = optimizer.optimize(file_bytes, filename, profile=profile)
+                if is_pdf:
+                    pages = extract_text_from_pdf(processing_bytes)
+                    doc_type = getattr(pages, "document_type", "digital_pdf")
+                    text = pages.to_text() if hasattr(pages, "to_text") else str(pages)
+                    quality = assess_readability(text)
+                    _breadcrumb("pdf.extract.done", {"chars": len(text), "pages": len(pages), "doc_type": doc_type, "readable": quality["readable"]})
+                    print(f"[worker] Extracted {len(pages)} pages from '{filename}' | document_type={doc_type} | readable={quality['readable']}")
+
+                    has_unclear_or_scanned = not quality["readable"] or doc_type in ("scanned_pdf", "mixed_pdf")
+                    if has_unclear_or_scanned:
+                        can_visual = ocr_available() or (settings.cloud_vision_enabled and not settings.privacy_mode and bool(settings.gemini_api_key))
+                        if can_visual:
+                            print(f"[worker] Running Visual / OCR Pipeline on '{filename}' (doc_type={doc_type})…")
+                            await _update_job_stage(db, document_id, "ocr", 40)
+                            _breadcrumb("ocr.pdf.start", {"document_id": document_id})
+                            pipeline = VisualDocumentPipeline()
+                            transcriptions = await asyncio.wait_for(
+                                pipeline.process_pdf_pages(processing_bytes, pages),
+                                timeout=timeout_s,
+                            )
+                            pages = PageContentList([t.to_page_content() for t in transcriptions])
+                            text = pages.to_text()
+                            quality = assess_readability(text)
+                            _breadcrumb("ocr.pdf.done", {"chars": len(text), "readable": quality["readable"]})
+                            if not quality["readable"]:
+                                raise ValueError(
+                                    "We couldn't read enough text from this scanned PDF even "
+                                    "with OCR. Please upload a clearer, higher-resolution scan "
+                                    "(300 DPI, well-lit and straight), or a text-based PDF."
+                                )
+                            _ocr_done_at = datetime.utcnow().isoformat()
+                            await _upsert_analysis(
+                                db, analysis_id, document_id,
+                                _processing_payload(_ocr_done_at, timeout_s),
+                                _ocr_done_at,
+                            )
+                        else:
+                            raise ValueError(
+                                "This looks like a scanned image or photo saved as a PDF, and "
+                                "OCR is not enabled on the server. Please upload a text-based "
+                                "PDF (where the text can be selected/copied), or ask the admin "
+                                "to enable OCR (install Tesseract)."
+                            )
+                else:
+                    can_visual = ocr_available() or (settings.cloud_vision_enabled and not settings.privacy_mode and bool(settings.gemini_api_key))
+                    if not can_visual:
+                        raise ValueError(
+                            "This is an image document, and OCR is not enabled on the server "
+                            "yet, so we can't read text from images. Please upload a text-based "
+                            "PDF, or ask the admin to enable OCR (install Tesseract)."
+                        )
+                    print(f"[worker] Image document '{filename}' → running Visual / OCR Pipeline…")
+                    await _update_job_stage(db, document_id, "ocr", 40)
+                    _breadcrumb("ocr.image.start", {"document_id": document_id})
+                    pipeline = VisualDocumentPipeline()
+                    transcriptions = await asyncio.wait_for(
+                        pipeline.process_image_file(processing_bytes, filename),
+                        timeout=timeout_s,
+                    )
+                    pages = PageContentList([t.to_page_content() for t in transcriptions])
+                    text = pages.to_text()
+                    quality = assess_readability(text)
+                    _breadcrumb("ocr.image.done", {"chars": len(text), "readable": quality["readable"]})
+                    if not quality["readable"]:
+                        raise ValueError(
+                            "We couldn't read enough text from this image. Please upload a "
+                            "clearer, well-lit, straight photo or scan (300 DPI works best), "
+                            "or a text-based PDF."
+                        )
+                    _ocr_done_at = datetime.utcnow().isoformat()
+                    await _upsert_analysis(
+                        db, analysis_id, document_id,
+                        _processing_payload(_ocr_done_at, timeout_s),
+                        _ocr_done_at,
+                    )
+
+            if not text or not quality.get("readable", False):
+                raise ValueError(
+                    "No sufficiently readable text could be extracted from this document. "
+                    "If it is scanned, enable OCR; otherwise upload a valid text-based PDF or a clearer image."
                 )
 
             print(f"[worker] Extracted {len(text)} chars from '{filename}' | script={quality.get('script')}")
@@ -199,10 +298,18 @@ async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) 
 
             # ── Step 2: AI analysis ───────────────────────────────────────────
             await _update_job_stage(db, document_id, "analyzing", 60)
+
+            # Report "section N of M" progress (60% → 95%) while chunks are analysed.
+            from services.progress import analysis_progress
+
+            async def _on_progress(done: int, total: int) -> None:
+                await _update_job_stage(db, document_id, "analyzing", 60 + int(35 * done / max(total, 1)))
+
+            analysis_progress.set(_on_progress)
             _breadcrumb("ai.analyze.start", {"filename": filename})
             analysis = await asyncio.wait_for(
                 analyze_legal_document(text, filename),
-                timeout=settings.analysis_timeout_seconds,
+                timeout=timeout_s,
             )
             analysis = validate_analysis(analysis)
 
@@ -210,13 +317,14 @@ async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) 
             if "clauses" in analysis and isinstance(analysis["clauses"], list):
                 analysis["clauses"] = enrich_clause_citations(analysis["clauses"])
 
-            # ── Step 2c: Attach version metadata (SL-024) ──────────────────────
-            analysis["metadata"] = {
-                "pipeline_version": "v1.0.0",
-                "prompt_version": PROMPT_VERSION,
-                "model": settings.groq_model,
-                "analyzed_at": datetime.utcnow().isoformat(),
-            }
+            # ── Step 2c: Attach version & optimization metadata (Phase 6) ─────
+            meta = analysis.setdefault("metadata", {})
+            meta["pipeline_version"] = "v1.0.0"
+            meta["prompt_version"] = PROMPT_VERSION
+            meta["model"] = settings.groq_model
+            meta["analyzed_at"] = datetime.utcnow().isoformat()
+            if optimization_telemetry:
+                meta["optimization"] = optimization_telemetry.to_dict()
 
             _breadcrumb(
                 "ai.analyze.done",
@@ -262,10 +370,21 @@ async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) 
             )
             print(f"[worker] FAILED {document_id}: {message}")
             await _update_job_stage(db, document_id, "failed", 0, error_message=message)
-            error_payload = json.dumps(
-                {"status": "error", "error": message, "document_id": document_id}
-            )
+            error_dict = {"status": "error", "error": message, "document_id": document_id}
+            error_payload = json.dumps(error_dict)
             await _upsert_analysis(db, analysis_id, document_id, error_payload, datetime.utcnow().isoformat())
+            try:
+                await set_analysis(document_id, error_dict, ttl=settings.redis_cache_ttl)
+            except Exception:
+                pass
+
+        finally:
+            # Deterministic derived artifact cleanup on both success and failure (Phase 6)
+            if os.path.exists(scratch_dir):
+                try:
+                    shutil.rmtree(scratch_dir, ignore_errors=True)
+                except Exception:
+                    pass
 
 
 
@@ -309,7 +428,9 @@ class WorkerSettings:
     on_startup = startup
     on_shutdown = shutdown
     # How long a job can run before ARQ cancels it and retries (or marks failed).
-    job_timeout = settings.analysis_timeout_seconds
+    # Per-document budgets are enforced inside the job (see _analysis_timeout_for);
+    # this is only the hard ceiling ARQ will allow.
+    job_timeout = settings.analysis_max_timeout_seconds + 60
     # Retry stale/failed jobs up to 2 additional times.
     max_tries = 3
     # Queue name — must match what enqueue_analysis uses.

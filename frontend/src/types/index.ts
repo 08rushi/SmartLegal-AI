@@ -42,6 +42,52 @@ export interface DocumentState {
 
 export type RiskLevel = 'low' | 'medium' | 'high'
 
+export type FrontendAnalysisState =
+  | 'queued'
+  | 'processing'
+  | 'completed'
+  | 'completed_with_uncertainty'
+  | 'partial'
+  | 'failed'
+  | 'provider_unavailable'
+  | 'retrying_provider'
+
+export interface IncompleteChunkInfo {
+  chunk_id: string
+  chunk_index: number
+  page_start: number
+  page_end: number
+  error_type?: string
+  error_message?: string
+}
+
+export interface OptimizationTelemetryInfo {
+  original_size_bytes: number
+  optimized_size_bytes: number
+  optimization_applied: boolean
+  optimization_method: 'lossless' | 'image_stream' | 'downsample' | 'page_split' | 'none'
+  pages_optimized: number
+  pages_split: number
+  optimization_reason?: string
+  technical_quality_score?: number
+  compression_ratio?: number
+}
+
+export interface AnalysisMetadata {
+  pipeline_version?: string
+  prompt_version?: string
+  model?: string
+  analyzed_at?: string
+  completion_ratio?: number
+  total_chunks?: number
+  successful_chunks?: number
+  incomplete_chunks?: IncompleteChunkInfo[]
+  optimization?: OptimizationTelemetryInfo
+  page_types?: Record<number, 'digital' | 'scanned' | 'empty'>
+  quality_score?: number
+  ocr_confidence?: number | null
+}
+
 export interface Clause {
   id: string
   title: string
@@ -57,6 +103,8 @@ export interface Clause {
   clause_number?: string
   page_number?: number
   beneficial_to_user?: boolean
+  is_unclear?: boolean
+  extraction_source?: string
 }
 
 export interface DocumentSummary {
@@ -74,6 +122,7 @@ export interface DocumentSummary {
   beneficial_clauses?: string[]
   your_obligations?: string[]
   other_party_rights?: string[]
+  is_partial?: boolean
 }
 
 export interface AnalysisResult {
@@ -81,6 +130,7 @@ export interface AnalysisResult {
   summary: DocumentSummary
   clauses: Clause[]
   analyzed_at: string
+  metadata?: AnalysisMetadata
 }
 
 export interface AnalysisState {
@@ -88,6 +138,14 @@ export interface AnalysisState {
   comparisonResult: AnalysisResult | null
   isLoading: boolean
   error: string | null
+  state?: FrontendAnalysisState
+  elapsedSeconds?: number
+  retryAfterRemaining?: number | null
+  isRetryingProvider?: boolean
+  /** Live server-side stage: extracting | ocr | analyzing (from /analyze/{id}/status). */
+  jobStage?: string | null
+  /** 0-100 while the server is working; null when unknown. */
+  jobProgress?: number | null
 }
 
 // ─── Insights: "What happens if I sign?" + Negotiation helper ────────────────

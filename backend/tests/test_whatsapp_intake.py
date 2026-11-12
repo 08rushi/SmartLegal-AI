@@ -156,7 +156,7 @@ async def test_oversized_file_rejected(temp_db):
     )
 
     assert res.status == "ok"
-    assert "File is too large" in res.reply or "10 MB" in res.reply
+    assert "File is too large" in res.reply or "25 MB" in res.reply or "10 MB" in res.reply
 
 
 @pytest.mark.anyio

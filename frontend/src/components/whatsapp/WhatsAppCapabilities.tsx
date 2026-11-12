@@ -7,7 +7,7 @@ const capabilities = [
   {
     icon: '📄',
     title: 'Document Analysis',
-    description: 'Send supported legal documents (PDFs or images up to 10 MB) through WhatsApp for rapid contract analysis.',
+    description: 'Send supported legal documents (PDFs or images up to 25 MB) through WhatsApp for rapid contract analysis.',
   },
   {
     icon: '🚨',

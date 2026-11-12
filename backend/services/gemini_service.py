@@ -364,12 +364,37 @@ def _extract_json(text: str) -> Union[dict, list]:
                 return json.loads(match.group())
             except json.JSONDecodeError:
                 continue
+
+    # Defensive repair for truncated JSON array (e.g. LLM output cut off by token limit)
+    if "[" in cleaned:
+        start_idx = cleaned.find("[")
+        candidate = cleaned[start_idx:]
+        last_obj_end = candidate.rfind("}")
+        if last_obj_end > 0:
+            repaired = candidate[:last_obj_end + 1] + "\n]"
+            try:
+                parsed = json.loads(repaired)
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+
     raise ValueError(f"No valid JSON found in response: {cleaned[:200]}")
 
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
-def _chunk_prompt(doc_type_name: str, law_context: str, chunk_text: str, chunk_index: int = 0, mode: str = "agreement") -> str:
+def _chunk_prompt(doc_type_name: str, law_context: str, chunk_text: str, chunk_index: int = 0, mode: str = "agreement", compact: bool = False) -> str:
+    # Long documents: cut output tokens ~60% so free-tier rate limits (Groq 8K TPM / daily cap)
+    # can still finish. Hindi/source-language text is skipped (original text stays in the PDF).
+    compact_note = (
+        "COMPACT MODE (this is a long document — this section OVERRIDES the field list above):\n"
+        "Return ONLY these fields per object: \"id\", \"title\", \"original_text\" (quote at most the first 30 words "
+        "of the clause, in its original language), \"plain_english\" (1-2 short sentences), \"risk_level\", "
+        "\"risk_score\", \"risk_reason\" (one sentence, cite the Act/section only if certain), \"clause_type\", "
+        "\"beneficial_to_user\". Do NOT output \"plain_hindi\", \"plain_source\" or \"source_language\". "
+        "Skip pure boilerplate, definitions and signature blocks.\n\n"
+    ) if compact else ""
     unit = "charge / prayer / finding / fact" if mode == "case" else "clause / section"
     field_guide = (
         "For case files:\n"
@@ -412,7 +437,7 @@ Each object represents one {unit} and must have exactly these fields:
 
 Be thorough and precise: capture every distinct item — do not skip, merge, or summarise them together. Keep "original_text" faithful to the document in its original script. Cite exact statutes and section numbers in "risk_reason"; if you are unsure of a section, name only the Act rather than guessing a number. Provide accurate translations (real "plain_hindi" and "plain_source", not transliterations).
 
-<untrusted_document_content>
+{compact_note}<untrusted_document_content>
 {chunk_text}
 </untrusted_document_content>
 
@@ -611,18 +636,26 @@ def _build_fallback_summary(doc_type_name: str, clauses: list) -> dict:
     high = sum(1 for c in clauses if c.get("risk_level") == "high")
     med = sum(1 for c in clauses if c.get("risk_level") == "medium")
     low = sum(1 for c in clauses if c.get("risk_level") == "low")
+    overall = "high" if high > 0 else ("medium" if med > 0 else "low")
+    if clauses:
+        summary_text = (
+            f"Successfully analyzed {len(clauses)} clauses for {doc_type_name}. "
+            f"Identified {high} high-risk, {med} medium-risk, and {low} low-risk provisions. "
+            "Review the detailed breakdown below for Indian law implications and obligations."
+        )
+    else:
+        summary_text = (
+            "No contractual clauses or legal covenants were detected in this document. "
+            "Please ensure the uploaded PDF contains text-searchable legal provisions."
+        )
     return {
         "document_type": doc_type_name,
         "parties": [],
         "key_dates": [],
-        "overall_risk": "medium",
-        "risk_summary": (
-            "AI analysis encountered an issue extracting clauses. "
-            "Please try re-analyzing the document. "
-            "If the problem persists, ensure the PDF contains selectable text, not scanned images."
-        ),
-        "high_risk_clauses": [],
-        "beneficial_clauses": [],
+        "overall_risk": overall,
+        "risk_summary": summary_text,
+        "high_risk_clauses": [c.get("title") for c in clauses if c.get("risk_level") == "high"],
+        "beneficial_clauses": [c.get("title") for c in clauses if c.get("beneficial_to_user")],
         "your_obligations": [],
         "other_party_rights": [],
         "total_clauses": len(clauses),

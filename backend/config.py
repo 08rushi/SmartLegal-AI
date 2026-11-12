@@ -12,6 +12,37 @@ class Settings(BaseSettings):
     # Model must be one your Groq account has access to (see GET /openai/v1/models).
     groq_model: str = Field(default="openai/gpt-oss-120b", alias="GROQ_MODEL")
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")  # unused at runtime
+    # Gemini vision/OCR model. Cloud vision is separately controlled by
+    # CLOUD_VISION_ENABLED and PRIVACY_MODE; use the current registry default
+    # whenever a key is configured so OCR does not fail on an empty model ID.
+    # gemini-2.5-flash: stable GA model, 1M context, strong on handwriting, cheap on the paid tier.
+    gemini_vision_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_VISION_MODEL")
+    # Model for whole-document analysis (empty = use gemini-2.5-flash). Use gemini-2.5-flash-lite to cut cost further.
+    gemini_text_model: str = Field(default="", alias="GEMINI_TEXT_MODEL")
+    # Which engine analyses documents: "auto" (Gemini for long documents when usable, else Groq),
+    # "gemini" (Gemini whenever usable) or "groq" (never use Gemini for analysis).
+    analysis_provider: str = Field(default="auto", alias="ANALYSIS_PROVIDER")
+    # Pages sent to Gemini Vision per request when reading scans / handwriting.
+    vision_batch_pages: int = Field(default=4, alias="VISION_BATCH_PAGES")
+    # Comma-separated emails allowed to use admin-only endpoints (e.g. scheme ingestion). Empty = disabled.
+    admin_emails: str = Field(default="", alias="ADMIN_EMAILS")
+
+    # OpenRouter Fallback Provider (Phase 5)
+    openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
+    openrouter_model: str = Field(
+        default="meta-llama/llama-3.3-70b-instruct", alias="OPENROUTER_MODEL"
+    )
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL"
+    )
+    openrouter_enabled: bool = Field(default=True, alias="OPENROUTER_ENABLED")
+
+    # Provider Quota & Budget Policy (Phase 5)
+    groq_tpm_limit: int = Field(default=8000, alias="GROQ_TPM_LIMIT")
+    groq_rpm_limit: int = Field(default=30, alias="GROQ_RPM_LIMIT")
+    provider_cooldown_seconds: float = Field(
+        default=60.0, alias="PROVIDER_COOLDOWN_SECONDS"
+    )
 
     # Auth
     secret_key: str = Field(default="", alias="SECRET_KEY")
@@ -41,6 +72,9 @@ class Settings(BaseSettings):
     sentry_dsn: str = ""
     sentry_environment: str = "development"
 
+    # WhatsApp bot is NOT integrated yet — router is only mounted when this is true.
+    whatsapp_enabled: bool = Field(default=False, alias="WHATSAPP_ENABLED")
+
     # Meta WhatsApp Cloud API (Step 3A/3B/3C/3D)
     meta_whatsapp_verify_token: str = Field(default="", alias="META_WHATSAPP_VERIFY_TOKEN")
     meta_whatsapp_access_token: str = Field(default="", alias="META_WHATSAPP_ACCESS_TOKEN")
@@ -57,6 +91,10 @@ class Settings(BaseSettings):
     # (e.g. worker restarted mid-run) is reaped and marked as error.
     analysis_timeout_seconds: int = 600          # 10 minutes
     analysis_reaper_interval_seconds: int = 120  # sweep every 2 minutes
+    # Big documents get more time: timeout = clamp(120 + pages * seconds_per_page, base, max).
+    # (Free-tier LLM limits make long documents slow but still completable.)
+    analysis_seconds_per_page: int = 90
+    analysis_max_timeout_seconds: int = 3600     # 1 hour hard ceiling
 
     # Password reset token lifetime.
     reset_token_expire_minutes: int = 30
@@ -72,6 +110,54 @@ class Settings(BaseSettings):
     )
     # Cap OCR to this many pages so a huge scan can't run forever.
     ocr_max_pages: int = Field(default=15, alias="OCR_MAX_PAGES")
+
+    # Document Extraction & Routing Thresholds (Phase 2)
+    page_readable_quality_threshold: float = Field(
+        default=0.40, alias="PAGE_READABLE_QUALITY_THRESHOLD"
+    )
+    digital_min_letter_ratio: float = Field(
+        default=0.40, alias="DIGITAL_MIN_LETTER_RATIO"
+    )
+    digital_min_letters: int = Field(
+        default=20, alias="DIGITAL_MIN_LETTERS"
+    )
+    digital_full_prose_ratio: float = Field(
+        default=0.90, alias="DIGITAL_FULL_PROSE_RATIO"
+    )
+    digital_length_scale_chars: int = Field(
+        default=100, alias="DIGITAL_LENGTH_SCALE_CHARS"
+    )
+    ocr_min_confidence_threshold: float = Field(
+        default=0.35, alias="OCR_MIN_CONFIDENCE_THRESHOLD"
+    )
+
+    # Visual / OCR Pipeline Configuration (Phase 4)
+    privacy_mode: bool = Field(default=False, alias="PRIVACY_MODE")
+    cloud_vision_enabled: bool = Field(default=True, alias="CLOUD_VISION_ENABLED")
+    paddleocr_enabled: bool = Field(default=True, alias="PADDLEOCR_ENABLED")
+    paddleocr_min_confidence: float = Field(default=0.40, alias="PADDLEOCR_MIN_CONFIDENCE")
+
+    # Document Upload & Adaptive Optimization Settings (Phase 6)
+    max_upload_size_mb: int = Field(default=25, alias="MAX_UPLOAD_SIZE_MB")
+    max_page_count: int = Field(default=50, alias="MAX_PAGE_COUNT")
+    optimization_threshold_mb: float = Field(default=8.0, alias="OPTIMIZATION_THRESHOLD_MB")
+    optimization_target_mb: float = Field(default=6.0, alias="OPTIMIZATION_TARGET_MB")
+    optimization_timeout_seconds: float = Field(default=15.0, alias="OPTIMIZATION_TIMEOUT_SECONDS")
+
+    # Image Optimization Parameters (Configurable Defaults)
+    optimization_target_dpi: int = Field(default=200, alias="OPTIMIZATION_TARGET_DPI")
+    optimization_min_dpi: int = Field(default=150, alias="OPTIMIZATION_MIN_DPI")
+    optimization_jpeg_quality: int = Field(default=85, alias="OPTIMIZATION_JPEG_QUALITY")
+    optimization_color_variance_threshold: float = Field(default=12.0, alias="OPTIMIZATION_COLOR_VARIANCE_THRESHOLD")
+    optimization_enabled: bool = Field(default=True, alias="OPTIMIZATION_ENABLED")
+
+    # Technical Quality Acceptance Tolerances (Phase 6)
+    optimization_text_loss_tolerance: float = Field(default=0.02, alias="OPTIMIZATION_TEXT_LOSS_TOLERANCE")
+    optimization_quality_delta_tolerance: float = Field(default=0.05, alias="OPTIMIZATION_QUALITY_DELTA_TOLERANCE")
+
+    @property
+    def max_upload_size_bytes(self) -> int:
+        return self.max_upload_size_mb * 1024 * 1024
 
     @property
     def is_production(self) -> bool:
@@ -92,6 +178,17 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     settings = Settings()
 
+    # JWT signing key: refuse to boot in production without a strong one;
+    # warn loudly in development.
+    if len(settings.secret_key) < 32:
+        if settings.is_production:
+            raise RuntimeError(
+                "SECRET_KEY must be set to a random value of at least 32 characters "
+                "in production (e.g. `openssl rand -hex 32`)."
+            )
+        print("[config] WARNING: SECRET_KEY is empty or shorter than 32 chars — "
+              "set a strong value in backend/.env (required in production).")
+
     # Mask password for secure logging
     from urllib.parse import urlparse
     parsed = urlparse(settings.database_url)
@@ -104,3 +201,8 @@ def get_settings() -> Settings:
     print("==============================\n")
 
     return settings
+
+
+def get_shadow_settings():
+    from shadow.config import get_shadow_settings as _get_shadow_settings
+    return _get_shadow_settings()

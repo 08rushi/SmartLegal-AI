@@ -152,3 +152,115 @@ def ocr_pdf_scanned(file_bytes: bytes, max_pages: int | None = None) -> str:
     finally:
         doc.close()
     return "\n\n".join(pages_text).strip()
+
+
+def ocr_image_to_page(image_bytes: bytes, page_num: int = 1) -> "PageContent":
+    """
+    OCR a standalone image upload into a canonical PageContent representation.
+    Extracts genuine word-level confidence from Tesseract image_to_data.
+
+    STRICT CONTRACT:
+      - ocr_confidence is a genuine float in [0.0, 1.0] when valid word confidences exist.
+      - ocr_confidence is None (never 0.0) when Tesseract is unavailable, produces 0 words,
+        returns all -1 confidences, or on error.
+    """
+    from services.page_content import PageContent, calculate_ocr_quality
+    from services.pdf_parser import detect_script
+
+    module, reason = _resolve()
+    if module is None:
+        quality_score, is_unclear, signals = calculate_ocr_quality(None, "")
+        return PageContent(
+            page_num=page_num,
+            text="",
+            extraction_source="tesseract",
+            script="Latin / English",
+            ocr_confidence=None,
+            char_count=0,
+            word_count=0,
+            has_images=True,
+            image_count=1,
+            raw_signals=signals,
+            page_type="scanned",
+            quality_score=quality_score,
+            is_unclear=is_unclear,
+        )
+
+    from PIL import Image
+
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode not in ("L", "RGB"):
+            img = img.convert("RGB")
+
+        lang = _lang_string()
+
+        # Extract word-level confidences
+        ocr_confidence: float | None = None
+        try:
+            # Handle pytesseract Output.DICT
+            output_type = getattr(module, "Output", None)
+            dict_type = output_type.DICT if output_type else "dict"
+            data = module.image_to_data(img, lang=lang, output_type=dict_type)
+
+            raw_texts = data.get("text", [])
+            raw_confs = data.get("conf", [])
+
+            valid_confs: list[float] = []
+            for w, c in zip(raw_texts, raw_confs):
+                if str(w).strip():
+                    try:
+                        c_val = float(c)
+                        if c_val >= 0.0:
+                            valid_confs.append(c_val)
+                    except (ValueError, TypeError):
+                        continue
+
+            if valid_confs:
+                ocr_confidence = round(
+                    sum(valid_confs) / (len(valid_confs) * 100.0), 3
+                )
+            else:
+                ocr_confidence = None
+        except Exception:
+            ocr_confidence = None
+
+        text = (module.image_to_string(img, lang=lang) or "").strip()
+        script = detect_script(text)
+        quality_score, is_unclear, signals = calculate_ocr_quality(
+            ocr_confidence, text
+        )
+
+        return PageContent(
+            page_num=page_num,
+            text=text,
+            extraction_source="tesseract",
+            script=script,
+            ocr_confidence=ocr_confidence,
+            char_count=len(text),
+            word_count=len(text.split()) if text else 0,
+            has_images=True,
+            image_count=1,
+            raw_signals=signals,
+            page_type="scanned",
+            quality_score=quality_score,
+            is_unclear=is_unclear,
+        )
+
+    except Exception:
+        quality_score, is_unclear, signals = calculate_ocr_quality(None, "")
+        return PageContent(
+            page_num=page_num,
+            text="",
+            extraction_source="tesseract",
+            script="Latin / English",
+            ocr_confidence=None,
+            char_count=0,
+            word_count=0,
+            has_images=True,
+            image_count=1,
+            raw_signals=signals,
+            page_type="scanned",
+            quality_score=quality_score,
+            is_unclear=is_unclear,
+        )
