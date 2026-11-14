@@ -260,3 +260,6 @@
 4. Provide human legal escalation for high-stakes or low-confidence cases.
 5. Prefer reusable platform capabilities over one-off implementations.
 6. Keep India/state-specific guidance in versioned data/configuration rather than duplicated UI code.
+---
+## 2026-11-15 Update — Research-driven backlog
+New features (voice mode, next-steps card, legal aid finder, document generator, red-flag alerts, reminders, share links, court fee helper, camera scan, law citations, DigiLocker, lawyer referral) are tracked as FEA-1..FEA-12 in [docs/plans/PLAN_NEW_FEATURES.md](docs/plans/PLAN_NEW_FEATURES.md). Note: F-001 Compare above is marked COMPLETE but the /compare page still shows sample data (see PND-1).

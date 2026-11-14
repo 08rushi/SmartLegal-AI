@@ -33,6 +33,11 @@ Built on free-tier API keys for now (Groq, Gemini, OpenRouter). Production harde
 - Production: set `ENVIRONMENT=production` and `ALLOWED_ORIGINS` (dev localhost CORS regex is disabled in production).
 - `SHADOW_ADMIN_KEY` — only if you use `/internal/shadow/*`; there is no default and the API returns 403 until it is set.
 
+## Plans & task tracking (current)
+- Forward plan: [`docs/plans/README.md`](docs/plans/README.md) → `MASTER_TASKLIST.md`, `PLAN_BLOCKERS_AND_PRIORITY.md`, `PLAN_PENDING_TASKS.md`, `PLAN_NEW_FEATURES.md`, `PLAN_IMPROVEMENTS_UX.md`. Task IDs: BLK/PND/FEA/UXI. Mark `[~]` before work, `[x]` only after tests pass.
+- Branches: `SmartLegal_AI/Production` (was `main`; do not merge into it without being asked), `SmartLegal_AI/develop`, `feature/SmartLegal_AI/{Guest,chatGpt,antiGravity}`. CI (`.github/workflows/ci.yml`) still lists old branch names — see BLK-1.
+- UX direction: voice + icon first, simple view by default, usable by low-literacy users.
+
 ## Key Documentation References
 - [`docs/CHANGELOG_AND_WORK_LOG.md`](docs/CHANGELOG_AND_WORK_LOG.md) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/DATABASE_ARCHITECTURE.md`](docs/DATABASE_ARCHITECTURE.md) · [`docs/AUTHENTICATION_AND_SECURITY.md`](docs/AUTHENTICATION_AND_SECURITY.md) · [`docs/PROJECT_STATUS_AND_ROADMAP.md`](docs/PROJECT_STATUS_AND_ROADMAP.md) · [`docs/DEPLOYMENT_AND_RUNBOOK.md`](docs/DEPLOYMENT_AND_RUNBOOK.md)
 

@@ -1,9 +1,13 @@
 # SmartLegal AI — Project Status & Technical Roadmap
 
-**Last Updated:** August 25, 2026
-**Database:** Supabase PostgreSQL 17.6 (LIVE) with local SQLite auto-fallback
-**LLM:** Groq only — `openai/gpt-oss-120b` (configurable via `GROQ_MODEL`)
-**Overall:** ~88% MVP feature-complete; core loops (auth → upload → analyze → chat) verified working end-to-end on Supabase.
+**Last Updated:** November 15, 2026
+**Database:** Supabase PostgreSQL with local SQLite auto-fallback
+**LLM:** Gemini 2.5 Flash first (mock-tested only; key has no free tier) → Groq `openai/gpt-oss-120b` → OpenRouter. OCR: Gemini Vision → PaddleOCR → Tesseract.
+**Overall:** Core loop (auth → upload → analyze → chat) works; OCR, long-document handling, WhatsApp bot (mocked), evaluation and shadow modules added since August.
+
+> **Forward plan now lives in [`docs/plans/`](plans/README.md)** (master task list, blockers & priority, pending tasks, new features, UX improvements). Sections 2–4 below are the August snapshot: they are partly outdated (OCR, Gemini, WhatsApp and a real compare backend now exist or are in progress). Trust the code and `docs/plans/` over this file.
+>
+> Branches: production is `SmartLegal_AI/Production` (renamed from `main`); work branch is `SmartLegal_AI/develop`; feature branches `feature/SmartLegal_AI/{Guest,chatGpt,antiGravity}`.
 
 ---
 
