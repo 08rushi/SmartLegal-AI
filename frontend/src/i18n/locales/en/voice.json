@@ -1,0 +1,61 @@
+{
+  "panelLabel": "Ask by voice",
+  "hint": "Speak in Marathi, Hindi or English.",
+  "hintBrowser": "Speak in Marathi, Hindi or English. Your browser listens to you for this.",
+  "notSupported": "Voice is not supported on this phone or browser. Please type your question.",
+  "secureNote": "The microphone only works on a secure page (https). Open the secure web address of this site.",
+  "orType": "Or type your question",
+  "typeInstead": "You can also type your question.",
+  "meter": "Sound level",
+  "cancel": "Cancel",
+  "langChip": "Language: {{name}}",
+  "autoSpeak": "Read answers aloud automatically",
+  "button": {
+    "ariaStart": "Start speaking your question",
+    "ariaStop": "Stop and send your question",
+    "ariaBusy": "Please wait, working on your question"
+  },
+  "status": {
+    "idle": "Tap the microphone and ask",
+    "permission": "Allow the microphone when asked",
+    "recording": "Listening... {{time}} left. Tap to stop.",
+    "recordingBrowser": "Listening... Tap to stop.",
+    "transcribing": "Understanding your voice...",
+    "asking": "Finding your answer...",
+    "speaking": "Reading the answer aloud",
+    "error": "Something went wrong. Tap to try again."
+  },
+  "heard": {
+    "title": "What I heard",
+    "edit": "Edit",
+    "editLabel": "Correct your question",
+    "send": "Ask again",
+    "cancelEdit": "Cancel"
+  },
+  "answer": {
+    "title": "Answer",
+    "replay": "Listen again",
+    "stop": "Stop"
+  },
+  "errors": {
+    "denied": {
+      "title": "Microphone is blocked",
+      "text": "This site is not allowed to use your microphone.",
+      "how": "To turn it on: tap the lock or settings icon next to the web address, open Microphone, choose Allow, then tap the microphone again."
+    },
+    "noMic": { "title": "No microphone found", "text": "Connect a microphone or use a phone, then try again." },
+    "busyMic": { "title": "Microphone is busy", "text": "Another app is using the microphone. Close it and try again." },
+    "unsupported": { "title": "Voice not supported", "text": "This browser cannot record your voice." },
+    "insecure": { "title": "Secure page needed", "text": "Voice needs a secure (https) page." },
+    "tooShort": { "title": "Too short", "text": "That was very short. Tap the microphone, speak, then tap again." },
+    "tooBig": { "title": "Recording too long", "text": "The recording is too big. Please keep it under one minute." },
+    "badAudio": { "title": "Could not read the audio", "text": "The recording could not be used. Please try again." },
+    "noSpeech": { "title": "Nothing heard", "text": "I could not hear any words. Speak closer to the microphone and try again." },
+    "serverBusy": { "title": "Busy right now", "text": "Many people are asking right now. Please wait a minute and try again." },
+    "serviceDown": { "title": "Voice service is down", "text": "Voice is not working right now. Please type your question." },
+    "signIn": { "title": "Please sign in", "text": "Sign in to ask by voice." },
+    "network": { "title": "No connection", "text": "Check your internet and try again." },
+    "askFailed": { "title": "No answer", "text": "We could not get an answer. Please try again." },
+    "unknown": { "title": "Voice problem", "text": "Voice did not work this time. Please try again or type your question." }
+  }
+}

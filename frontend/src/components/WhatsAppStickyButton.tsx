@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 function WhatsAppIcon({ className = 'h-6 w-6' }: { className?: string }) {
   return (
@@ -10,6 +11,7 @@ function WhatsAppIcon({ className = 'h-6 w-6' }: { className?: string }) {
 }
 
 export default function WhatsAppStickyButton() {
+  const { t } = useTranslation('shell')
   const [isTooltipOpen, setIsTooltipOpen] = useState(false)
   const [isWiggling, setIsWiggling] = useState(false)
   const [isHoveredOrFocused, setIsHoveredOrFocused] = useState(false)
@@ -96,10 +98,10 @@ export default function WhatsAppStickyButton() {
         >
           <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Chat on WhatsApp</span>
+            <span>{t('floating.whatsappTitle')}</span>
           </div>
           <p className="mt-0.5 text-slate-300 text-[11px] leading-tight">
-            Get legal help instantly.
+            {t('floating.whatsappBody')}
           </p>
           {/* Pointer Arrow */}
           <div className="hidden sm:block absolute top-1/2 -right-1.5 -translate-y-1/2 border-y-4 border-y-transparent border-l-6 border-l-[#0f172a]" />
@@ -110,7 +112,7 @@ export default function WhatsAppStickyButton() {
       {/* Icon-First Circular Floating Action Button */}
       <Link
         to="/channels/whatsapp"
-        aria-label="Chat on WhatsApp"
+        aria-label={t('floating.whatsappAria')}
         aria-describedby={shouldShowTooltip ? 'whatsapp-cta-tooltip' : undefined}
         onClick={handleClick}
         onMouseEnter={() => setIsHoveredOrFocused(true)}

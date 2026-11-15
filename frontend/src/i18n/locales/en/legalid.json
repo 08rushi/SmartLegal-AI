@@ -1,0 +1,16 @@
+{
+  "title": "Legal ID Hub",
+  "eyebrow": "Indian Identity Services",
+  "subtitle": "Complete guidance for 6 Indian government ID types — Aadhaar, PAN, Driving Licence, Passport, Voter ID, and Government Certificates.",
+  "itemDescription": "Official {{authority}} identity documentation, application guidance, and verification checklists.",
+  "backToHub": "Back to Legal ID Hub",
+  "notFound": "This ID type was not found.",
+  "types": {
+    "aadhaar": "Aadhaar Card",
+    "pan": "PAN Card",
+    "driving_licence": "Driving Licence",
+    "passport": "Passport",
+    "voter_id": "Voter ID (EPIC)",
+    "certificates": "Government Certificates"
+  }
+}

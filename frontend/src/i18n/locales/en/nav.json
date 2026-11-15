@@ -1,0 +1,40 @@
+{
+  "brandTagline": "Legal Intelligence",
+  "home": "Home",
+  "upload": "Upload",
+  "review": "Review",
+  "askAi": "Ask AI",
+  "knowledgeBase": "Knowledge Base",
+  "services": "Services",
+  "legalAdvisor": "Legal Advisor",
+  "login": "Login",
+  "getStarted": "Get Started",
+  "myDocuments": "My Documents",
+  "serviceTracker": "Service Tracker",
+  "uploadDocument": "Upload Document",
+  "signOut": "Sign Out",
+  "signOutEverywhere": "Sign out everywhere",
+  "signedInAs": "Signed in as {{name}}",
+  "toggleMenu": "Toggle navigation menu",
+  "skipToContent": "Skip to main content",
+  "mainMenu": "Main menu",
+  "quickMenu": "Quick menu",
+  "homeLink": "Go to the home page",
+  "tabs": { "home": "Home", "upload": "Upload", "ask": "Ask", "help": "Help" },
+  "more": {
+    "label": "More",
+    "title": "More options",
+    "chat": "Chat about a document",
+    "compare": "Compare documents",
+    "whatsapp": "WhatsApp"
+  },
+  "offline": "You are offline. Uploads and AI analysis will resume once your connection returns.",
+  "serviceCards": {
+    "legalId": { "title": "Legal ID Hub", "description": "Government ID guidance" },
+    "property": { "title": "Property Hub", "description": "Property transactions" },
+    "business": { "title": "Business License Hub", "description": "Business registrations" },
+    "yojana": { "title": "Jan-Yojana AI Hub", "description": "Central & State Scheme Eligibility" },
+    "tracker": { "title": "Service Tracker", "description": "Checklists and reminders" },
+    "all": { "title": "View All Services", "description": "Complete service center" }
+  }
+}

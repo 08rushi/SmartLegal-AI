@@ -1,5 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700&display=swap');
-
+/*
+ * SmartLegal AI theme: dark glass with a gold accent (the original look).
+ * Tokens live in :root below and are mirrored in tailwind.config.js (bg-canvas, text-fg, ...),
+ * so the structural UI components (ui/*) render in the glass theme.
+ * Fonts are self-hosted (see src/fonts.ts): Inter body, Poppins headings, Noto Sans Devanagari for hi/mr.
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -29,6 +33,43 @@
     --shadow-panel: 0 30px 70px rgba(0, 0, 0, 0.35);
     --shadow-gold: 0 18px 38px rgba(245, 194, 107, 0.2);
     --shadow-violet: 0 25px 60px rgba(124, 58, 237, 0.22);
+
+    /* Structural tokens (used by ui/* and bg-canvas / text-fg ... utilities), mapped to the glass palette. */
+    --c-canvas: #070d17;
+    --c-surface: rgba(15, 22, 38, 0.92);
+    --c-surface-2: rgba(16, 24, 40, 0.88);
+    --c-line: rgba(148, 163, 184, 0.16);
+    --c-line-strong: rgba(245, 194, 107, 0.3);
+    --c-fg: #f8fafc;
+    --c-fg-2: #cbd5e1;
+    --c-fg-muted: #94a3b8;
+    --c-accent: #f5c26b;
+    --c-accent-strong: #ffcf7a;
+    --c-on-accent: #020617;
+    --c-accent-soft: rgba(245, 194, 107, 0.1);
+    --c-focus: #f5c26b;
+    --c-danger: #fecdd3;
+    --c-danger-bg: rgba(251, 113, 133, 0.12);
+    --c-danger-line: rgba(251, 113, 133, 0.28);
+    --c-warn: #fef3c7;
+    --c-warn-bg: rgba(245, 194, 107, 0.12);
+    --c-warn-line: rgba(245, 194, 107, 0.28);
+    --c-ok: #bbf7d0;
+    --c-ok-bg: rgba(52, 211, 153, 0.12);
+    --c-ok-line: rgba(52, 211, 153, 0.28);
+    --c-info: #bfdbfe;
+    --c-info-bg: rgba(96, 165, 250, 0.12);
+    --c-info-line: rgba(96, 165, 250, 0.28);
+
+    --touch-min: 0px;
+    --tabbar-h: 4.25rem;
+    --radius-sm: 0.75rem;
+    --radius-md: 1rem;
+    --radius-lg: 1.25rem;
+    --radius-xl: 1.5rem;
+    --shadow-1: 0 18px 40px rgba(0, 0, 0, 0.28);
+    --shadow-overlay: 0 30px 70px rgba(0, 0, 0, 0.55);
+    --lh-body-indic: 1.8;
   }
 
   .focus-ring {
@@ -39,6 +80,11 @@
     outline-offset: 2px;
   }
 
+  /* Visible focus for every keyboard user (invisible behaviour, not styling). */
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
 
   * {
     box-sizing: border-box;
@@ -58,9 +104,41 @@
       radial-gradient(circle at 50% 100%, rgba(95, 103, 255, 0.18), transparent 28%),
       linear-gradient(180deg, var(--bg-app-top) 0%, #07101c 48%, var(--bg-app-bottom) 100%);
     color: var(--text-primary);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', 'Noto Sans Devanagari', 'Nirmala UI', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  /* Devanagari (Hindi / Marathi): font stack, taller lines for matras, and no letter-spacing
+     (it breaks conjunct shapes). */
+  html[lang='hi'] body,
+  html[lang='mr'] body {
+    font-family: 'Inter', 'Noto Sans Devanagari', 'Nirmala UI', 'Mangal', system-ui, sans-serif;
+    line-height: var(--lh-body-indic);
+  }
+  html[lang='hi'] h1,
+  html[lang='hi'] h2,
+  html[lang='hi'] h3,
+  html[lang='hi'] h4,
+  html[lang='mr'] h1,
+  html[lang='mr'] h2,
+  html[lang='mr'] h3,
+  html[lang='mr'] h4 {
+    font-family: 'Poppins', 'Inter', 'Noto Sans Devanagari', 'Nirmala UI', 'Mangal', sans-serif;
+  }
+  html[lang='hi'] h1,
+  html[lang='mr'] h1 {
+    line-height: 1.4 !important;
+  }
+  html[lang='hi'] h2,
+  html[lang='hi'] h3,
+  html[lang='mr'] h2,
+  html[lang='mr'] h3 {
+    line-height: 1.5 !important;
+  }
+  html[lang='hi'] *,
+  html[lang='mr'] * {
+    letter-spacing: normal !important;
   }
 
   a {
@@ -70,7 +148,8 @@
 
   button,
   input,
-  textarea {
+  textarea,
+  select {
     font: inherit;
   }
 
@@ -79,8 +158,28 @@
   h3,
   h4 {
     margin: 0;
-    font-family: 'Poppins', 'Inter', sans-serif;
+    font-family: 'Poppins', 'Inter', 'Noto Sans Devanagari', sans-serif;
     letter-spacing: -0.03em;
+  }
+
+  ::selection {
+    background: var(--gold);
+    color: #020617;
+  }
+
+  /* Respect reduced motion everywhere. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -100,7 +199,24 @@
     @apply relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
   }
 
-  .glass-panel {
+  /* Skip link: first focusable element on every page (visible only on focus). */
+  .skip-link {
+    position: absolute;
+    left: 0.75rem;
+    top: -4rem;
+    z-index: 100;
+    padding: 0.75rem 1.25rem;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
+    color: #020617;
+    font-weight: 700;
+  }
+  .skip-link:focus {
+    top: 0.75rem;
+  }
+
+  .glass-panel,
+  .surface-card {
     background: linear-gradient(180deg, var(--panel-1), var(--panel-2));
     border: 1px solid var(--line-soft);
     box-shadow: var(--shadow-panel);
@@ -115,10 +231,7 @@
     border-radius: 24px;
   }
 
-  .section-card {
-    @apply glass-panel;
-  }
-
+  .section-card,
   .hero-card {
     @apply glass-panel;
   }
@@ -153,6 +266,38 @@
     background: rgba(255, 255, 255, 0.05);
   }
 
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-medium text-slate-300 transition-all duration-200;
+    background: transparent;
+    border: 1px solid transparent;
+  }
+
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #f8fafc;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition-all duration-200;
+    color: #fecdd3;
+    background: rgba(251, 113, 133, 0.16);
+    border: 1px solid rgba(251, 113, 133, 0.4);
+  }
+
+  .btn-danger:hover {
+    background: rgba(251, 113, 133, 0.26);
+  }
+
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-ghost:disabled,
+  .btn-danger:disabled,
+  .btn-primary[aria-disabled='true'] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+
   .input-field {
     @apply w-full rounded-2xl border px-4 py-3 text-sm text-slate-100 outline-none transition-all duration-200;
     background: rgba(10, 17, 30, 0.9);
@@ -166,6 +311,10 @@
   .input-field:focus {
     border-color: rgba(245, 194, 107, 0.35);
     box-shadow: 0 0 0 4px rgba(245, 194, 107, 0.08);
+  }
+
+  .input-field[aria-invalid='true'] {
+    border-color: rgba(251, 113, 133, 0.6);
   }
 
   .section-eyebrow {
@@ -639,4 +788,13 @@
   .upload-dropzone {
     min-height: 240px;
   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 150ms ease-out;
 }

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 interface KnowledgeSearchBarProps {
   searchTerm: string
   setSearchTerm: (term: string) => void
@@ -13,6 +15,7 @@ export function KnowledgeSearchBar({
   setSelectedCategory,
   categories,
 }: KnowledgeSearchBarProps) {
+  const { t } = useTranslation('knowledge')
   return (
     <div className="mb-8 space-y-4">
       {/* Search Input */}
@@ -22,12 +25,16 @@ export function KnowledgeSearchBar({
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search legal guides, clauses, rent caps, notice rules..."
+          placeholder={t('search.placeholder')}
+          aria-label={t('search.placeholder')}
           className="w-full bg-[#121a2d]/80 border border-slate-700/80 rounded-xl pl-12 pr-4 py-3.5 text-white placeholder-slate-400 focus:outline-none focus:border-amber-400/80 transition-all shadow-inner"
         />
         {searchTerm && (
           <button
+            type="button"
             onClick={() => setSearchTerm('')}
+            aria-label={t('search.clear')}
+            title={t('search.clear')}
             className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
           >
             ✕
@@ -47,7 +54,7 @@ export function KnowledgeSearchBar({
                 : 'bg-[#1e293b]/70 text-slate-300 hover:bg-[#1e293b] border border-slate-700/50'
             }`}
           >
-            {category}
+            {t(`categories.${category}`, { defaultValue: category })}
           </button>
         ))}
       </div>

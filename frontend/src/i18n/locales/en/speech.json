@@ -1,0 +1,12 @@
+{
+  "listen": "Listen",
+  "listenTo": "Listen: {{label}}",
+  "stop": "Stop",
+  "stopListening": "Stop listening",
+  "notice": {
+    "unsupported": "Your phone or browser cannot read aloud.",
+    "noVoice": "This device has no voice installed for reading aloud.",
+    "hindiVoice": "A Hindi voice is being used.",
+    "englishVoice": "An English voice is being used because no voice for your language is installed."
+  }
+}

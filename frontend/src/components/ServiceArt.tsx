@@ -8,6 +8,8 @@
  * than flat line-art. Purely decorative (the container carries aria-hidden).
  */
 
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { paletteFor, type Hub, type ServicePalette as P } from '../lib/serviceColors'
 import { IllustrationFrame, Panel, Paper, Card, House, Glow, Stamp, PANEL_STROKE, TOP_HL, LINE } from './illustrationKit'
 
@@ -20,18 +22,19 @@ interface ServiceArtProps {
 }
 
 export default function ServiceArt({ hub, serviceKey, className = 'hub-service-svg', preserve }: ServiceArtProps) {
+  const { t } = useTranslation('hubs')
   const p = paletteFor(hub, serviceKey)
   const uid = `${hub}-${serviceKey}`.replace(/[^a-z0-9-]/gi, '')
   return (
     <IllustrationFrame uid={uid} p={p} className={className} preserve={preserve}>
-      {renderIcon(hub, serviceKey, p, uid)}
+      {renderIcon(hub, serviceKey, p, uid, t)}
     </IllustrationFrame>
   )
 }
 
 /* ── Icon router ─────────────────────────────────────────────────────── */
 
-function renderIcon(hub: Hub, key: string, p: P, uid: string) {
+function renderIcon(hub: Hub, key: string, p: P, uid: string, t: TFunction) {
   const acc = `url(#acc-${uid})`
 
   switch (`${hub}/${key}`) {
@@ -110,7 +113,7 @@ function renderIcon(hub: Hub, key: string, p: P, uid: string) {
           <Paper uid={uid} x={48} y={26} w={86} h={106} lines={false} />
           <Glow uid={uid}>
             <text x="91" y="58" textAnchor="middle" fill={acc} fontSize="22" fontWeight="700" fontFamily="Poppins, Inter, sans-serif">
-              7/12
+              {t('art.record712')}
             </text>
           </Glow>
           <g stroke={LINE} strokeWidth="2" fill="none">
@@ -147,7 +150,7 @@ function renderIcon(hub: Hub, key: string, p: P, uid: string) {
           <line x1="58" y1="48" x2="114" y2="48" stroke={LINE} strokeWidth="3" strokeLinecap="round" />
           <Glow uid={uid}>
             <text x="86" y="94" textAnchor="middle" fill={acc} fontSize="31" fontWeight="700" fontFamily="Poppins, Inter, sans-serif" letterSpacing="1">
-              GST
+              {t('art.gst')}
             </text>
           </Glow>
           <line x1="58" y1="116" x2="100" y2="116" stroke={LINE} strokeWidth="3" strokeLinecap="round" />

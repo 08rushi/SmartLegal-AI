@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { registerUser, loginWithGoogle, clearAuthError } from '../store/authSlice'
 
@@ -20,9 +21,10 @@ declare global {
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 export default function Register() {
+  const { t } = useTranslation('auth')
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const { isLoading, error, token } = useAppSelector((s) => s.auth)
+  const { isLoading, error, isAuthenticated } = useAppSelector((s) => s.auth)
   const googleBtnRef = useRef<HTMLDivElement>(null)
 
   const [name, setName] = useState('')
@@ -31,8 +33,8 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
-    if (token) navigate('/upload', { replace: true })
-  }, [token, navigate])
+    if (isAuthenticated) navigate('/upload', { replace: true })
+  }, [isAuthenticated, navigate])
 
   useEffect(() => {
     dispatch(clearAuthError())
@@ -88,14 +90,14 @@ export default function Register() {
         {/* Left form */}
         <div className="p-6 sm:p-8 lg:p-10">
           <div className="mx-auto max-w-md">
-            <p className="text-sm uppercase tracking-[0.26em] text-slate-500">Create Account</p>
-            <h1 className="mt-4 text-3xl font-semibold text-white">Start your legal review workspace.</h1>
+            <p className="text-sm uppercase tracking-[0.26em] text-slate-500">{t('register.eyebrow')}</p>
+            <h1 className="mt-4 text-3xl font-semibold text-white">{t('register.title')}</h1>
             <p className="mt-3 text-sm leading-7 text-slate-400">
-              Save upload history, revisit analysis dashboards, and keep your question threads in one place.
+              {t('register.body')}
             </p>
 
             {error && (
-              <div className="mt-5 rounded-[18px] border border-[#fb7185]/25 bg-[#2a1320]/65 px-4 py-3 text-sm text-[#fecdd3]">
+              <div id="register-error" role="alert" className="mt-5 rounded-[18px] border border-[#fb7185]/25 bg-[#2a1320]/65 px-4 py-3 text-sm text-[#fecdd3]">
                 {error}
               </div>
             )}
@@ -111,51 +113,60 @@ export default function Register() {
                   className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white/[0.04] py-3 text-sm text-slate-400"
                 >
                   <GoogleIcon />
-                  Continue with Google
-                  <span className="ml-auto text-xs text-slate-600">(configure client ID)</span>
+                  {t('continueWithGoogle')}
+                  <span className="ml-auto text-xs text-slate-600">{t('configureClientId')}</span>
                 </button>
               )}
             </div>
 
             <div className="my-6 flex items-center gap-3">
               <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs text-slate-600">or create with email</span>
+              <span className="text-xs text-slate-600">{t('register.withEmail')}</span>
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm text-slate-400">Full Name</label>
+                <label htmlFor="register-name" className="mb-2 block text-sm text-slate-400">{t('register.fullName')}</label>
                 <input
+                  id="register-name"
+                  aria-describedby={error ? 'register-error' : undefined}
+                  aria-invalid={error ? true : undefined}
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your full name"
+                  placeholder={t('register.namePlaceholder')}
                   required
                   autoComplete="name"
                   className="input-field"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm text-slate-400">Email Address</label>
+                <label htmlFor="register-email" className="mb-2 block text-sm text-slate-400">{t('email')}</label>
                 <input
+                  id="register-email"
+                  aria-describedby={error ? 'register-error' : undefined}
+                  aria-invalid={error ? true : undefined}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
+                  placeholder={t('emailPlaceholder')}
                   required
                   autoComplete="email"
                   className="input-field"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm text-slate-400">Password</label>
+                <label htmlFor="register-password" className="mb-2 block text-sm text-slate-400">{t('password')}</label>
                 <div className="relative">
                   <input
+                    id="register-password"
+                    aria-describedby={error ? 'register-error' : undefined}
+                    aria-invalid={error ? true : undefined}
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Create a password (min 8 chars)"
+                    placeholder={t('register.passwordPlaceholder')}
                     required
                     minLength={8}
                     autoComplete="new-password"
@@ -164,9 +175,10 @@ export default function Register() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
+                    aria-pressed={showPassword}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-300"
                   >
-                    {showPassword ? 'Hide' : 'Show'}
+                    {showPassword ? t('common:hide') : t('common:show')}
                   </button>
                 </div>
               </div>
@@ -178,23 +190,23 @@ export default function Register() {
                 {isLoading ? (
                   <span className="flex items-center gap-2">
                     <Spinner />
-                    Creating account...
+                    {t('register.submitting')}
                   </span>
                 ) : (
-                  'Create Account →'
+                  t('register.submit')
                 )}
               </button>
             </form>
 
             <p className="mt-5 text-sm text-slate-400">
-              Already have an account?{' '}
+              {t('register.haveAccount')}{' '}
               <Link to="/login" className="text-[#f5c26b] transition hover:text-white">
-                Sign in
+                {t('register.signIn')}
               </Link>
             </p>
 
             <p className="mt-6 text-xs leading-6 text-slate-600">
-              By creating an account you agree to our Terms of Service and Privacy Policy. Your documents are never stored permanently.
+              {t('register.terms')}
             </p>
           </div>
         </div>
@@ -204,14 +216,14 @@ export default function Register() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(245,194,107,0.16),transparent_35%),radial-gradient(circle_at_top,rgba(124,58,237,0.18),transparent_40%),linear-gradient(180deg,#0b1120,#090d17)]" />
           <div className="relative z-10 flex h-full flex-col justify-between p-10">
             <div>
-              <p className="text-sm uppercase tracking-[0.26em] text-slate-500">Premium Access</p>
+              <p className="text-sm uppercase tracking-[0.26em] text-slate-500">{t('register.sideEyebrow')}</p>
               <h2 className="mt-5 max-w-sm text-5xl font-semibold leading-tight text-white">
-                Keep every insight, risk flag, and AI answer in one account.
+                {t('register.sideTitle')}
               </h2>
             </div>
             <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6">
               <div className="grid gap-4">
-                {['Saved document history', 'Persistent AI Q&A threads', 'Risk analysis reports', 'Hindi + English support'].map((item) => (
+                {(['history', 'threads', 'reports', 'languages'] as const).map((k) => t(`register.benefits.${k}`)).map((item) => (
                   <div key={item} className="flex items-center gap-3 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
                     <span className="text-[#34d399]">✓</span>
                     {item}

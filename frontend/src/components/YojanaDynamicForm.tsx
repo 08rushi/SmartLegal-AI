@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { setProfile, matchYojanaEligibility } from '../store/yojanaSlice'
 import { YojanaMatchProfile } from '../types'
@@ -13,25 +14,15 @@ const INDIAN_STATES = [
   'West Bengal', 'Punjab', 'Haryana', 'Odisha', 'Telangana', 'Kerala'
 ]
 
-const OCCUPATIONS = [
-  { key: 'farmer', label: 'Farmer / Agriculture' },
-  { key: 'student', label: 'Student / Youth' },
-  { key: 'salaried', label: 'Salaried Employee' },
-  { key: 'unemployed', label: 'Unemployed / Job Seeker' },
-  { key: 'self_employed', label: 'Self-Employed / Small Business' },
-  { key: 'construction_worker', label: 'Construction Worker / Daily Wage Labor' },
-]
+// Values below are sent to the backend as-is; the visible labels come from the `yojana` namespace.
+const OCCUPATIONS = ['farmer', 'student', 'salaried', 'unemployed', 'self_employed', 'construction_worker']
 
-const INCOME_BRACKETS = [
-  { value: 150000, label: 'Below ₹1.5 Lakhs / yr' },
-  { value: 300000, label: '₹1.5L – ₹3.0 Lakhs / yr' },
-  { value: 800000, label: '₹3.0L – ₹8.0 Lakhs / yr' },
-  { value: 1500000, label: 'Above ₹8.0 Lakhs / yr' },
-]
+const INCOME_BRACKETS = [150000, 300000, 800000, 1500000]
 
 const CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'Minorities', 'BPL / Ration Card']
 
 export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched }) => {
+  const { t } = useTranslation('yojana')
   const dispatch = useAppDispatch()
   const { profile, isLoading } = useAppSelector((s) => s.yojana)
 
@@ -71,39 +62,39 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
     <form onSubmit={handleSubmit} className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
       <div className="border-b border-slate-800 pb-4">
         <h3 className="text-xl font-bold text-white flex items-center gap-2">
-          <span className="text-indigo-400">✨</span> Personalized Yojana Matcher
+          <span className="text-indigo-400">✨</span> {t('form.title')}
         </h3>
         <p className="text-xs text-slate-400 mt-1">
-          Fill in your details below. Fields dynamically adapt based on your inputs to match eligible Central & State schemes.
+          {t('form.intro')}
         </p>
       </div>
 
       {/* Grid Row 1: State & District */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-            State of Domicile <span className="text-indigo-400">*</span>
+          <label htmlFor="yj-state" className="block text-xs font-semibold text-slate-300 mb-1.5">
+            {t('form.state')} <span className="text-indigo-400">*</span>
           </label>
-          <select
+          <select id="yj-state"
             value={formData.state}
             onChange={(e) => handleChange('state', e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
           >
             {INDIAN_STATES.map((st) => (
               <option key={st} value={st}>
-                {st === 'ALL' ? 'All India (Central Schemes Only)' : st}
+                {st === 'ALL' ? t('form.allIndia') : t(`states.${st}`, { defaultValue: st })}
               </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-            District / City <span className="text-slate-500">(Optional)</span>
+          <label htmlFor="yj-district" className="block text-xs font-semibold text-slate-300 mb-1.5">
+            {t('form.district')} <span className="text-slate-500">{t('form.optional')}</span>
           </label>
-          <input
+          <input id="yj-district"
             type="text"
-            placeholder="e.g. Pune, Bhopal, Lucknow"
+            placeholder={t('form.districtPlaceholder')}
             value={formData.district || ''}
             onChange={(e) => handleChange('district', e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
@@ -114,10 +105,10 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
       {/* Grid Row 2: Age & Gender */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-            Age (Years) <span className="text-indigo-400">*</span>
+          <label htmlFor="yj-age" className="block text-xs font-semibold text-slate-300 mb-1.5">
+            {t('form.age')} <span className="text-indigo-400">*</span>
           </label>
-          <input
+          <input id="yj-age"
             type="number"
             min={1}
             max={100}
@@ -128,26 +119,22 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-            Gender <span className="text-indigo-400">*</span>
-          </label>
-          <div className="flex gap-2">
-            {[
-              { key: 'male', label: 'Male' },
-              { key: 'female', label: 'Female' },
-              { key: 'all', label: 'Other / Any' },
-            ].map((g) => (
+          <p id="yj-gender" className="block text-xs font-semibold text-slate-300 mb-1.5">
+            {t('form.gender')} <span className="text-indigo-400">*</span>
+          </p>
+          <div role="group" aria-labelledby="yj-gender" className="flex gap-2">
+            {['male', 'female', 'all'].map((g) => (
               <button
-                key={g.key}
+                key={g}
                 type="button"
-                onClick={() => handleChange('gender', g.key)}
+                onClick={() => handleChange('gender', g)}
                 className={`flex-1 py-2.5 text-xs font-medium rounded-xl border transition-all ${
-                  formData.gender === g.key
+                  formData.gender === g
                     ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300 shadow-sm'
                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                 }`}
               >
-                {g.label}
+                {t(`form.genders.${g}`)}
               </button>
             ))}
           </div>
@@ -156,22 +143,22 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
 
       {/* Row 3: Occupation */}
       <div>
-        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-          Occupation / Current Activity <span className="text-indigo-400">*</span>
-        </label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <p id="yj-occupation" className="block text-xs font-semibold text-slate-300 mb-1.5">
+          {t('form.occupation')} <span className="text-indigo-400">*</span>
+        </p>
+        <div role="group" aria-labelledby="yj-occupation" className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {OCCUPATIONS.map((occ) => (
             <button
-              key={occ.key}
+              key={occ}
               type="button"
-              onClick={() => handleChange('occupation', occ.key)}
+              onClick={() => handleChange('occupation', occ)}
               className={`py-2.5 px-3 text-left text-xs font-medium rounded-xl border transition-all ${
-                formData.occupation === occ.key
+                formData.occupation === occ
                   ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
                   : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
               }`}
             >
-              {occ.label}
+              {t(`form.occupations.${occ}`)}
             </button>
           ))}
         </div>
@@ -180,18 +167,18 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
       {/* DYNAMIC CONDITIONAL FIELD 1: Landholding (Only shown if Occupation == 'farmer') */}
       {formData.occupation === 'farmer' && (
         <div className="bg-emerald-950/20 border border-emerald-800/40 rounded-xl p-4 animate-fadeIn">
-          <label className="block text-xs font-semibold text-emerald-300 mb-1">
-            🌾 Agricultural Landholding (Acres)
+          <label htmlFor="yj-land" className="block text-xs font-semibold text-emerald-300 mb-1">
+            {t('form.land.title')}
           </label>
           <p className="text-[11px] text-emerald-400/80 mb-2">
-            Dynamic Field: PM-KISAN and State Agriculture schemes evaluate land size.
+            {t('form.land.hint')}
           </p>
-          <input
+          <input id="yj-land"
             type="number"
             step="0.1"
             min={0}
             max={100}
-            placeholder="e.g. 1.5"
+            placeholder={t('form.land.placeholder')}
             value={formData.land_holding_acres}
             onChange={(e) => handleChange('land_holding_acres', parseFloat(e.target.value) || 0)}
             className="w-full bg-slate-950 border border-emerald-800/60 rounded-xl px-3.5 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
@@ -201,22 +188,22 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
 
       {/* Row 4: Annual Income Bracket */}
       <div>
-        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-          Annual Family Income Bracket <span className="text-indigo-400">*</span>
-        </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <p id="yj-income" className="block text-xs font-semibold text-slate-300 mb-1.5">
+          {t('form.income')} <span className="text-indigo-400">*</span>
+        </p>
+        <div role="group" aria-labelledby="yj-income" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {INCOME_BRACKETS.map((inc) => (
             <button
-              key={inc.value}
+              key={inc}
               type="button"
-              onClick={() => handleChange('annual_income', inc.value)}
+              onClick={() => handleChange('annual_income', inc)}
               className={`py-2 px-2.5 text-center text-xs font-medium rounded-xl border transition-all ${
-                formData.annual_income === inc.value
+                formData.annual_income === inc
                   ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
                   : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
               }`}
             >
-              {inc.label}
+              {t(`form.incomes.${inc}`)}
             </button>
           ))}
         </div>
@@ -224,10 +211,10 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
 
       {/* Row 5: Social Category & BPL */}
       <div>
-        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-          Social Category & Ration Status <span className="text-indigo-400">*</span>
-        </label>
-        <div className="flex flex-wrap gap-2">
+        <p id="yj-category" className="block text-xs font-semibold text-slate-300 mb-1.5">
+          {t('form.socialCategory')} <span className="text-indigo-400">*</span>
+        </p>
+        <div role="group" aria-labelledby="yj-category" className="flex flex-wrap gap-2">
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
@@ -239,7 +226,7 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
                   : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
               }`}
             >
-              {cat}
+              {t(`form.socialCategories.${cat}`, { defaultValue: cat })}
             </button>
           ))}
         </div>
@@ -249,11 +236,12 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
       {formData.gender !== 'male' && (
         <div className="bg-pink-950/20 border border-pink-800/40 rounded-xl p-3.5 flex items-center justify-between animate-fadeIn">
           <div>
-            <span className="text-xs font-semibold text-pink-300 block">🤰 Pregnant or Lactating Mother</span>
-            <span className="text-[11px] text-pink-400/80">Unlocks PMMVY and Women Welfare Benefits</span>
+            <span className="text-xs font-semibold text-pink-300 block">{t('form.pregnant.title')}</span>
+            <span className="text-[11px] text-pink-400/80">{t('form.pregnant.hint')}</span>
           </div>
           <input
             type="checkbox"
+            aria-label={t('form.pregnant.title')}
             checked={formData.is_pregnant_or_lactating}
             onChange={(e) => handleChange('is_pregnant_or_lactating', e.target.checked)}
             className="w-5 h-5 accent-pink-500 rounded cursor-pointer"
@@ -264,11 +252,12 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
       {/* Disability Toggle */}
       <div className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between">
         <div>
-          <span className="text-xs font-semibold text-slate-300 block">♿ Person with Disability (Divyangjan)</span>
-          <span className="text-[11px] text-slate-500">Unlocks Special Disability Pensions & Assistive Grants</span>
+          <span className="text-xs font-semibold text-slate-300 block">{t('form.disability.title')}</span>
+          <span className="text-[11px] text-slate-500">{t('form.disability.hint')}</span>
         </div>
         <input
           type="checkbox"
+          aria-label={t('form.disability.title')}
           checked={formData.is_disabled}
           onChange={(e) => handleChange('is_disabled', e.target.checked)}
           className="w-5 h-5 accent-indigo-500 rounded cursor-pointer"
@@ -284,11 +273,11 @@ export const YojanaDynamicForm: React.FC<YojanaDynamicFormProps> = ({ onMatched 
         {isLoading ? (
           <>
             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Evaluating Scheme Eligibility...
+            {t('form.submitting')}
           </>
         ) : (
           <>
-            <span>🔍 Match Eligible Schemes</span>
+            <span>{t('form.submit')}</span>
           </>
         )}
       </button>

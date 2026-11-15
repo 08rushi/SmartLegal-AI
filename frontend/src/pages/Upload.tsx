@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useDropzone } from 'react-dropzone'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
@@ -7,28 +8,16 @@ import { clearDocumentError, uploadDocument } from '../store/documentSlice'
 import { trackEvent } from '../utils/posthog'
 import { Card } from '../components/Card'
 import { MAX_FILE_SIZE_BYTES } from '../config/constants'
+import { formatBytes, localizeKnownError } from '../utils/i18nHelpers'
 
-const documentTypes = [
-  'Agreements & Deeds — rent, employment, loan, sale, gift, POA, NDA, will',
-  'Court & case files — FIR, charge sheet, bail, plaint, judgment, summons',
-  'Family matters — divorce, maintenance, custody, domestic violence',
-  'Notices & complaints — legal notice, cheque bounce (s.138), consumer, RTI',
-]
-
-const steps = ['Upload', 'Preview', 'Analyze', 'Results']
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
+const DOC_TYPE_KEYS = ['agreements', 'court', 'family', 'notices'] as const
+const STEP_KEYS = ['upload', 'preview', 'analyze', 'results'] as const
 
 function UploadSkeleton({ status, uploadProgress, fileName }: { status: string; uploadProgress: number; fileName: string }) {
+  const { t } = useTranslation('upload')
   const isUploading = status === 'uploading'
-  const title = isUploading ? `Uploading... ${uploadProgress}%` : 'Analyzing your document...'
-  const subtitle = isUploading
-    ? 'We are securely storing your file and preparing it for review.'
-    : 'AI is reading every clause and building a structured overview for you.'
+  const title = isUploading ? t('loading.uploadingTitle', { progress: uploadProgress }) : t('loading.analyzingTitle')
+  const subtitle = isUploading ? t('loading.uploadingSubtitle') : t('loading.analyzingSubtitle')
 
   return (
     <div className="relative z-10 mx-auto max-w-xl space-y-6">
@@ -42,9 +31,9 @@ function UploadSkeleton({ status, uploadProgress, fileName }: { status: string; 
           <p className="mx-auto mt-2 max-w-lg text-sm leading-7 text-slate-400">{subtitle}</p>
         </div>
         <div className="flex flex-wrap justify-center gap-2">
-          {['Extracting pages', 'Scoring risks', 'Preparing summary'].map((step) => (
+          {(['chipExtracting', 'chipScoring', 'chipSummary'] as const).map((step) => (
             <span key={step} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300">
-              {step}
+              {t(`loading.${step}`)}
             </span>
           ))}
         </div>
@@ -54,7 +43,7 @@ function UploadSkeleton({ status, uploadProgress, fileName }: { status: string; 
         <div className="rounded-[24px] border border-white/10 bg-white/[0.03] px-4 py-4 text-left">
           <p className="truncate text-sm font-medium text-white">{fileName}</p>
           <p className="mt-1 text-xs text-slate-400">
-            {isUploading ? `Uploading ${uploadProgress}%` : 'Preparing analysis workspace'}
+            {isUploading ? t('loading.uploadingLine', { progress: uploadProgress }) : t('loading.preparing')}
           </p>
         </div>
       ) : null}
@@ -77,6 +66,7 @@ function UploadSkeleton({ status, uploadProgress, fileName }: { status: string; 
 }
 
 export default function Upload() {
+  const { t, i18n } = useTranslation('upload')
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { status, uploadProgress, error } = useAppSelector((s) => s.document)
@@ -132,7 +122,11 @@ export default function Upload() {
   const isLoading = status === 'uploading' || analysisLoading
   const isImagePreview = selectedFile?.type.startsWith('image/')
   const isPdfPreview = selectedFile?.type === 'application/pdf'
-  const fileExtension = useMemo(() => selectedFile?.name.split('.').pop()?.toUpperCase() || 'FILE', [selectedFile])
+  const fileExtension = useMemo(
+    () => selectedFile?.name.split('.').pop()?.toUpperCase() || t('preview.fileFallback'),
+    [selectedFile, t],
+  )
+  const formatSize = (bytes: number) => formatBytes(bytes, t, i18n.language)
 
   async function handleAnalyze() {
     if (!selectedFile) return
@@ -170,31 +164,29 @@ export default function Upload() {
     <div className="content-wrap py-5 sm:py-5">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[0.86fr_1.14fr]">
         <Card variant="section" className="rounded-[32px] p-6 sm:p-6">
-          <span className="section-eyebrow">03 Upload Document</span>
-          <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">Upload Your Document</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-400 sm:text-base">
-            Drop a PDF, or a photo/scan of a printed document. Preview it first, then run analysis. Scanned & regional-language documents are read automatically.
-          </p>
+          <span className="section-eyebrow">{t('eyebrow')}</span>
+          <h1 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">{t('title')}</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-400 sm:text-base">{t('subtitle')}</p>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            {steps.map((step, index) => (
+            {STEP_KEYS.map((step, index) => (
               <div key={step} className="flex items-center gap-3">
                 <div className={`flex h-10 min-w-10 items-center justify-center rounded-full border px-3 text-xs font-semibold ${
                   index <= (selectedFile ? 1 : 0)
                     ? 'border-[#8a5cff]/40 bg-[#8a5cff]/15 text-[#c5b4ff]'
                     : 'border-white/10 bg-white/[0.03] text-slate-500'
                 }`}>
-                  {step}
+                  {t(`steps.${step}`)}
                 </div>
-                {index < steps.length - 1 && <div className="hidden h-px w-8 bg-white/10 sm:block" />}
+                {index < STEP_KEYS.length - 1 && <div className="hidden h-px w-8 bg-white/10 sm:block" />}
               </div>
             ))}
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {documentTypes.map((type) => (
+            {DOC_TYPE_KEYS.map((type) => (
               <Card key={type} variant="info" className="rounded-[20px] px-4 py-3 text-sm text-slate-300">
-                {type}
+                {t(`docTypes.${type}`)}
               </Card>
             ))}
           </div>
@@ -222,11 +214,9 @@ export default function Upload() {
               <div className="relative z-10 mx-auto max-w-2xl space-y-4 text-left">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">File Preview</p>
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{t('preview.label')}</p>
                     <h2 className="mt-1 text-xl font-semibold text-white sm:text-2xl">{selectedFile.name}</h2>
-                    <p className="mt-1.5 text-sm leading-6 text-slate-400">
-                      Review the file details below, then start analysis when you are ready.
-                    </p>
+                    <p className="mt-1.5 text-sm leading-6 text-slate-400">{t('preview.intro')}</p>
                   </div>
                   <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs uppercase tracking-[0.22em]">
                     {fileExtension} • {formatSize(selectedFile.size)}
@@ -243,7 +233,7 @@ export default function Upload() {
                       />
                     ) : isPdfPreview && previewUrl ? (
                       <iframe
-                        title={`${selectedFile.name} preview`}
+                        title={t('preview.iframeTitle', { name: selectedFile.name })}
                         src={previewUrl}
                         className="h-[300px] w-full rounded-[18px] border border-white/10 bg-white"
                       />
@@ -254,7 +244,7 @@ export default function Upload() {
                         </div>
                         <p className="mt-4 text-lg font-medium text-white">{selectedFile.name}</p>
                         <p className="mt-2 max-w-sm text-sm text-slate-400">
-                          This PDF file is ready to analyze. You can proceed to document analysis.
+                          {t('preview.pdfReady')}
                         </p>
                       </div>
                     )}
@@ -280,18 +270,18 @@ export default function Upload() {
                     </div> */}
 
                     <div className="rounded-[24px] border border-[#f5c26b]/16 bg-[#1b1720]/80 p-6 space-y-3">
-                      <p className="text-sm font-medium text-[#f5c26b]">Before you analyze</p>
+                      <p className="text-sm font-medium text-[#f5c26b]">{t('before.title')}</p>
                       <ul className="space-y-1.5 text-sm leading-6 text-slate-300">
-                        <li>• Confirm this is the exact document version you want reviewed.</li>
-                        <li>• PDFs and images (JPG/PNG/WebP) up to 25MB. Scans & photos are read with OCR.</li>
-                        <li>• Analysis can take up to a couple of minutes for long contracts.</li>
+                        <li>• {t('before.confirm')}</li>
+                        <li>• {t('before.limits')}</li>
+                        <li>• {t('before.time')}</li>
                       </ul>
 
                       {selectedFile.size > 8 * 1024 * 1024 && (
                         <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-200">
                           <span aria-hidden="true">⚡</span>
                           <span>
-                            File is {formatSize(selectedFile.size)}. Adaptive document optimization will be applied automatically for high-speed processing.
+                            {t('before.large', { size: formatSize(selectedFile.size) })}
                           </span>
                         </div>
                       )}
@@ -301,13 +291,13 @@ export default function Upload() {
 
                 <div className="flex flex-col gap-3 sm:flex-row pt-2">
                   <button type="button" onClick={handleAnalyze} className="btn-primary min-h-[44px]" disabled={isLoading}>
-                    Analyze Document
+                    {t('actions.analyze')}
                   </button>
                   <button type="button" onClick={open} className="btn-secondary min-h-[44px]">
-                    Replace File
+                    {t('actions.replace')}
                   </button>
                   <button type="button" onClick={handleClearSelection} className="btn-secondary min-h-[44px]">
-                    Remove
+                    {t('actions.remove')}
                   </button>
                 </div>
               </div>
@@ -317,17 +307,15 @@ export default function Upload() {
                   ⇪
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-white sm:text-3xl">Drag & drop your document here</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-400 sm:text-base">
-                    Choose a file first, preview it, then run AI analysis when you are ready.
-                  </p>
+                  <h2 className="text-2xl font-semibold text-white sm:text-3xl">{t('empty.title')}</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-400 sm:text-base">{t('empty.hint')}</p>
                 </div>
                 <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                   <button type="button" onClick={open} className="btn-primary min-h-[44px]">
-                    Browse Files
+                    {t('actions.browse')}
                   </button>
                   <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs uppercase tracking-[0.22em] text-slate-500">
-                    PDF or image (JPG/PNG) . Max 25MB
+                    {t('empty.formats')}
                   </div>
                 </div>
               </div>
@@ -343,17 +331,17 @@ export default function Upload() {
               <div className="flex items-start gap-3">
                 <span className="text-xl" aria-hidden="true">⚠️</span>
                 <div className="space-y-1">
-                  <p className="font-semibold text-white">Upload / Processing Notice</p>
-                  <p className="text-xs text-rose-200/90 leading-relaxed">{error}</p>
+                  <p className="font-semibold text-white">{t('error.title')}</p>
+                  <p className="text-xs text-rose-200/90 leading-relaxed">{localizeKnownError(t, error)}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => dispatch(clearDocumentError())}
                 className="text-xs text-rose-300 hover:text-white underline shrink-0 min-h-[44px] px-2"
-                aria-label="Dismiss error notice"
+                aria-label={t('error.dismissAria')}
               >
-                Dismiss
+                {t('error.dismiss')}
               </button>
             </div>
           )}

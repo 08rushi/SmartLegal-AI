@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import type { DocumentState, UploadedDocument, UploadResponse } from '../types'
 import { apiClient } from '../services/api'
+import { apiErrorMessage } from '../utils/apiError'
+import i18n from '../i18n'
 
 // ─── Async thunks ────────────────────────────────────────────────────────────
 
@@ -21,17 +23,7 @@ export const uploadDocument = createAsyncThunk(
       })
       return response.data.document
     } catch (err: unknown) {
-      const error = err as {
-        code?: string
-        message?: string
-        response?: { data?: { detail?: string } }
-      }
-      return rejectWithValue(
-        error.response?.data?.detail ||
-          (error.code === 'ERR_NETWORK'
-            ? 'Upload failed. Make sure the backend is running on http://localhost:8000.'
-            : error.message || 'Upload failed')
-      )
+      return rejectWithValue(apiErrorMessage(err, 'store:document.uploadFailed'))
     }
   }
 )
@@ -45,17 +37,7 @@ export const uploadComparisonDocument = createAsyncThunk(
       const response = await apiClient.post<UploadResponse>('/upload', formData)
       return response.data.document
     } catch (err: unknown) {
-      const error = err as {
-        code?: string
-        message?: string
-        response?: { data?: { detail?: string } }
-      }
-      return rejectWithValue(
-        error.response?.data?.detail ||
-          (error.code === 'ERR_NETWORK'
-            ? 'Upload failed. Make sure the backend is running on http://localhost:8000.'
-            : error.message || 'Upload failed')
-      )
+      return rejectWithValue(apiErrorMessage(err, 'store:document.uploadFailed'))
     }
   }
 )
@@ -71,7 +53,7 @@ export const fetchDocumentHistory = createAsyncThunk(
       const error = err as { response?: { status?: number } }
       // 401 = not logged in — silently ignore, history stays empty
       if (error.response?.status === 401) return []
-      return rejectWithValue('Failed to load document history')
+      return rejectWithValue(i18n.t('store:document.historyFailed'))
     }
   }
 )
@@ -92,11 +74,11 @@ export const deleteDocuments = createAsyncThunk(
         return status === 404
       })
       if (deleted.length === 0) {
-        return rejectWithValue('Failed to delete the selected document(s).')
+        return rejectWithValue(i18n.t('store:document.deleteFailed'))
       }
       return deleted
     } catch {
-      return rejectWithValue('Failed to delete the selected document(s).')
+      return rejectWithValue(i18n.t('store:document.deleteFailed'))
     }
   }
 )
@@ -108,8 +90,7 @@ export const fetchDocumentById = createAsyncThunk(
       const response = await apiClient.get<UploadedDocument>(`/upload/${documentId}`)
       return response.data
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to load document')
+      return rejectWithValue(apiErrorMessage(err, 'store:document.loadFailed'))
     }
   }
 )

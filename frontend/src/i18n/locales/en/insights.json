@@ -1,0 +1,48 @@
+{
+  "common": {
+    "regenerate": "Regenerate",
+    "tryAgain": "Try again"
+  },
+  "consequences": {
+    "idleTitle": "What happens if I sign this?",
+    "idleBody": "See what could really happen — money you could lose, rights you give up, and penalties you could face — if you sign this document as it is and things go wrong later.",
+    "idleCta": "Show what could happen",
+    "loading": "Working out what could happen if you sign…",
+    "errorFallback": "Could not generate the simulation.",
+    "exposure": "Your exposure if you sign",
+    "overall": "Overall: {{level}}",
+    "severity": "Severity: {{level}}",
+    "likelihood": "Likelihood: {{level}}",
+    "whatHappens": "What happens",
+    "worstCase": "Worst case",
+    "triggered": "Triggered when:",
+    "clause": "Clause:",
+    "disclaimer": "AI estimate based on this document and Indian law — not a guarantee of what will happen. Consult a lawyer before signing.",
+    "categories": {
+      "financial": "Financial",
+      "legal": "Legal",
+      "rights": "Rights",
+      "penalty": "Penalty",
+      "property": "Property",
+      "relationship": "Relationship",
+      "termination": "Termination",
+      "liability": "Liability",
+      "other": "Other"
+    }
+  },
+  "negotiation": {
+    "idleTitle": "Negotiate better terms",
+    "idleBody": "Get fairer alternatives for the risky clauses — with ready-to-copy replacement wording you can send to the other party, and a talking point for each.",
+    "idleCta": "Get negotiation tips",
+    "loading": "Preparing safer clauses and counter-proposals…",
+    "errorFallback": "Could not generate negotiation guidance.",
+    "strategy": "Your negotiation strategy",
+    "problem": "Problem:",
+    "askInstead": "Ask for instead",
+    "counterClause": "Copy-ready counter clause",
+    "copy": "Copy",
+    "copied": "Copied ✓",
+    "sayThis": "Say this:",
+    "disclaimer": "AI-suggested wording based on Indian law — review with a lawyer before sending. Not legal advice."
+  }
+}

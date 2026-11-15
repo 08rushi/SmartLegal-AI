@@ -1,0 +1,276 @@
+{
+  "demo": {
+    "title": "Interactive Demo Analysis Mode",
+    "body": "Viewing a sample AI risk review for a {{docType}}. Try switching tabs, changing the language, or downloading the PDF report!",
+    "cta": "Upload Your Document →"
+  },
+  "processing": {
+    "retryingMessage": "Reconnecting to the AI service after a short cooldown. Waiting for a free slot...",
+    "stage": {
+      "queued": "Waiting to start",
+      "extracting": "Reading your document",
+      "ocr": "Reading scanned / handwritten pages",
+      "analyzing": "Analyzing clauses and risks",
+      "fallback": "Processing"
+    },
+    "title": {
+      "retrying": "Reconnecting to AI Service",
+      "queued": "Analysis Queued",
+      "default": "Analyzing Document"
+    },
+    "description": {
+      "retrying": "Retrying analysis after a temporary AI capacity cooldown. Waiting for the next free slot.",
+      "queued": "Your document is in the queue and waiting for a free processing slot.",
+      "default": "Checking clauses against Indian laws (Transfer of Property Act, Indian Contract Act, Registration Act)."
+    },
+    "status": {
+      "reconnecting": "Reconnecting",
+      "stageProgress": "{{stage}} — {{pct}}% done",
+      "queued": "In Queue",
+      "processing": "Processing"
+    },
+    "progressAria": "Document analysis in progress",
+    "elapsed": "Elapsed: {{seconds}}s",
+    "cancel": "Cancel Analysis & Return"
+  },
+  "failed": {
+    "capacityTitle": "AI Service Capacity Reached",
+    "capacityBody": "Our AI servers are busy or cooling down right now. Please wait a moment and retry.",
+    "title": "Analysis Failed",
+    "retryNow": "Retry Analysis Now",
+    "retry": "Retry Analysis",
+    "uploadAnother": "Upload Another"
+  },
+  "sidebar": {
+    "eyebrow": "Analysis Overview",
+    "title": "Document Review",
+    "fallbackDoc": "Uploaded document",
+    "exportPdf": "Export PDF Report",
+    "nav": {
+      "overview": "Overview",
+      "keyPoints": "Key Points",
+      "allClauses": "All Clauses",
+      "riskWarnings": "Risk Warnings",
+      "whatIfSign": "What If I Sign",
+      "negotiate": "Negotiate",
+      "askAi": "Ask AI"
+    }
+  },
+  "overview": {
+    "documentLabel": "Document: {{name}}",
+    "fallbackFilename": "Legal Agreement.pdf",
+    "title": "Analysis Overview",
+    "intro": "See risk counts, main obligations and a summary of your contract in one place.",
+    "askAbout": "Ask About This Document →",
+    "uploadAnother": "Upload Another",
+    "exportPdf": "Export PDF"
+  },
+  "metrics": {
+    "total": "Total clauses",
+    "high": "High risk items",
+    "medium": "Medium risk items",
+    "preliminary": "Preliminary risk profile",
+    "analyzedPct": "({{pct}}% analyzed)",
+    "partial": "(Partial analysis)",
+    "overall": "Overall contract risk profile"
+  },
+  "aiSummary": "AI Summary",
+  "details": {
+    "title": "Document Details",
+    "type": "Type",
+    "language": "Language",
+    "parties": "Parties",
+    "keyDates": "Key dates"
+  },
+  "keyPoints": {
+    "title": "Key Points",
+    "viewAll": "View All Clauses",
+    "highRisk": "High Risk Clauses",
+    "protect": "Clauses That Protect You"
+  },
+  "rights": {
+    "title": "Rights & Obligations",
+    "yours": "Your Obligations",
+    "other": "Other Party Rights"
+  },
+  "partiesDates": {
+    "title": "Parties & Dates",
+    "parties": "Parties",
+    "keyDates": "Key Dates"
+  },
+  "clausesSection": {
+    "titleAll": "All Clauses ({{count}})",
+    "titleHigh": "High Risk Clauses ({{count}})",
+    "titleMedium": "Medium Risk Clauses ({{count}})",
+    "titleLow": "Low Risk Clauses ({{count}})",
+    "subtitle": "Filter and look through every clause found in your document.",
+    "filterAll": "All",
+    "emptyTitle": "No clauses extracted yet",
+    "emptyBody": "The summary is available above, and you can still ask questions in the chat.",
+    "askAi": "Ask AI",
+    "noMatch": "No clauses match this filter."
+  },
+  "consequencesSection": {
+    "title": "What Happens If I Sign?",
+    "subtitle": "A realistic picture of what could happen to you if you sign this document as it is."
+  },
+  "negotiationSection": {
+    "title": "Negotiate Better Terms",
+    "subtitle": "Safer alternatives and ready-to-use counter-wording for the clauses that are risky for you."
+  },
+  "header": {
+    "legalDocument": "Legal Document",
+    "analyzed": "Analyzed: {{date}}",
+    "justNow": "Just now",
+    "export": "Export PDF Report",
+    "totalClauses": "Total Clauses",
+    "highRisks": "High Risks",
+    "mediumRisks": "Medium Risks",
+    "lowRisks": "Low Risks"
+  },
+  "summaryCard": {
+    "title": "Executive Legal Summary",
+    "fallback": "Analysis complete. Read the clauses below for the main risks and obligations.",
+    "critical": "Most Critical Risk Points:",
+    "nextSteps": "Your Key Next Steps / Obligations:",
+    "parties": "Parties Involved",
+    "noParties": "No parties specified",
+    "dates": "Key Dates & Deadlines",
+    "noDates": "No key dates detected"
+  },
+  "checklist": {
+    "title": "Before You Sign Summary",
+    "subtitle": "The essential checklist before you sign this document.",
+    "healthScore": "Health Score",
+    "lockIn": "Lock-in Period",
+    "months_one": "{{count}} Month",
+    "months_other": "{{count}} Months",
+    "notice": "Termination Notice",
+    "days_one": "{{count}} Day",
+    "days_other": "{{count}} Days",
+    "highWarnings": "High-Risk Warnings",
+    "clauses_one": "{{count}} Clause",
+    "clauses_other": "{{count}} Clauses",
+    "obligations": "Key Financial & Action Obligations"
+  },
+  "rewrite": {
+    "title": "AI Negotiation Wording Generator",
+    "generate": "Generate Balanced Counter-Wording",
+    "generating": "Generating...",
+    "fallbackTitle": "Clause",
+    "heading": "Suggested Fair Wording for \"{{title}}\":",
+    "sample": "\"Either party may end this agreement by giving 30 days' written notice. The security deposit shall be returned in full within 7 working days of vacating the premises, less only normal wear and tear and agreed utility charges.\"",
+    "reference": "Original Text Reference: {{text}}",
+    "notAvailable": "N/A",
+    "footnote": "* Use this suggested wording when talking to the landlord, employer, or lender before signing."
+  },
+  "readability": {
+    "badge": {
+      "digital": "Native Digital Text",
+      "scanned": "OCR Scanned Document",
+      "other": "Document"
+    },
+    "aria": "Document legibility status: {{label}}. Click or focus for details.",
+    "tooltipTitle": "How Readable This Document Is",
+    "notLegalAdvice": "Not Legal Advice",
+    "source": "Extraction Source:",
+    "sourceDigital": "Read directly from the digital text in the file.",
+    "sourceScanned": "Read from the scanned image using optical character recognition (OCR).",
+    "ocrLegibility": "Scan Legibility:",
+    "notApplicable": "Not applicable (digital document)",
+    "notAvailable": "Not available",
+    "legibilityPct": "{{pct}}% scan legibility",
+    "typographic": "Text Readability:",
+    "coherence": "{{grade}} (Character accuracy: {{pct}}%)",
+    "grade": {
+      "high": "High",
+      "fair": "Fair",
+      "degraded": "Low"
+    },
+    "notice": "Notice: This measures how clearly the text could be read. It does not measure legal validity, legal compliance, or whether the contract is correct."
+  },
+  "optimization": {
+    "aria": "The document was automatically optimized. Reduced from {{from}} to {{to}} ({{pct}}% smaller).",
+    "label": "Optimized: {{from}} → {{to}}",
+    "smaller": "({{pct}}% smaller)",
+    "tooltipTitle": "Automatic Document Optimization",
+    "tooltipBody": "Your file was automatically made smaller so the AI could analyze it faster, without losing any text or clarity.",
+    "split": "Multi-page document was processed in parallel parts."
+  },
+  "partial": {
+    "title": "Partial Document Analysis",
+    "pctBadge": "{{pct}}% Analyzed",
+    "badge": "Partial Analysis",
+    "body": "Some parts of this document could not be analyzed because of a temporary service limit or low scan clarity. The verified clauses from the analyzed parts are shown below.",
+    "reanalyzeTitle": "This will re-run analysis across the entire document, including previously analyzed pages.",
+    "reanalyzeAria": "Re-analyze entire document. This will re-run analysis across the entire document, including previously analyzed pages.",
+    "reanalyzing": "Re-analyzing...",
+    "reanalyze": "Re-analyze Document",
+    "reanalyzeHint": "Re-runs analysis across entire document",
+    "askAdvocateAria": "Ask a verified advocate for a formal legal review",
+    "askAdvocate": "Ask Advocate",
+    "unprocessed": "Unprocessed Document Sections:",
+    "hideDetails": "Hide details",
+    "showDetails": "Show details",
+    "page": "Page {{page}}",
+    "pages": "Pages {{start}}–{{end}}",
+    "spanReason": "{{span}} ({{reason}})",
+    "reason": {
+      "default": "temporary service limitation",
+      "capacity": "server capacity limit",
+      "timeout": "network timeout",
+      "scan": "scan legibility limits",
+      "processing": "temporary processing limitation"
+    },
+    "chunks": "{{ok}} of {{total}} document sections were analyzed successfully.",
+    "preliminary": "The risk ratings below are preliminary and are based only on the sections that were analyzed."
+  },
+  "translation": {
+    "loadingTitle": "Translating your analysis…",
+    "loadingBody": "We are translating the summary and clauses into {{language}}. This can take up to a minute the first time; later visits are instant.",
+    "failedTitle": "Could not translate the analysis",
+    "failedBody": "The translation service did not respond. Your analysis is safe; please try again.",
+    "retry": "Try again",
+    "showOriginal": "Show original (English)",
+    "partialBody": "Only part of this analysis could be translated into {{language}}. The rest is shown in the original language.",
+    "partialRetry": "Translate the rest",
+    "originalNotice": "You are viewing the original (English) analysis.",
+    "translateNow": "Translate to {{language}}",
+    "aiNote": "Translated by AI into {{language}}. The document's original wording is under \"View original\" on each clause."
+  },
+  "pdf": {
+    "reportHeader": "SMARTLEGAL AI — LEGAL ANALYSIS REPORT",
+    "title": "Legal Document Review",
+    "file": "File: {{name}}",
+    "riskBadge": "{{level}} RISK",
+    "risk": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "totalClauses": "Total Clauses: {{count}}",
+    "highRisk": "High Risk: {{count}}",
+    "mediumRisk": "Medium Risk: {{count}}",
+    "lowRisk": "Low Risk: {{count}}",
+    "analysisComplete": "Analysis complete.",
+    "keyDetails": "Key Contract Details",
+    "docType": "Document type",
+    "parties": "Parties Involved:",
+    "keyDates": "Key Dates:",
+    "highRiskList": "High-risk points",
+    "beneficialList": "Clauses that protect you",
+    "rightsTitle": "Rights & Obligations Summary",
+    "yourObligations": "Your Core Obligations:",
+    "otherPartyRights": "Other Party Rights:",
+    "breakdown": "Clause-by-Clause Breakdown ({{count}} Clauses Extracted)",
+    "plainSummary": "Plain Language Summary:",
+    "riskRationale": "Risk Warning Rationale:",
+    "clauseRisk": "[{{level}} RISK - Score: {{score}}/10]",
+    "originalText": "Original clause text:",
+    "translatedNote": "Translated by AI into {{language}}. Original clause wording is in the source document.",
+    "watermarkSub": "CONFIDENTIAL LEGAL ANALYSIS",
+    "footer": "Confidential — Generated by SmartLegal AI for informational purposes. Not legal advice.",
+    "page": "Page {{page}} of {{total}}",
+    "printHint": "In the print dialog choose \"Save as PDF\" as the destination."
+  }
+}

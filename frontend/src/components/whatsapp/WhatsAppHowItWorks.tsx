@@ -1,30 +1,21 @@
+import { useTranslation } from 'react-i18next'
+
 const steps = [
-  {
-    number: '01',
-    title: 'Open WhatsApp',
-    description: 'Start a conversation with the SmartLegal-AI WhatsApp assistant.',
-  },
-  {
-    number: '02',
-    title: 'Ask or Send',
-    description: 'Ask a legal question or send a supported agreement (PDF or Image).',
-  },
-  {
-    number: '03',
-    title: 'Get Legal Help',
-    description: 'Receive clear, plain-language legal guidance and risk breakdown directly in chat.',
-  },
+  { number: '01', key: 'open' },
+  { number: '02', key: 'send' },
+  { number: '03', key: 'help' },
 ]
 
 export default function WhatsAppHowItWorks() {
+  const { t } = useTranslation('whatsapp')
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-white tracking-tight">
-          How it works
+          {t('howItWorks.title')}
         </h2>
         <p className="text-sm text-slate-400">
-          Get started in three simple steps.
+          {t('howItWorks.subtitle')}
         </p>
       </div>
 
@@ -35,8 +26,8 @@ export default function WhatsAppHowItWorks() {
             className="relative rounded-2xl border border-slate-800/80 bg-slate-900/40 p-6 space-y-3"
           >
             <div className="text-3xl font-black text-amber-400/30">{step.number}</div>
-            <h3 className="text-base font-bold text-white">{step.title}</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">{step.description}</p>
+            <h3 className="text-base font-bold text-white">{t(`howItWorks.steps.${step.key}.title`)}</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">{t(`howItWorks.steps.${step.key}.description`)}</p>
           </div>
         ))}
       </div>

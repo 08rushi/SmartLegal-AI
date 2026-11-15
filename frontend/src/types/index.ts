@@ -9,7 +9,10 @@ export interface User {
 
 export interface AuthState {
   user: User | null
-  token: string | null
+  /** True while a cookie session is confirmed (login/register/google response or GET /auth/me). */
+  isAuthenticated: boolean
+  /** False until the first session-restore call (GET /auth/me) has settled. */
+  sessionChecked: boolean
   isLoading: boolean
   error: string | null
 }
@@ -21,7 +24,6 @@ export type DocumentStatus = 'idle' | 'uploading' | 'processing' | 'ready' | 'er
 export interface UploadedDocument {
   id: string
   filename: string
-  file_url: string
   file_size: number
   document_type: string   // e.g. "Rental Agreement", "Employment Contract"
   uploaded_at: string
@@ -131,6 +133,26 @@ export interface AnalysisResult {
   clauses: Clause[]
   analyzed_at: string
   metadata?: AnalysisMetadata
+  /** Set by the backend when this is a translated view (e.g. "mr"); absent for the base analysis. */
+  view_lang?: string
+}
+
+/** One translated view of an analysis (POST /analyze/{id}/translate). */
+export interface TranslatedAnalysisEntry {
+  result: AnalysisResult
+  /** true = only some text was translated; the rest is still in the original language. Not cached server-side. */
+  partial: boolean
+}
+
+export interface TranslationState {
+  documentId: string | null
+  /** Language of the in-flight / last request. */
+  lang: string | null
+  status: 'idle' | 'loading' | 'error'
+  /** HTTP status of the last failure (502 = translation provider failed) and its message. */
+  errorStatus: number | null
+  error: string | null
+  byLang: Record<string, TranslatedAnalysisEntry>
 }
 
 export interface AnalysisState {
@@ -146,6 +168,8 @@ export interface AnalysisState {
   jobStage?: string | null
   /** 0-100 while the server is working; null when unknown. */
   jobProgress?: number | null
+  /** AI-translated views of the current analysis, keyed by language (hi / mr). */
+  translation: TranslationState
 }
 
 // ─── Insights: "What happens if I sign?" + Negotiation helper ────────────────
@@ -194,6 +218,9 @@ export interface InsightsState {
   negotiation: NegotiationResult | null
   consequencesStatus: InsightStatus
   negotiationStatus: InsightStatus
+  /** Language the stored consequences / negotiation were generated in (X-Lang at request time). */
+  consequencesLang: string | null
+  negotiationLang: string | null
   error: string | null
 }
 
@@ -238,8 +265,9 @@ export interface ChatResponse {
 
 export interface LoginResponse {
   user: User
-  access_token: string
-  token_type: string
+  /** Not returned by default (cookie-only auth); only present if the server sets AUTH_RETURN_BODY_TOKEN. Never stored. */
+  access_token?: string
+  token_type?: string
 }
 
 // ─── Legal ID Hub ───────────────────────────────────────────────────────────

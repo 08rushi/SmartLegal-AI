@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { fetchYojanaSchemes, fetchYojanaBlogs } from '../store/yojanaSlice'
 import { YojanaDynamicForm } from '../components/YojanaDynamicForm'
+import type { YojanaScheme } from '../types'
 
 
 const CATEGORIES = ['ALL', 'Agriculture', 'Healthcare', 'Finance', 'Women', 'Education', 'Housing']
@@ -30,7 +32,23 @@ function getSchemeBanner(schemeCode?: string, category?: string): string {
 }
 
 
+/**
+ * Plain-language summary in the active language.
+ * TODO(i18n-content): the backend will return summaries/titles/benefits in the requested `lang`
+ * (X-Lang header / `lang` query param). Until then Hindi falls back to summary_hindi, and Marathi
+ * uses an optional summary_marathi if present, else the Hindi (Devanagari) text, else English.
+ */
+function schemeSummary(sch: YojanaScheme, lang: string): string {
+  const extra = sch as unknown as Record<string, string | undefined>
+  if (lang === 'mr') return extra.summary_marathi || extra.summary_mr || sch.summary_hindi || sch.summary_english
+  if (lang === 'hi') return sch.summary_hindi || sch.summary_english
+  return sch.summary_english
+}
+
 export const YojanaHub: React.FC = () => {
+  const { t, i18n } = useTranslation('yojana')
+  const lang = i18n.language.slice(0, 2)
+  const locale = `${lang}-IN`
   const dispatch = useAppDispatch()
   const { schemes, matchedResults, blogs } = useAppSelector((s) => s.yojana)
 
@@ -40,9 +58,11 @@ export const YojanaHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'schemes' | 'matcher' | 'blogs'>('schemes')
 
   useEffect(() => {
-    dispatch(fetchYojanaSchemes({ category: selectedCategory, state: selectedState }))
+    // `lang` is sent as a query param too (backend may ignore it for now; X-Lang header is always sent).
+    const filters = { category: selectedCategory, state: selectedState, lang }
+    dispatch(fetchYojanaSchemes(filters))
     dispatch(fetchYojanaBlogs())
-  }, [dispatch, selectedCategory, selectedState])
+  }, [dispatch, selectedCategory, selectedState, lang])
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
@@ -52,26 +72,26 @@ export const YojanaHub: React.FC = () => {
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900/40 via-slate-900 to-slate-900 border border-slate-800 p-8 sm:p-10 shadow-2xl">
           <div className="relative z-10 max-w-3xl space-y-4">
             <span className="inline-block px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-semibold rounded-full">
-              🏛️ Jan-Yojana AI Hub — Central & State Government Schemes
+              {t('hub.badge')}
             </span>
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-              Discover & Claim Government Benefits You Deserve
+              {t('hub.title')}
             </h1>
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              Auto-matched Central and State government schemes (PM-KISAN, ABHA Card, Ayushman Bharat, Ladli Behna, MJPJAY). Check personalized eligibility in 30 seconds and access verified official <code className="text-indigo-300">.gov.in</code> application links.
+              {t('hub.intro')}
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
               <button
                 onClick={() => setActiveTab('matcher')}
                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg transition-all"
               >
-                ⚡ 30-Second Eligibility Test
+                {t('hub.ctaTest')}
               </button>
               <button
                 onClick={() => setActiveTab('blogs')}
                 className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-xl border border-slate-700 transition-all"
               >
-                📰 AI Citizen Guides & Blogs
+                {t('hub.ctaGuides')}
               </button>
             </div>
           </div>
@@ -87,7 +107,7 @@ export const YojanaHub: React.FC = () => {
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            All Active Schemes ({schemes.length})
+            {t('hub.tabs.schemes', { count: schemes.length })}
           </button>
           <button
             onClick={() => setActiveTab('matcher')}
@@ -97,7 +117,9 @@ export const YojanaHub: React.FC = () => {
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            Personalized Eligibility Matcher {matchedResults.length > 0 && `(${matchedResults.length} Matched)`}
+            {matchedResults.length > 0
+              ? t('hub.tabs.matcherCount', { count: matchedResults.length })
+              : t('hub.tabs.matcher')}
           </button>
           <button
             onClick={() => setActiveTab('blogs')}
@@ -107,7 +129,7 @@ export const YojanaHub: React.FC = () => {
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            AI Citizen Blogs ({blogs.length})
+            {t('hub.tabs.blogs', { count: blogs.length })}
           </button>
         </div>
 
@@ -117,7 +139,7 @@ export const YojanaHub: React.FC = () => {
             {/* Filters */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-slate-400">Category:</span>
+                <span className="text-xs font-semibold text-slate-400">{t('hub.filters.category')}</span>
                 {CATEGORIES.map((cat) => (
                   <button
                     key={cat}
@@ -128,13 +150,13 @@ export const YojanaHub: React.FC = () => {
                         : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
                     }`}
                   >
-                    {cat}
+                    {t(`categories.${cat}`, { defaultValue: cat })}
                   </button>
                 ))}
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-400">State:</span>
+                <span className="text-xs font-semibold text-slate-400">{t('hub.filters.state')}</span>
                 <select
                   value={selectedState}
                   onChange={(e) => setSelectedState(e.target.value)}
@@ -142,7 +164,7 @@ export const YojanaHub: React.FC = () => {
                 >
                   {STATES.map((st) => (
                     <option key={st} value={st}>
-                      {st}
+                      {t(`states.${st}`, { defaultValue: st })}
                     </option>
                   ))}
                 </select>
@@ -151,6 +173,9 @@ export const YojanaHub: React.FC = () => {
 
             {/* Scheme Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {schemes.length === 0 && (
+                <p className="col-span-full py-8 text-center text-sm text-slate-400">{t('hub.noSchemes')}</p>
+              )}
               {schemes.map((sch) => {
                 const imgBanner = getSchemeBanner(sch.scheme_code, sch.category)
                 return (
@@ -169,10 +194,11 @@ export const YojanaHub: React.FC = () => {
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
                         <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
                           <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-indigo-300 border border-indigo-500/30 text-[10px] font-bold uppercase rounded-lg shadow-md">
-                            {sch.government_level} • {sch.state_name}
+                            {t(`levels.${(sch.government_level || '').toLowerCase()}`, { defaultValue: sch.government_level })} •{' '}
+                            {t(`states.${sch.state_name}`, { defaultValue: sch.state_name })}
                           </span>
                           <span className="px-2.5 py-1 bg-indigo-600/90 text-white text-[10px] font-bold rounded-lg shadow-md">
-                            {sch.category}
+                            {t(`categories.${sch.category}`, { defaultValue: sch.category })}
                           </span>
                         </div>
                       </div>
@@ -185,9 +211,9 @@ export const YojanaHub: React.FC = () => {
                         {/* Plain Language Bilingual Summary */}
                         <div className="space-y-1">
                           <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">
-                            {sch.summary_english}
+                            {schemeSummary(sch, lang)}
                           </p>
-                          {sch.summary_hindi && (
+                          {sch.summary_hindi && sch.summary_hindi !== schemeSummary(sch, lang) && (
                             <p className="text-[11px] text-amber-300/90 font-sans leading-relaxed line-clamp-1 bg-amber-950/30 px-2 py-1 rounded-md border border-amber-800/30">
                               🇮🇳 {sch.summary_hindi}
                             </p>
@@ -199,7 +225,7 @@ export const YojanaHub: React.FC = () => {
                     <div className="p-5 pt-0 space-y-4">
                       <div className="border-t border-slate-800/80 pt-3 space-y-2">
                         <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">
-                          🎁 Key Benefits & Financial Payout:
+                          {t('hub.benefitsTitle')}
                         </span>
                         <ul className="text-xs text-slate-200 space-y-1.5">
                           {sch.benefits.slice(0, 2).map((b, i) => (
@@ -218,14 +244,14 @@ export const YojanaHub: React.FC = () => {
                           rel="noreferrer"
                           className="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-emerald-400 border border-emerald-800/50 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5"
                         >
-                          <span>Official Website</span>
+                          <span>{t('hub.officialWebsite')}</span>
                           <span>🔗</span>
                         </a>
                         <button
                           onClick={() => setActiveTab('matcher')}
                           className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-xs font-semibold rounded-xl shadow-md transition-all"
                         >
-                          Check Match %
+                          {t('hub.checkMatch')}
                         </button>
                       </div>
                     </div>
@@ -246,18 +272,20 @@ export const YojanaHub: React.FC = () => {
 
             <div className="lg:col-span-7 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white">Matched Scheme Results</h3>
+                <h3 className="text-lg font-bold text-white">{t('hub.matcher.resultsTitle')}</h3>
                 <span className="text-xs text-slate-400">
-                  {matchedResults.length > 0 ? `${matchedResults.length} schemes evaluated` : 'Fill form to test eligibility'}
+                  {matchedResults.length > 0
+                    ? t('hub.matcher.evaluated', { count: matchedResults.length })
+                    : t('hub.matcher.fillForm')}
                 </span>
               </div>
 
               {matchedResults.length === 0 ? (
                 <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-8 text-center space-y-3">
                   <span className="text-3xl">📋</span>
-                  <h4 className="text-sm font-semibold text-slate-300">No Match Evaluation Yet</h4>
+                  <h4 className="text-sm font-semibold text-slate-300">{t('hub.matcher.emptyTitle')}</h4>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    Fill in your age, state, occupation, and income details on the left form to calculate your eligibility score across active schemes.
+                    {t('hub.matcher.emptyBody')}
                   </p>
                 </div>
               ) : (
@@ -283,10 +311,16 @@ export const YojanaHub: React.FC = () => {
                                   : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                               }`}
                             >
-                              {m.match_score}% Match ({m.status.toUpperCase()})
+                              {t('hub.matcher.matchBadge', {
+                                score: m.match_score,
+                                status: t(`status.${m.status}`, { defaultValue: m.status }),
+                              })}
                             </span>
                             <span className="text-xs text-slate-400 font-medium">
-                              {m.scheme.government_level.toUpperCase()} • {m.scheme.state_name}
+                              {t(`levels.${(m.scheme.government_level || '').toLowerCase()}`, {
+                                defaultValue: m.scheme.government_level,
+                              })}{' '}
+                              • {t(`states.${m.scheme.state_name}`, { defaultValue: m.scheme.state_name })}
                             </span>
                           </div>
                           <h4 className="text-base font-bold text-white">{m.scheme.title}</h4>
@@ -298,14 +332,14 @@ export const YojanaHub: React.FC = () => {
                           rel="noreferrer"
                           className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 transition-all flex-shrink-0"
                         >
-                          Apply Official 🔗
+                          {t('hub.matcher.applyOfficial')}
                         </a>
                       </div>
 
                       {/* Gap Analysis */}
                       {m.gap_analysis.length > 0 && (
                         <div className="mt-3 p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
-                          <span className="text-[11px] font-semibold text-amber-400 block">Gap Analysis / Unmet Requirements:</span>
+                          <span className="text-[11px] font-semibold text-amber-400 block">{t('hub.matcher.gapTitle')}</span>
                           <ul className="text-xs text-slate-400 space-y-1">
                             {m.gap_analysis.map((gap, i) => (
                               <li key={i} className="flex items-center gap-1.5">
@@ -329,21 +363,24 @@ export const YojanaHub: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span>📰</span> AI Citizen Guides & Official Gazette Explanations
+                  <span>📰</span> {t('hub.blogs.title')}
                 </h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  Simplified step-by-step application articles with verified government portal links (.gov.in) and real photographs.
+                  {t('hub.blogs.subtitle')}
                 </p>
               </div>
               <Link
                 to="/yojana/blogs"
                 className="px-4 py-2 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 text-xs font-semibold rounded-xl border border-indigo-500/30 transition-all self-start sm:self-auto"
               >
-                View All Guides ({blogs.length}) →
+                {t('hub.blogs.viewAll', { count: blogs.length })}
               </Link>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {blogs.length === 0 && (
+                <p className="col-span-full py-8 text-center text-sm text-slate-400">{t('hub.blogs.empty')}</p>
+              )}
               {blogs.map((b) => {
                 const bannerImg = b.image_url || '/illustrations/pm_kisan_banner.jpg'
                 return (
@@ -362,10 +399,10 @@ export const YojanaHub: React.FC = () => {
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent" />
                         <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
                           <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-indigo-300 border border-indigo-500/30 text-[10px] font-bold uppercase rounded-lg shadow-md">
-                            Citizen Guide
+                            {t('hub.blogs.badge')}
                           </span>
                           <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-slate-300 text-[10px] font-medium rounded-lg">
-                            {new Date(b.published_at).toLocaleDateString()}
+                            {new Date(b.published_at).toLocaleDateString(locale)}
                           </span>
                         </div>
                       </div>
@@ -400,7 +437,7 @@ export const YojanaHub: React.FC = () => {
                           to={`/yojana/blogs/${b.slug}`}
                           className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
                         >
-                          <span>Read Guide</span>
+                          <span>{t('hub.blogs.read')}</span>
                           <span>→</span>
                         </Link>
                       </div>

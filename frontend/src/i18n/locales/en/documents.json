@@ -1,0 +1,60 @@
+{
+  "eyebrow": "Document History",
+  "title": "My Documents",
+  "signedInAs": "Signed in as {{name}} ({{email}})",
+  "subtitleGuest": "All your uploaded and analyzed documents in one place.",
+  "uploadNew": "+ Upload New Document",
+  "stats": {
+    "saved": "Documents saved",
+    "highRisk": "High risk clauses (last doc)",
+    "clauses": "Clauses extracted (last doc)"
+  },
+  "recent": "Recent Documents",
+  "deleteAria": "Select documents to delete",
+  "deleteTitle": "Delete documents",
+  "delete": "Delete",
+  "deleteCount": "Delete ({{count}})",
+  "selectAll": "Select all",
+  "selectAllAria": "Select all documents",
+  "selectedCount": "{{count}} selected",
+  "selectOneAria": "Select {{name}}",
+  "cancel": "Cancel",
+  "empty": {
+    "title": "No documents yet",
+    "body": "Upload your first contract, rental agreement, or legal document to get started.",
+    "cta": "Upload a Document →"
+  },
+  "badge": {
+    "current": "Current",
+    "analyzed": "Analyzed",
+    "notAnalyzed": "Not analyzed"
+  },
+  "actions": {
+    "showAnalysis": "Show Analysis",
+    "analyze": "Analyze",
+    "askAi": "Ask AI",
+    "download": "Download",
+    "downloadAria": "Download {{name}}"
+  },
+  "summary": {
+    "high": "{{count}} high risk",
+    "medium": "{{count}} medium risk",
+    "low": "{{count}} low risk",
+    "overall": "Overall:"
+  },
+  "guest": {
+    "title": "Sign in to persist your documents",
+    "body": "Currently showing documents from this browser session only. Create an account to save your history permanently and access it from any device.",
+    "createAccount": "Create Account",
+    "signIn": "Sign In"
+  },
+  "dialog": {
+    "title_one": "Delete {{count}} document?",
+    "title_other": "Delete {{count}} documents?",
+    "body_one": "This permanently removes this document and its saved analysis and chat history. This action cannot be undone.",
+    "body_other": "This permanently removes these documents and their saved analysis and chat history. This action cannot be undone.",
+    "cancel": "Cancel",
+    "deleting": "Deleting…",
+    "confirm": "Delete"
+  }
+}

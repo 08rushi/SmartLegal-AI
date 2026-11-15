@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { fetchApplications as fetchLegalIdApplications } from '../store/legalIdSlice'
 import { fetchPropertyApplications } from '../store/propertySlice'
 import { fetchBusinessApplications } from '../store/businessSlice'
 import { Card } from '../components/Card'
+import { formatLocalDate } from '../utils/i18nHelpers'
 
 type TrackerKind = 'legal-id' | 'property' | 'business' | 'yojana'
 
 interface TrackerApplication {
   id: string
   kind: TrackerKind
-  label: string
   type: string
   service: string
-  status: 'in_progress' | 'submitted' | 'received' | 'completed'
+  status: string
   notes: string
   updated_at: string
   detailPath: string
@@ -29,25 +30,26 @@ interface Reminder {
 
 const STORAGE_KEY = 'sl_service_tracker_reminders'
 
-const statusLabel: Record<TrackerApplication['status'], string> = {
-  in_progress: 'In progress',
-  submitted: 'Submitted',
-  received: 'Received',
-  completed: 'Completed',
-}
-
-const statusClass: Record<TrackerApplication['status'], string> = {
+const statusClass: Record<string, string> = {
   in_progress: 'border-yellow-500/25 bg-yellow-500/10 text-yellow-200',
   submitted: 'border-blue-500/25 bg-blue-500/10 text-blue-200',
   received: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-200',
   completed: 'border-[#f5c26b]/25 bg-[#f5c26b]/10 text-[#f5c26b]',
 }
 
-const serviceLabel: Record<TrackerKind, string> = {
-  'legal-id': 'Legal ID',
-  property: 'Property',
-  business: 'Business',
-  yojana: 'Jan-Yojana',
+// i18n keys: tracker:kinds.<key> (label) and <ns>:types.<type> (service type name).
+const kindKey: Record<TrackerKind, string> = {
+  'legal-id': 'legalId',
+  property: 'property',
+  business: 'business',
+  yojana: 'yojana',
+}
+
+const kindNamespace: Record<TrackerKind, string> = {
+  'legal-id': 'legalid',
+  property: 'property',
+  business: 'business',
+  yojana: 'tracker',
 }
 
 
@@ -91,9 +93,11 @@ function fromDateTimeLocal(value: string) {
 }
 
 export default function ServiceTracker() {
+  const { t } = useTranslation('tracker')
+  const { t: th } = useTranslation('hubs')
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { token } = useAppSelector((state) => state.auth)
+  const { isAuthenticated } = useAppSelector((state) => state.auth)
   const legalId = useAppSelector((state) => state.legalId)
   const property = useAppSelector((state) => state.property)
   const business = useAppSelector((state) => state.business)
@@ -103,11 +107,11 @@ export default function ServiceTracker() {
   )
 
   useEffect(() => {
-    if (!token) return
+    if (!isAuthenticated) return
     dispatch(fetchLegalIdApplications())
     dispatch(fetchPropertyApplications())
     dispatch(fetchBusinessApplications())
-  }, [dispatch, token])
+  }, [dispatch, isAuthenticated])
 
   useEffect(() => {
     writeReminders(reminders)
@@ -117,7 +121,6 @@ export default function ServiceTracker() {
     const legalIdApps = legalId.applications.map((app) => ({
       id: app.id,
       kind: 'legal-id' as const,
-      label: serviceLabel['legal-id'],
       type: app.id_type,
       service: app.service,
       status: app.status,
@@ -129,7 +132,6 @@ export default function ServiceTracker() {
     const propertyApps = property.applications.map((app) => ({
       id: app.id,
       kind: 'property' as const,
-      label: serviceLabel.property,
       type: app.property_type,
       service: app.service,
       status: app.status,
@@ -141,7 +143,6 @@ export default function ServiceTracker() {
     const businessApps = business.applications.map((app) => ({
       id: app.id,
       kind: 'business' as const,
-      label: serviceLabel.business,
       type: app.business_type,
       service: app.service,
       status: app.status,
@@ -172,8 +173,11 @@ export default function ServiceTracker() {
         const isDue = due.some((item) => item.appId === reminder.appId)
         if (!isDue || !matchingApp) return reminder
 
-        new Notification('SmartLegal AI reminder', {
-          body: `${matchingApp.service}: ${reminder.note || 'Follow up on this application.'}`,
+        new Notification(t('notifications.title'), {
+          body: t('notifications.body', {
+            service: matchingApp.service,
+            note: reminder.note || t('notifications.defaultNote'),
+          }),
         })
 
         return { ...reminder, notifiedAt: new Date().toISOString() }
@@ -185,7 +189,7 @@ export default function ServiceTracker() {
     notifyDueReminders()
     const interval = window.setInterval(notifyDueReminders, 60 * 1000)
     return () => window.clearInterval(interval)
-  }, [applications, notificationStatus, reminders])
+  }, [applications, notificationStatus, reminders, t])
 
   const isLoading = legalId.isLoading || property.isLoading || business.isLoading
   const activeCount = applications.filter((app) => app.status !== 'completed').length
@@ -218,18 +222,18 @@ export default function ServiceTracker() {
     setNotificationStatus(result)
   }
 
-  if (!token) {
+  if (!isAuthenticated) {
     return (
       <div className="content-wrap py-8">
         <Card variant="glass" className="mx-auto max-w-2xl rounded-[28px] p-8 text-center">
-          <p className="section-eyebrow">Service Tracker</p>
-          <h1 className="mt-4 text-3xl font-bold text-white">Sign in to track applications</h1>
+          <p className="section-eyebrow">{t('eyebrow')}</p>
+          <h1 className="mt-4 text-3xl font-bold text-white">{t('signIn.title')}</h1>
           <p className="mt-3 text-slate-400">
-            Track Legal ID, Property, and Business License applications with saved checklists and reminders.
+            {t('signIn.body')}
           </p>
           <div className="mt-8 flex justify-center gap-3">
-            <Link to="/login" className="btn-primary">Login</Link>
-            <Link to="/services" className="btn-secondary">View Services</Link>
+            <Link to="/login" className="btn-primary">{t('signIn.login')}</Link>
+            <Link to="/services" className="btn-secondary">{t('signIn.viewServices')}</Link>
           </div>
         </Card>
       </div>
@@ -240,10 +244,10 @@ export default function ServiceTracker() {
     <div className="content-wrap py-7">
       <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="section-eyebrow">4D Tracker</p>
-          <h1 className="mt-4 text-4xl font-bold text-white">Service Tracker</h1>
+          <p className="section-eyebrow">{t('eyebrowMain')}</p>
+          <h1 className="mt-4 text-4xl font-bold text-white">{t('title')}</h1>
           <p className="mt-3 max-w-2xl text-slate-400">
-            One place for your service applications, checklist follow-ups, and reminder notifications.
+            {t('subtitle')}
           </p>
         </div>
         <button
@@ -253,42 +257,43 @@ export default function ServiceTracker() {
           className="btn-secondary"
         >
           {notificationStatus === 'granted'
-            ? 'Notifications On'
+            ? t('notifications.on')
             : notificationStatus === 'unsupported'
-              ? 'Notifications Unavailable'
-              : 'Enable Notifications'}
+              ? t('notifications.unavailable')
+              : t('notifications.enable')}
         </button>
       </div>
 
       <div className="mb-8 grid gap-4 md:grid-cols-3">
         <Card variant="metric" className="rounded-[22px] p-5">
-          <p className="text-sm text-slate-500">Active</p>
+          <p className="text-sm text-slate-500">{t('stats.active')}</p>
           <p className="mt-2 text-3xl font-semibold text-white">{activeCount}</p>
         </Card>
         <Card variant="metric" className="rounded-[22px] p-5">
-          <p className="text-sm text-slate-500">Completed</p>
+          <p className="text-sm text-slate-500">{t('stats.completed')}</p>
           <p className="mt-2 text-3xl font-semibold text-white">{completedCount}</p>
         </Card>
         <Card variant="metric" className="rounded-[22px] p-5">
-          <p className="text-sm text-slate-500">Reminders</p>
+          <p className="text-sm text-slate-500">{t('stats.reminders')}</p>
           <p className="mt-2 text-3xl font-semibold text-white">{upcomingReminders}</p>
         </Card>
       </div>
 
       {isLoading && applications.length === 0 ? (
-        <Card variant="glass" className="rounded-[28px] p-10 text-center text-slate-400">Loading tracker...</Card>
+        <Card variant="glass" className="rounded-[28px] p-10 text-center text-slate-400">{t('loading')}</Card>
       ) : applications.length === 0 ? (
         <Card variant="glass" className="rounded-[28px] p-10 text-center">
-          <h2 className="text-2xl font-semibold text-white">No tracked applications yet</h2>
-          <p className="mt-3 text-slate-400">Start from a service hub, create an application tracker, then it will appear here.</p>
+          <h2 className="text-2xl font-semibold text-white">{t('empty.title')}</h2>
+          <p className="mt-3 text-slate-400">{t('empty.body')}</p>
           <button type="button" onClick={() => navigate('/services')} className="btn-primary mt-6">
-            Browse Services
+            {t('empty.cta')}
           </button>
         </Card>
       ) : (
         <div className="grid gap-5">
           {applications.map((app) => {
             const reminder = reminders.find((item) => item.appId === app.id)
+            const typeName = t(`${kindNamespace[app.kind]}:types.${app.type}`, { defaultValue: formatName(app.type) })
             return (
               <Card
                 key={`${app.kind}-${app.id}`}
@@ -305,31 +310,32 @@ export default function ServiceTracker() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-slate-300">
-                        {app.label}
+                        {t(`kinds.${kindKey[app.kind]}`)}
                       </span>
-                      <span className={`rounded-full border px-3 py-1 text-xs font-medium ${statusClass[app.status]}`}>
-                        {statusLabel[app.status]}
+                      <span className={`rounded-full border px-3 py-1 text-xs font-medium ${statusClass[app.status] ?? statusClass.in_progress}`}>
+                        {th(`status.${app.status}`, { defaultValue: app.status })}
                       </span>
                     </div>
-                    <h2 className="mt-4 text-xl font-semibold text-white">{formatName(app.type)}</h2>
+                    <h2 className="mt-4 text-xl font-semibold text-white">{typeName}</h2>
                     <p className="mt-1 text-sm text-slate-300">{app.service}</p>
                     {app.notes && <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">{app.notes}</p>}
                     <div className="mt-5 flex flex-wrap items-center gap-3">
                       <Link to={app.detailPath} className="btn-secondary px-4 py-2">
-                        Open Checklist
+                        {t('card.openChecklist')}
                       </Link>
                       <span className="text-xs text-slate-500">
-                        Updated {new Date(app.updated_at).toLocaleDateString()}
+                        {t('card.updated', { date: formatLocalDate(app.updated_at) })}
                       </span>
                     </div>
                   </div>
 
                   <div className="rounded-[18px] border border-white/10 bg-white/[0.03] p-4">
                     <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Reminder
+                      {t('reminder.label')}
                     </label>
                     <input
                       type="datetime-local"
+                      aria-label={t('reminder.dateLabel')}
                       value={toDateTimeLocal(reminder?.remindAt)}
                       onChange={(event) => setReminder(app.id, 'remindAt', event.target.value)}
                       className="input-field mt-3"
@@ -337,12 +343,13 @@ export default function ServiceTracker() {
                     <textarea
                       value={reminder?.note || ''}
                       onChange={(event) => setReminder(app.id, 'note', event.target.value)}
-                      placeholder="Follow-up note"
+                      placeholder={t('reminder.notePlaceholder')}
+                      aria-label={t('reminder.notePlaceholder')}
                       className="input-field mt-3 min-h-20 resize-none"
                     />
                     <div className="mt-3 flex items-center justify-between gap-3">
                       <p className="text-xs text-slate-500">
-                        {reminder?.notifiedAt ? 'Notification sent' : reminder?.remindAt ? 'Reminder saved' : 'No reminder set'}
+                        {reminder?.notifiedAt ? t('reminder.sent') : reminder?.remindAt ? t('reminder.saved') : t('reminder.none')}
                       </p>
                       {reminder && (
                         <button
@@ -350,7 +357,7 @@ export default function ServiceTracker() {
                           onClick={() => clearReminder(app.id)}
                           className="text-xs font-medium text-[#fb7185] hover:text-[#fda4af]"
                         >
-                          Clear
+                          {t('reminder.clear')}
                         </button>
                       )}
                     </div>

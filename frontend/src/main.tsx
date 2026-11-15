@@ -4,7 +4,9 @@ import { Provider } from 'react-redux'
 import { store } from './store'
 import App from './App'
 import { ToastProvider } from './components/ToastProvider'
+import './fonts'
 import './index.css'
+import './i18n'
 import { initPostHog } from './utils/posthog'
 
 initPostHog()

@@ -1,0 +1,68 @@
+{
+  "network": "Cannot reach the server. Please check your internet connection and try again.",
+  "generic": "Something went wrong. Please try again.",
+  "unexpected": "An unexpected problem occurred. Please try again.",
+  "notAvailable": "N/A",
+  "time": {
+    "justNow": "just now",
+    "recently": "recently"
+  },
+  "auth": {
+    "loginFailed": "Could not sign you in. Please try again.",
+    "registerFailed": "Could not create your account. Please try again.",
+    "googleFailed": "Google sign-in did not work. Please try again.",
+    "forgotFailed": "Could not process your request. Please try again.",
+    "resetFailed": "Could not reset your password.",
+    "logoutAllFailed": "Could not sign you out of your other devices.",
+    "sessionExpired": "Your session has ended. Please sign in again."
+  },
+  "document": {
+    "uploadFailed": "Upload failed. Please try again.",
+    "historyFailed": "Could not load your documents.",
+    "deleteFailed": "Could not delete the selected document(s).",
+    "loadFailed": "Could not load this document."
+  },
+  "analysis": {
+    "failed": "The analysis did not work. Please try again.",
+    "serverFailed": "The analysis could not be completed. Please try again.",
+    "timedOut": "The analysis is taking too long, so we stopped checking. Please check again later or retry."
+  },
+  "chat": {
+    "answerFailed": "Could not get an answer. Please try again.",
+    "historyFailed": "Could not load your earlier chat."
+  },
+  "advisor": {
+    "signIn": "Please sign in to ask the legal advisor.",
+    "failed": "The advisor could not reply. Please try again."
+  },
+  "insights": {
+    "signIn": "Please sign in to use this feature.",
+    "simulateFailed": "Could not show what happens if you sign.",
+    "negotiateFailed": "Could not prepare negotiation tips."
+  },
+  "yojana": {
+    "schemesFailed": "Could not load government schemes.",
+    "schemeFailed": "Could not load scheme details.",
+    "eligibilityFailed": "Could not check your eligibility for this scheme.",
+    "guidesFailed": "Could not load the guides.",
+    "guideFailed": "Could not load this guide."
+  },
+  "legalId": {
+    "typesFailed": "Could not load the ID types."
+  },
+  "property": {
+    "typesFailed": "Could not load the property services."
+  },
+  "business": {
+    "typesFailed": "Could not load the business licence services."
+  },
+  "hub": {
+    "guidanceFailed": "Could not load the guide.",
+    "createFailed": "Could not create the application.",
+    "applicationsFailed": "Could not load your applications.",
+    "updateFailed": "Could not update the application.",
+    "deleteFailed": "Could not delete the application.",
+    "checklistFailed": "Could not load the checklist.",
+    "checklistSaveFailed": "Could not save the checklist."
+  }
+}

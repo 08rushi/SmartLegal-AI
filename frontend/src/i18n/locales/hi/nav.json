@@ -1,0 +1,40 @@
+{
+  "brandTagline": "कानूनी समझ",
+  "home": "होम",
+  "upload": "अपलोड",
+  "review": "जाँच",
+  "askAi": "AI से पूछें",
+  "knowledgeBase": "जानकारी केंद्र",
+  "services": "सेवाएँ",
+  "legalAdvisor": "कानूनी सलाहकार",
+  "login": "लॉग इन",
+  "getStarted": "शुरू करें",
+  "myDocuments": "मेरे दस्तावेज़",
+  "serviceTracker": "सेवा ट्रैकर",
+  "uploadDocument": "दस्तावेज़ अपलोड करें",
+  "signOut": "लॉग आउट",
+  "signOutEverywhere": "सभी जगह से लॉग आउट करें",
+  "signedInAs": "{{name}} के रूप में लॉग इन हैं",
+  "toggleMenu": "मेनू खोलें या बंद करें",
+  "skipToContent": "मुख्य सामग्री पर जाएँ",
+  "mainMenu": "मुख्य मेनू",
+  "quickMenu": "त्वरित मेनू",
+  "homeLink": "होम पेज पर जाएँ",
+  "tabs": { "home": "होम", "upload": "अपलोड", "ask": "पूछें", "help": "मदद" },
+  "more": {
+    "label": "और",
+    "title": "और विकल्प",
+    "chat": "दस्तावेज़ के बारे में बात करें",
+    "compare": "दस्तावेज़ मिलाएँ",
+    "whatsapp": "व्हाट्सऐप"
+  },
+  "offline": "आप इंटरनेट से जुड़े नहीं हैं। इंटरनेट वापस आते ही अपलोड और AI जाँच फिर शुरू हो जाएगी।",
+  "serviceCards": {
+    "legalId": { "title": "कानूनी पहचान सहायता", "description": "सरकारी पहचान पत्र की जानकारी" },
+    "property": { "title": "संपत्ति सहायता", "description": "ज़मीन-मकान के लेन-देन" },
+    "business": { "title": "व्यापार लाइसेंस सहायता", "description": "व्यापार के पंजीकरण" },
+    "yojana": { "title": "जन-योजना AI सहायता", "description": "केंद्र और राज्य की योजनाओं के लिए पात्रता" },
+    "tracker": { "title": "सेवा ट्रैकर", "description": "ज़रूरी कामों की सूची और याद दिलाना" },
+    "all": { "title": "सभी सेवाएँ देखें", "description": "पूरा सेवा केंद्र" }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "title": "AI Legal Advisor",
+  "intro": "Consult a virtual Indian advocate. Describe your situation — a contract you are about to sign, a dispute, or a case you want to file — and get advice grounded in the Constitution, Acts and sections.",
+  "features": {
+    "contracts": "Contracts — safe terms & red flags",
+    "cases": "Cases — applicable Articles & Acts",
+    "chances": "Realistic chances & strategy",
+    "steps": "Concrete next steps"
+  },
+  "newConsultation": "New Consultation",
+  "newShort": "New",
+  "subtitleTop": "Virtual Indian Advocate",
+  "heading": "Ask an AI Lawyer Anything",
+  "badge": "Indian Law",
+  "description": "Advice on contracts, disputes, court cases, your rights, and strategy — grounded in Indian law and Acts.",
+  "empty": {
+    "title": "How can I help with your legal matter?",
+    "subtitle": "Describe your situation in your own words. Try one of these to start:"
+  },
+  "starters": {
+    "rental": "I'm about to sign a rental agreement — which clauses protect me and what should I avoid?",
+    "loan": "I want to file a case against someone who did not repay my loan. What are my options and chances?",
+    "property": "Which Constitution Articles and Acts apply to my property dispute with a neighbour?",
+    "cheque": "A cheque given to me bounced — how do I recover the money and can the person be prosecuted?",
+    "employment": "My employer terminated me without notice. What can I do and under which law?",
+    "partnership": "I am starting a business partnership — what terms must the deed include to protect me?"
+  },
+  "assistantName": "SmartLegal AI Advisor",
+  "reviewing": "Reviewing your matter",
+  "inputPlaceholder": "Describe your legal situation or ask a question…",
+  "send": "Send →",
+  "disclaimer": "AI legal guidance based on Indian law — not a substitute for a licensed advocate. Outcomes depend on your facts, evidence and forum."
+}

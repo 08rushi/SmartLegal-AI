@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import type { ChatState, ChatMessage, ChatResponse } from '../types'
 import { apiClient } from '../services/api'
+import { apiErrorMessage } from '../utils/apiError'
 
 // ─── Async thunks ────────────────────────────────────────────────────────────
 
@@ -17,8 +18,7 @@ export const sendChatMessage = createAsyncThunk(
       })
       return response.data.message
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to get answer')
+      return rejectWithValue(apiErrorMessage(err, 'store:chat.answerFailed'))
     }
   }
 )
@@ -34,8 +34,7 @@ export const fetchChatHistory = createAsyncThunk(
       )
       return { documentId, messages: response.data.messages }
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to load chat history')
+      return rejectWithValue(apiErrorMessage(err, 'store:chat.historyFailed'))
     }
   }
 )

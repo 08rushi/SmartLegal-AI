@@ -1,0 +1,66 @@
+{
+  "eyebrow": "Service Tracker",
+  "title": "Service Tracker",
+  "subtitle": "One place for your service applications, checklist follow-ups, and reminder notifications.",
+  "notifications": {
+    "on": "Notifications On",
+    "unavailable": "Notifications Not Available",
+    "enable": "Turn On Notifications",
+    "title": "SmartLegal AI reminder",
+    "body": "{{service}}: {{note}}",
+    "defaultNote": "Please follow up on this application."
+  },
+  "stats": {
+    "active": "Active",
+    "completed": "Completed",
+    "reminders": "Reminders"
+  },
+  "loading": "Loading your applications...",
+  "empty": {
+    "title": "No applications tracked yet",
+    "body": "Open a service hub, add an application to track, and it will show up here.",
+    "cta": "Browse Services"
+  },
+  "signIn": {
+    "title": "Sign in to track your applications",
+    "body": "Track Legal ID, Property and Business Licence applications, with saved checklists and reminders.",
+    "login": "Sign In",
+    "viewServices": "View Services"
+  },
+  "kinds": {
+    "legalId": "Legal ID",
+    "property": "Property",
+    "business": "Business",
+    "yojana": "Jan-Yojana"
+  },
+  "card": {
+    "openChecklist": "Open Checklist",
+    "updated": "Updated {{date}}"
+  },
+  "reminder": {
+    "label": "Reminder",
+    "dateLabel": "Reminder date and time",
+    "notePlaceholder": "Note about what to follow up",
+    "sent": "Notification sent",
+    "saved": "Reminder saved",
+    "none": "No reminder set",
+    "clear": "Remove"
+  },
+  "detail": {
+    "back": "← Back to Tracker",
+    "id": "ID: {{id}}",
+    "status": "Status:",
+    "dates": "Application created: {{created}} • Last updated: {{updated}}",
+    "progress": "Checklist Progress",
+    "progressCount": "{{done}} of {{total}} done ({{percent}}%)",
+    "portalLabel": "Official Government Website:",
+    "visitPortal": "Open Portal (.gov.in)",
+    "checklistTitle": "Application Step Checklist",
+    "requiredDocs": "Required Documents",
+    "notes": "Application Notes",
+    "saved": "Saved!",
+    "notesPlaceholder": "Add reference numbers, appointment dates or reminders...",
+    "saveNotes": "Save Notes"
+  },
+  "eyebrowMain": "4D Tracker"
+}

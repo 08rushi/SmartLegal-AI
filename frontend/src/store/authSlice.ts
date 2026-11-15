@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import type { AuthState, User, LoginResponse } from '../types'
 import { apiClient, googleSignIn } from '../services/api'
+import { apiErrorMessage } from '../utils/apiError'
+import i18n from '../i18n'
 
 // ─── Async thunks ────────────────────────────────────────────────────────────
 
@@ -12,17 +14,10 @@ export const loginUser = createAsyncThunk(
       formData.append('username', credentials.email)
       formData.append('password', credentials.password)
       const response = await apiClient.post<LoginResponse>('/auth/login', formData)
-      localStorage.setItem('sl_token', response.data.access_token)
       return response.data
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(
-        error.response?.data?.detail ||
-          // No HTTP response at all = server down, wrong URL, or a CORS block.
-          (error.response === undefined
-            ? 'Cannot reach the server. Make sure the backend is running on http://localhost:8000 and you opened the app at http://localhost:5173.'
-            : 'Login failed')
-      )
+      // No HTTP response at all = server down / offline / CORS block -> translated network message.
+      return rejectWithValue(apiErrorMessage(err, 'store:auth.loginFailed'))
     }
   }
 )
@@ -32,16 +27,10 @@ export const registerUser = createAsyncThunk(
   async (data: { name: string; email: string; password: string }, { rejectWithValue }) => {
     try {
       const response = await apiClient.post<LoginResponse>('/auth/register', data)
-      localStorage.setItem('sl_token', response.data.access_token)
       return response.data
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string | { msg?: string }[] } } }
-      const detail = error.response?.data?.detail
-      // FastAPI validation errors (422) come back as a list of {msg}; show them as readable text.
-      const message = Array.isArray(detail)
-        ? detail.map((d) => (d?.msg || '').replace(/^Value error, /, '')).filter(Boolean).join(' ')
-        : detail
-      return rejectWithValue(message || 'Registration failed')
+      // FastAPI validation errors (422) come back as a list of {msg}; apiErrorMessage joins them.
+      return rejectWithValue(apiErrorMessage(err, 'store:auth.registerFailed'))
     }
   }
 )
@@ -51,11 +40,9 @@ export const loginWithGoogle = createAsyncThunk(
   async (credential: string, { rejectWithValue }) => {
     try {
       const data = await googleSignIn(credential)
-      localStorage.setItem('sl_token', data.access_token)
       return data as LoginResponse
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Google sign-in failed')
+      return rejectWithValue(apiErrorMessage(err, 'store:auth.googleFailed'))
     }
   }
 )
@@ -70,8 +57,7 @@ export const forgotPassword = createAsyncThunk(
       )
       return response.data
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Could not process the request.')
+      return rejectWithValue(apiErrorMessage(err, 'store:auth.forgotFailed'))
     }
   }
 )
@@ -83,8 +69,7 @@ export const resetPassword = createAsyncThunk(
       const response = await apiClient.post<{ message: string }>('/auth/reset-password', payload)
       return response.data
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Could not reset your password.')
+      return rejectWithValue(apiErrorMessage(err, 'store:auth.resetFailed'))
     }
   }
 )
@@ -94,11 +79,9 @@ export const logoutAllSessions = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await apiClient.post('/auth/logout-all')
-      localStorage.removeItem('sl_token')
       return true
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Could not sign out other sessions.')
+      return rejectWithValue(apiErrorMessage(err, 'store:auth.logoutAllFailed'))
     }
   }
 )
@@ -110,18 +93,50 @@ export const fetchCurrentUser = createAsyncThunk(
       const response = await apiClient.get<User>('/auth/me')
       return response.data
     } catch {
-      return rejectWithValue('Session expired')
+      // 401 (no/expired cookie) or unreachable server: no confirmed session.
+      return rejectWithValue(i18n.t('store:auth.sessionExpired'))
     }
   }
 )
 
+/** Sign out: the server clears the HttpOnly cookie; local state is cleared immediately regardless. */
+export const logout = createAsyncThunk('auth/logout', async () => {
+  try {
+    await apiClient.post('/auth/logout')
+  } catch {
+    /* already signed out / offline: local state is cleared anyway */
+  }
+})
+
 // ─── Initial state ────────────────────────────────────────────────────────────
+
+// Sessions live in the HttpOnly `sl_token` cookie only. Remove any token left in localStorage by older builds.
+try {
+  localStorage.removeItem('sl_token')
+} catch {
+  /* storage blocked: nothing to clean */
+}
 
 const initialState: AuthState = {
   user: null,
-  token: localStorage.getItem('sl_token'),
+  isAuthenticated: false,
+  // false until the first GET /auth/me (cookie session restore) settles, so guards don't flash "sign in".
+  sessionChecked: false,
   isLoading: false,
   error: null,
+}
+
+function signIn(state: AuthState, user: User) {
+  state.isLoading = false
+  state.user = user
+  state.isAuthenticated = true
+  state.sessionChecked = true
+}
+
+function signOut(state: AuthState) {
+  state.user = null
+  state.isAuthenticated = false
+  state.error = null
 }
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -130,11 +145,10 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout(state) {
-      state.user = null
-      state.token = null
-      state.error = null
-      localStorage.removeItem('sl_token')
+    /** Dispatched by the API layer on a 401 from an authenticated call: drop local user state. */
+    sessionExpired(state) {
+      signOut(state)
+      state.sessionChecked = true
     },
     clearAuthError(state) {
       state.error = null
@@ -148,9 +162,7 @@ const authSlice = createSlice({
         state.error = null
       })
       .addCase(loginUser.fulfilled, (state, action: PayloadAction<LoginResponse>) => {
-        state.isLoading = false
-        state.user = action.payload.user
-        state.token = action.payload.access_token
+        signIn(state, action.payload.user)
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false
@@ -164,9 +176,7 @@ const authSlice = createSlice({
         state.error = null
       })
       .addCase(registerUser.fulfilled, (state, action: PayloadAction<LoginResponse>) => {
-        state.isLoading = false
-        state.user = action.payload.user
-        state.token = action.payload.access_token
+        signIn(state, action.payload.user)
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false
@@ -180,9 +190,7 @@ const authSlice = createSlice({
         state.error = null
       })
       .addCase(loginWithGoogle.fulfilled, (state, action: PayloadAction<LoginResponse>) => {
-        state.isLoading = false
-        state.user = action.payload.user
-        state.token = action.payload.access_token
+        signIn(state, action.payload.user)
       })
       .addCase(loginWithGoogle.rejected, (state, action) => {
         state.isLoading = false
@@ -191,23 +199,26 @@ const authSlice = createSlice({
 
     // Sign out of all sessions → clear local auth
     builder.addCase(logoutAllSessions.fulfilled, (state) => {
-      state.user = null
-      state.token = null
-      state.error = null
+      signOut(state)
+    })
+
+    // Sign out (server clears the cookie; local state cleared right away)
+    builder.addCase(logout.pending, (state) => {
+      signOut(state)
     })
 
     // Fetch current user
     builder
       .addCase(fetchCurrentUser.fulfilled, (state, action: PayloadAction<User>) => {
-        state.user = action.payload
+        signIn(state, action.payload)
       })
       .addCase(fetchCurrentUser.rejected, (state) => {
-        state.user = null
-        state.token = null
-        localStorage.removeItem('sl_token')
+        // 401 or unreachable server: no confirmed session -> signed out (cookie, if any, stays server-side).
+        signOut(state)
+        state.sessionChecked = true
       })
   },
 })
 
-export const { logout, clearAuthError } = authSlice.actions
+export const { sessionExpired, clearAuthError } = authSlice.actions
 export default authSlice.reducer

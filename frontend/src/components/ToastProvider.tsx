@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning'
 
@@ -16,6 +17,7 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue | undefined>(undefined)
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation('shell')
   const [toasts, setToasts] = useState<ToastItem[]>([])
 
   const removeToast = useCallback((id: string) => {
@@ -39,6 +41,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
+            role={toast.type === 'error' || toast.type === 'warning' ? 'alert' : 'status'}
             className={`pointer-events-auto flex items-center justify-between p-4 rounded-2xl border shadow-2xl backdrop-blur-xl transition-all transform animate-fadeIn ${
               toast.type === 'success'
                 ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200'
@@ -50,19 +53,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             }`}
           >
             <div className="flex items-center gap-3 text-sm font-medium">
-              <span>
+              <span aria-hidden="true">
                 {toast.type === 'success' && '✅'}
                 {toast.type === 'error' && '🚨'}
                 {toast.type === 'warning' && '⚠️'}
                 {toast.type === 'info' && 'ℹ️'}
               </span>
-              <p>{toast.message}</p>
+              <p>
+                <span className="sr-only">{t(`toast.${toast.type}`)}: </span>
+                {toast.message}
+              </p>
             </div>
             <button
+              type="button"
               onClick={() => removeToast(toast.id)}
+              aria-label={t('toast.close')}
+              title={t('toast.close')}
               className="ml-3 text-slate-400 hover:text-white font-bold"
             >
-              ✕
+              <span aria-hidden="true">✕</span>
             </button>
           </div>
         ))}

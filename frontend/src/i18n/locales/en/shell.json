@@ -1,0 +1,47 @@
+{
+  "loading": {
+    "app": "Loading SmartLegal AI..."
+  },
+  "badge": {
+    "completed": "Completed",
+    "inProgress": "In Progress",
+    "failed": "Failed"
+  },
+  "pagination": {
+    "previous": "← Previous",
+    "next": "Next →",
+    "page": "Page <b>{{current}}</b> of {{total}}"
+  },
+  "loginRequired": {
+    "title": "Sign in to continue",
+    "message": "You need to be signed in to use this feature.",
+    "signIn": "Sign In",
+    "createAccount": "Create Account",
+    "freeNote": "It’s free to create an account — your documents and analyses stay saved to it."
+  },
+  "protected": {
+    "upload": {
+      "title": "Sign in to analyze",
+      "message": "Please sign in to upload and analyze your legal documents. It only takes a moment."
+    },
+    "analysis": {
+      "title": "Sign in to view this analysis",
+      "message": "Please sign in to open your document analysis."
+    }
+  },
+  "floating": {
+    "askAiAria": "Ask the AI Legal Advisor",
+    "askAi": "Ask AI Lawyer",
+    "whatsappAria": "Chat on WhatsApp",
+    "whatsappTitle": "Chat on WhatsApp",
+    "whatsappBody": "Get legal help instantly."
+  },
+  "toast": {
+    "close": "Close",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Information"
+  },
+  "userMenu": "Account menu"
+}

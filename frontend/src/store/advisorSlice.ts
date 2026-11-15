@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import type { ChatMessage, ChatResponse } from '../types'
 import { apiClient } from '../services/api'
+import { apiErrorMessage } from '../utils/apiError'
+import i18n from '../i18n'
 
 // The advisor conversation is kept per-browser so it survives navigation/reloads.
 const STORAGE_KEY = 'sl_advisor_chat'
@@ -48,9 +50,9 @@ export const sendAdvisorMessage = createAsyncThunk(
       const response = await apiClient.post<ChatResponse>('/advisor', { message, history })
       return response.data.message
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string }; status?: number } }
-      if (error.response?.status === 401) return rejectWithValue('Please sign in to consult the legal advisor.')
-      return rejectWithValue(error.response?.data?.detail || 'The advisor could not respond. Please try again.')
+      const error = err as { response?: { status?: number } }
+      if (error.response?.status === 401) return rejectWithValue(i18n.t('store:advisor.signIn'))
+      return rejectWithValue(apiErrorMessage(err, 'store:advisor.failed'))
     }
   }
 )

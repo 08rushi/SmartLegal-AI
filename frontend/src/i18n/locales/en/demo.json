@@ -1,0 +1,76 @@
+{
+  "documentType": "Residential Rental Agreement",
+  "summary": {
+    "documentType": "Residential Rental Agreement (Demo)",
+    "riskSummary": "High risk flags identified: Unilateral 15% annual rent escalation, 11-month lock-in period penalty with full security deposit forfeiture, and vague maintenance liability rules.",
+    "highRiskClauses": [
+      "Unilateral Rent Escalation: Rent increases automatically by 15% after 11 months without mutual consent.",
+      "Security Deposit Forfeiture: Full ₹75,000 deposit forfeited if tenant vacates prior to 11 months."
+    ],
+    "beneficialClauses": [
+      "Landlord responsible for structural repairs, major plumbing, and building waterproofing.",
+      "Tenant entitled to 24-hour advance written notice prior to any property inspection."
+    ],
+    "yourObligations": [
+      "Pay monthly rent of ₹25,000 on or before the 5th of each calendar month.",
+      "Maintain interior premises in good tenantable condition and pay utility bills directly."
+    ],
+    "otherPartyRights": [
+      "Landlord right to inspect premises with 24-hour advance written notice.",
+      "Landlord right to deduct unpaid utility bills from security deposit at lease end."
+    ],
+    "parties": [
+      "Mr. Rajesh Sharma (Lessor / Landlord)",
+      "Aarav Patel (Lessee / Tenant)"
+    ],
+    "keyDates": [
+      { "label": "Commencement Date", "date": "01-Apr-2026" },
+      { "label": "Expiration Date", "date": "28-Feb-2027" },
+      { "label": "Rent Due Date", "date": "5th of every month" }
+    ]
+  },
+  "clauses": [
+    {
+      "title": "Rent Amount & Unilateral Annual Escalation",
+      "type": "Financial / Rent",
+      "number": "Clause 3.1",
+      "reason": "Automatic 15% annual rent increase is substantially above standard market benchmarks (5%–8%) and lacks mutual renegotiation rights.",
+      "plain": "You agree to pay ₹25,000 monthly rent. After 11 months, rent automatically increases by 15% without your consent or negotiation."
+    },
+    {
+      "title": "Security Deposit & Lock-In Forfeiture Penalty",
+      "type": "Security Deposit",
+      "number": "Clause 4.2",
+      "reason": "Lock-in clause mandates total security deposit forfeiture if tenant vacates early, violating Model Tenancy guidelines.",
+      "plain": "Security deposit of ₹75,000 (3 months rent) will be forfeited entirely if you relocate or vacate before completing 11 months."
+    },
+    {
+      "title": "Maintenance & Day-to-Day Repair Responsibilities",
+      "type": "Maintenance",
+      "number": "Clause 6.1",
+      "reason": "Vague maintenance threshold shifts routine repair costs onto tenant up to ₹5,000 per incident.",
+      "plain": "Tenant is responsible for internal repairs up to ₹5,000 per incident. Landlord handles structural repairs."
+    },
+    {
+      "title": "Notice Period for Lease Termination",
+      "type": "Termination",
+      "number": "Clause 8.3",
+      "reason": "60-day notice requirement after lock-in period. Standard notice timeline for residential agreements.",
+      "plain": "After the lock-in period, either party can end the agreement by giving 60 days written notice or paying rent in lieu."
+    },
+    {
+      "title": "Landlord Inspection Rights",
+      "type": "Inspection",
+      "number": "Clause 9.1",
+      "reason": "Standard inspection right requiring 24-hour advance written notice to protect tenant privacy.",
+      "plain": "Landlord can inspect the property at reasonable daylight hours after giving 24 hours advance notice."
+    },
+    {
+      "title": "Subletting & Alteration Prohibition",
+      "type": "Subletting",
+      "number": "Clause 10.2",
+      "reason": "Standard protective restriction prohibiting tenant from subletting property to third parties without permission.",
+      "plain": "You cannot sublet the apartment or make structural alterations without written permission from the landlord."
+    }
+  ]
+}

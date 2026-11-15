@@ -1,0 +1,28 @@
+{
+  "tagline": "Plain-language legal guidance for Indian users.",
+  "intro": "Upload agreements, deeds, or court-case files — get plain-language explanations, risk warnings, and next steps grounded in Indian law and Acts, in English, Hindi and Marathi.",
+  "tags": {
+    "law": "Indian law & Acts",
+    "types": "Many document types",
+    "languages": "Marathi + Hindi + English"
+  },
+  "product": "Product",
+  "analyzes": "Analyzes",
+  "items": {
+    "rental": "Rental, sale & gift deeds",
+    "employment": "Employment & loan contracts",
+    "court": "FIR & court-case files",
+    "family": "Divorce & family matters",
+    "cheque": "Cheque bounce & consumer",
+    "wills": "Wills, POA & affidavits"
+  },
+  "links": {
+    "legalId": "Legal ID Hub",
+    "property": "Property Hub",
+    "business": "Business License Hub",
+    "tracker": "Service Tracker",
+    "documents": "My Documents"
+  },
+  "copyright": "© {{year}} SmartLegal AI. All rights reserved.",
+  "disclaimer": "AI-assisted analysis grounded in Indian law — informational only, not a substitute for advice from a qualified advocate."
+}

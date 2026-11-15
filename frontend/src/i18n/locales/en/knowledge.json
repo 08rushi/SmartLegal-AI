@@ -1,0 +1,101 @@
+{
+  "badge": "Indian Citizen Legal Library",
+  "title": "Knowledge Base & Legal Guidance",
+  "subtitle": "Plain-language explanations, clause breakdowns, statutory red flags, and verified Indian law checklists.",
+  "search": {
+    "placeholder": "Search legal guides, clauses, rent caps, notice rules...",
+    "clear": "Clear search",
+    "noResults": "No guides match your search. Try a different word or choose another category."
+  },
+  "categories": {
+    "All": "All",
+    "Housing": "Housing",
+    "Employment": "Employment",
+    "Finance": "Finance",
+    "Business": "Business",
+    "Legal": "Legal"
+  },
+  "card": { "read": "Read Complete Breakdown" },
+  "modal": {
+    "close": "Close",
+    "overview": "Overview",
+    "acts": "Governing Indian Acts",
+    "clauses": "Critical Clauses & Red Flags",
+    "purpose": "Purpose:",
+    "redFlag": "Red Flag:",
+    "recommended": "Recommended Term:",
+    "checklist": "Execution Checklist",
+    "traps": "Common Traps",
+    "resources": "Official Resources",
+    "disclaimer": "This guide is general legal information, not legal advice. Please check the current law in your state or ask a licensed advocate before you sign."
+  },
+  "resourceTypes": {
+    "Official Portal": "Official Portal",
+    "Government Gazette": "Government Gazette",
+    "Verified Legal Resource": "Verified Legal Resource"
+  },
+  "articles": {
+    "rental-agreement": {
+      "title": "Rental Agreement",
+      "description": "A complete guide to security deposits, lock-in clauses, notice periods, rent escalation, and landlord/tenant rights under Model Tenancy laws.",
+      "highlights": ["Deposit Caps", "Notice Terms", "Maintenance Duties"],
+      "overview": "A Rental Agreement is a legally binding contract executed between a property owner (landlord) and a tenant. Under Indian jurisprudence, a well-drafted rental agreement ensures clear boundaries for security deposits, maintenance obligations, eviction procedures, and notice periods.",
+      "legalFramework": "Regulated under state-specific Rent Control Acts, the Model Tenancy Act 2021 passed by the Union Cabinet, and Section 105 of the Transfer of Property Act 1882.",
+      "keyClauses": [
+        {
+          "clauseName": "Security Deposit Cap & Refund Timeline",
+          "purpose": "Protects tenant funds and sets clear expectations for deduction rules upon move-out.",
+          "redFlags": "Landlord reserving unlimited deduction rights or withholding refunds past 60 days without itemized receipts.",
+          "recommendedPhrasing": "Security deposit shall not exceed 2 months rent for residential premises. The full deposit, less verified actual damages, must be refunded within 30 days of surrendering keys."
+        },
+        {
+          "clauseName": "Lock-in Period & Early Termination",
+          "purpose": "Ensures both parties maintain stability for an initial agreed timeframe (e.g., 6 months).",
+          "redFlags": "Harsh penalty clauses demanding payment for the entire remaining lease term if tenant relocates due to work.",
+          "recommendedPhrasing": "Either party may terminate this agreement after the 6-month lock-in period by serving 1 month written notice or paying 1 month rent in lieu of notice."
+        }
+      ],
+      "executionChecklist": [
+        "Execute on Non-Judicial Stamp Paper of appropriate state denomination.",
+        "If the tenancy duration exceeds 11 months, mandatory registration under Section 17 of the Indian Registration Act 1908 at the Sub-Registrar Office.",
+        "Obtain mandatory Tenant Police Verification.",
+        "Attach ID & Address proofs (Aadhaar/PAN) of both landlord and tenant alongside 2 independent witness signatures."
+      ],
+      "commonTraps": [
+        "Oral promises regarding parking slots or pet permission not recorded in the written text.",
+        "Not taking date-stamped move-in photos of existing wall cracks, appliances, or fixtures."
+      ],
+      "resources": [
+        { "title": "Model Tenancy Act 2021 Policy & Provisions", "source": "Ministry of Housing & Urban Affairs (MoHUA)" },
+        { "title": "Transfer of Property Act 1882 (Section 105)", "source": "India Code" }
+      ]
+    },
+    "employment-contract": {
+      "title": "Employment Contract",
+      "description": "Understand non-compete limits, IP assignment, notice period buyouts, and severance rights under Indian labor codes.",
+      "highlights": ["Notice Buyout", "Non-Compete Limits", "IP Ownership"],
+      "overview": "An Employment Contract defines the working relationship between employer and employee, governing compensation, duties, non-disclosure, intellectual property ownership, and termination conditions.",
+      "legalFramework": "Governed by the Code on Wages 2019, Section 27 of the Indian Contract Act 1872 (restraint of trade), Shops and Establishments Acts of respective states, and the Industrial Relations Code 2020.",
+      "keyClauses": [
+        {
+          "clauseName": "Non-Compete & Restraint of Trade (Section 27)",
+          "purpose": "Restricts employee from joining a direct competitor during or after employment.",
+          "redFlags": "Post-employment non-compete clauses restricting employment across India for 1–2 years.",
+          "recommendedPhrasing": "Post-employment non-compete clauses are void under Section 27 of the Indian Contract Act 1872 unless restricted to non-solicitation of active clients or misuse of trade secrets."
+        }
+      ],
+      "executionChecklist": [
+        "Verify CTC breakup (Basic, HRA, PF, Gratuity, Special Allowance).",
+        "Check probation evaluation criteria and notice period during probation.",
+        "Ensure dual employment / moonlighting restrictions align with local state Shops & Establishment rules."
+      ],
+      "commonTraps": [
+        "Undefined variable pay or discretionary performance bonus without clear metric targets.",
+        "Excessive training bond penalties requiring multi-lakh repayments for early exit."
+      ],
+      "resources": [
+        { "title": "Code on Wages 2019 Gazette Notification", "source": "Ministry of Labour & Employment" }
+      ]
+    }
+  }
+}

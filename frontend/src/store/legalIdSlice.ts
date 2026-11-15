@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import type { LegalIdState, LegalIdType, LegalIdGuidance, IdApplication, ChecklistItem, ChecklistSaveItem } from '../types'
-import { apiClient } from '../services/api'
+import { apiClient, getCurrentLang } from '../services/api'
+import { apiErrorMessage } from '../utils/apiError'
 
 // ─── Async Thunks ─────────────────────────────────────────────────────────
 
@@ -8,11 +9,10 @@ export const fetchIdTypes = createAsyncThunk(
   'legalId/fetchTypes',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get<{ id_types: LegalIdType[] }>('/legal-id')
+      const response = await apiClient.get<{ id_types: LegalIdType[] }>('/legal-id', { params: { lang: getCurrentLang() } })
       return response.data.id_types
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to load ID types')
+      return rejectWithValue(apiErrorMessage(err, 'store:legalId.typesFailed'))
     }
   }
 )
@@ -21,11 +21,10 @@ export const fetchIdGuidance = createAsyncThunk(
   'legalId/fetchGuidance',
   async (idType: string, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get<{ guidance: LegalIdGuidance }>(`/legal-id/${idType}`)
+      const response = await apiClient.get<{ guidance: LegalIdGuidance }>(`/legal-id/${idType}`, { params: { lang: getCurrentLang() } })
       return response.data.guidance
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to load guidance')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.guidanceFailed'))
     }
   }
 )
@@ -37,8 +36,7 @@ export const createApplication = createAsyncThunk(
       const response = await apiClient.post<IdApplication>('/legal-id/applications', data)
       return response.data
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to create application')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.createFailed'))
     }
   }
 )
@@ -47,11 +45,10 @@ export const fetchApplications = createAsyncThunk(
   'legalId/fetchApplications',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get<{ applications: IdApplication[] }>('/legal-id/applications')
+      const response = await apiClient.get<{ applications: IdApplication[] }>('/legal-id/applications', { params: { lang: getCurrentLang() } })
       return response.data.applications
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to load applications')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.applicationsFailed'))
     }
   }
 )
@@ -66,8 +63,7 @@ export const updateApplication = createAsyncThunk(
       })
       return response.data
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to update application')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.updateFailed'))
     }
   }
 )
@@ -79,8 +75,7 @@ export const deleteApplication = createAsyncThunk(
       await apiClient.delete(`/legal-id/applications/${app_id}`)
       return app_id
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to delete application')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.deleteFailed'))
     }
   }
 )
@@ -89,11 +84,10 @@ export const fetchChecklist = createAsyncThunk(
   'legalId/fetchChecklist',
   async (app_id: string, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get<{ items: ChecklistItem[] }>(`/legal-id/applications/${app_id}/checklist`)
+      const response = await apiClient.get<{ items: ChecklistItem[] }>(`/legal-id/applications/${app_id}/checklist`, { params: { lang: getCurrentLang() } })
       return response.data.items
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to load checklist')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.checklistFailed'))
     }
   }
 )
@@ -107,8 +101,7 @@ export const saveChecklist = createAsyncThunk(
       })
       return response.data.items
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to save checklist')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.checklistSaveFailed'))
     }
   }
 )

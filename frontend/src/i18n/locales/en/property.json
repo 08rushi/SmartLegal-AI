@@ -1,0 +1,18 @@
+{
+  "title": "Property Hub",
+  "eyebrow": "Real Estate & Land Records",
+  "subtitle": "Guidance for 8 property documents and services — Sale, Rental, Mutation, Encumbrance Certificate, Registration, 7/12 Extract, Ferfar and Index II.",
+  "itemDescription": "Official property guidance, application checklists, and document checks for {{name}}.",
+  "backToHub": "Back to Property Hub",
+  "notFound": "This property service was not found.",
+  "types": {
+    "sale": "Property Sale",
+    "rental": "Property Rental",
+    "mutation": "Mutation / Dakhil Kharij",
+    "encumbrance": "Encumbrance Certificate",
+    "7/12": "7/12 Extract (Record of Rights)",
+    "ferfar": "Ferfar / Field Map (Naksha)",
+    "index_ii": "Index II / Encumbrance Certificate",
+    "registration": "Property Registration"
+  }
+}

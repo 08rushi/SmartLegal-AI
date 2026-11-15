@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useEffect, lazy, Suspense } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from './hooks/redux'
 import { fetchCurrentUser } from './store/authSlice'
 import { fetchDocumentHistory } from './store/documentSlice'
@@ -34,11 +35,12 @@ import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function PageFallback() {
+  const { t } = useTranslation('shell')
   return (
     <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center p-8">
-      <div className="space-y-4 text-center">
-        <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-slate-400 text-sm font-medium">Loading SmartLegal AI...</p>
+      <div className="space-y-4 text-center" role="status">
+        <div aria-hidden="true" className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-slate-400 text-sm font-medium">{t('loading.app')}</p>
       </div>
     </div>
   )
@@ -47,21 +49,19 @@ function PageFallback() {
 
 function App() {
   const dispatch = useAppDispatch()
-  const { token, user } = useAppSelector((s) => s.auth)
+  const { isAuthenticated, user } = useAppSelector((s) => s.auth)
 
-  // Step 1: Restore session JWT → fetch user profile
+  // Step 1: Restore the cookie session once on start (GET /auth/me; a 401 simply means signed out)
   useEffect(() => {
-    if (token) {
-      dispatch(fetchCurrentUser())
-    }
-  }, [dispatch, token])
+    dispatch(fetchCurrentUser())
+  }, [dispatch])
 
   // Step 2: Once user is confirmed, load their document history from DB
   useEffect(() => {
-    if (user && token) {
+    if (user && isAuthenticated) {
       dispatch(fetchDocumentHistory())
     }
-  }, [dispatch, user, token])
+  }, [dispatch, user, isAuthenticated])
 
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -92,8 +92,8 @@ function App() {
               path="upload"
               element={
                 <ProtectedRoute
-                  title="Sign in to analyze"
-                  message="Please sign in to upload and analyze your legal documents. It only takes a moment."
+                  titleKey="shell:protected.upload.title"
+                  messageKey="shell:protected.upload.message"
                 >
                   <Upload />
                 </ProtectedRoute>
@@ -106,8 +106,8 @@ function App() {
               path="analysis/:documentId"
               element={
                 <ProtectedRoute
-                  title="Sign in to view this analysis"
-                  message="Please sign in to open your document analysis."
+                  titleKey="shell:protected.analysis.title"
+                  messageKey="shell:protected.analysis.message"
                 >
                   <Analysis />
                 </ProtectedRoute>

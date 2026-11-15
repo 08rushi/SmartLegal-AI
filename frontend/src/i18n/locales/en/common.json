@@ -1,0 +1,10 @@
+{
+  "language": {
+    "label": "Language",
+    "switcherHeading": "Choose your language",
+    "switcherHint": "The app will show in the language you pick."
+  },
+  "show": "Show",
+  "hide": "Hide",
+  "or": "or"
+}

@@ -1,7 +1,9 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import ServiceArt from './ServiceArt'
 import { Card } from './Card'
 import type { Hub } from '../lib/serviceColors'
+import { formatLocalDate } from '../utils/i18nHelpers'
 
 export interface ServiceTypeItem {
   key: string
@@ -40,7 +42,7 @@ interface ServiceHubProps {
 export const ServiceHub: React.FC<ServiceHubProps> = ({
   title,
   hubName = 'legal-id',
-  eyebrow = 'Civic & Legal Services',
+  eyebrow,
   subtitle,
   items,
   applications = [],
@@ -50,13 +52,14 @@ export const ServiceHub: React.FC<ServiceHubProps> = ({
   onViewApplication,
   onRetry,
 }) => {
+  const { t } = useTranslation('hubs')
   return (
     <div className="content-wrap py-5 sm:py-6">
       <Card variant="section" className="mx-auto max-w-7xl rounded-[32px] p-6 sm:p-8 space-y-8">
         
         {/* ─ Hero Header ─ */}
         <div>
-          <p className="section-eyebrow">{eyebrow}</p>
+          <p className="section-eyebrow">{eyebrow ?? t('hub.defaultEyebrow')}</p>
           <h1 className="text-3xl sm:text-4xl font-bold text-white mt-2">
             {title}
           </h1>
@@ -72,7 +75,7 @@ export const ServiceHub: React.FC<ServiceHubProps> = ({
               <div className="inline-block">
                 <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
               </div>
-              <p className="mt-4 text-xs text-slate-400">Loading service catalog...</p>
+              <p className="mt-4 text-xs text-slate-400">{t('hub.loading')}</p>
             </div>
           ) : error ? (
             <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6 text-center">
@@ -82,7 +85,7 @@ export const ServiceHub: React.FC<ServiceHubProps> = ({
                   onClick={onRetry}
                   className="mt-4 px-4 py-2 text-xs font-semibold rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all"
                 >
-                  Retry Loading
+                  {t('hub.retry')}
                 </button>
               )}
             </div>
@@ -101,7 +104,7 @@ export const ServiceHub: React.FC<ServiceHubProps> = ({
                       </div>
                       {item.steps_count !== undefined && (
                         <span className="text-[11px] font-semibold text-slate-400 bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-lg">
-                          {item.steps_count} Steps
+                          {t('hub.steps', { count: item.steps_count })}
                         </span>
                       )}
                     </div>
@@ -119,7 +122,7 @@ export const ServiceHub: React.FC<ServiceHubProps> = ({
 
                   <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between">
                     <span className="text-[11px] font-semibold text-indigo-400 group-hover:underline">
-                      Explore Application Guide
+                      {t('hub.explore')}
                     </span>
                     <span className="text-xs text-indigo-400 group-hover:translate-x-1 transition-transform">
                       →
@@ -136,7 +139,7 @@ export const ServiceHub: React.FC<ServiceHubProps> = ({
           <div className="pt-6 border-t border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>📋</span> My Active Service Applications ({applications.length})
+                <span>📋</span> {t('hub.myApplications', { count: applications.length })}
               </h2>
             </div>
 
@@ -157,7 +160,7 @@ export const ServiceHub: React.FC<ServiceHubProps> = ({
                           ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                           : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
                       }`}>
-                        {app.status.replace('_', ' ')}
+                        {t(`status.${app.status}`, { defaultValue: app.status.replace('_', ' ') })}
                       </span>
                     </div>
 
@@ -170,8 +173,8 @@ export const ServiceHub: React.FC<ServiceHubProps> = ({
                   </div>
 
                   <div className="pt-3 mt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-                    <span>Updated: {new Date(app.updated_at).toLocaleDateString()}</span>
-                    <span className="font-semibold text-indigo-400 hover:underline">View Tracker →</span>
+                    <span>{t('hub.updated', { date: formatLocalDate(app.updated_at) })}</span>
+                    <span className="font-semibold text-indigo-400 hover:underline">{t('hub.viewTracker')}</span>
                   </div>
                 </div>
               ))}

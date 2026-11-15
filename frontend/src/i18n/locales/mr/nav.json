@@ -1,0 +1,40 @@
+{
+  "brandTagline": "कायदेशीर समज",
+  "home": "मुख्यपृष्ठ",
+  "upload": "अपलोड",
+  "review": "तपासणी",
+  "askAi": "AI ला विचारा",
+  "knowledgeBase": "माहिती केंद्र",
+  "services": "सेवा",
+  "legalAdvisor": "कायदेशीर सल्लागार",
+  "login": "लॉग इन",
+  "getStarted": "सुरू करा",
+  "myDocuments": "माझी कागदपत्रे",
+  "serviceTracker": "सेवा ट्रॅकर",
+  "uploadDocument": "कागदपत्र अपलोड करा",
+  "signOut": "लॉग आउट",
+  "signOutEverywhere": "सर्व ठिकाणांहून लॉग आउट करा",
+  "signedInAs": "{{name}} म्हणून लॉग इन आहात",
+  "toggleMenu": "मेनू उघडा किंवा बंद करा",
+  "skipToContent": "मुख्य मजकुराकडे जा",
+  "mainMenu": "मुख्य मेनू",
+  "quickMenu": "झटपट मेनू",
+  "homeLink": "मुख्यपृष्ठावर जा",
+  "tabs": { "home": "होम", "upload": "अपलोड", "ask": "विचारा", "help": "मदत" },
+  "more": {
+    "label": "आणखी",
+    "title": "आणखी पर्याय",
+    "chat": "कागदपत्राबद्दल बोला",
+    "compare": "कागदपत्रांची तुलना",
+    "whatsapp": "व्हॉट्सॲप"
+  },
+  "offline": "तुम्ही इंटरनेटशी जोडलेले नाही. इंटरनेट परत येताच अपलोड आणि AI तपासणी पुन्हा सुरू होईल.",
+  "serviceCards": {
+    "legalId": { "title": "कायदेशीर ओळख मदत", "description": "सरकारी ओळखपत्रांची माहिती" },
+    "property": { "title": "मालमत्ता मदत", "description": "जमीन-घराचे व्यवहार" },
+    "business": { "title": "व्यवसाय परवाना मदत", "description": "व्यवसायाच्या नोंदण्या" },
+    "yojana": { "title": "जन-योजना AI मदत", "description": "केंद्र आणि राज्याच्या योजनांसाठी पात्रता" },
+    "tracker": { "title": "सेवा ट्रॅकर", "description": "करायच्या कामांची यादी आणि आठवण" },
+    "all": { "title": "सर्व सेवा पहा", "description": "संपूर्ण सेवा केंद्र" }
+  }
+}

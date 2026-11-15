@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { DocumentArticle } from '../../pages/KnowledgeBase'
 
 interface KnowledgeArticleCardProps {
@@ -6,6 +7,7 @@ interface KnowledgeArticleCardProps {
 }
 
 export function KnowledgeArticleCard({ article, onSelect }: KnowledgeArticleCardProps) {
+  const { t } = useTranslation('knowledge')
   return (
     <div
       onClick={() => onSelect(article)}
@@ -18,7 +20,7 @@ export function KnowledgeArticleCard({ article, onSelect }: KnowledgeArticleCard
             {article.icon}
           </span>
           <span className="px-3 py-1 bg-amber-400/10 text-amber-300 text-xs font-semibold rounded-full border border-amber-400/20">
-            {article.category}
+            {t(`categories.${article.category}`)}
           </span>
         </div>
 
@@ -43,7 +45,7 @@ export function KnowledgeArticleCard({ article, onSelect }: KnowledgeArticleCard
       </div>
 
       <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between text-amber-400 font-medium text-sm group-hover:translate-x-1 transition-transform">
-        <span>Read Complete Breakdown</span>
+        <span>{t('card.read')}</span>
         <span>→</span>
       </div>
     </div>

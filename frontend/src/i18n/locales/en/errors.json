@@ -1,0 +1,12 @@
+{
+  "generic": "Something went wrong. Please try again.",
+  "missingToken": "Missing reset token. Please use the link from your reset email.",
+  "passwordTooShort": "Password must be at least 8 characters.",
+  "passwordMismatch": "Passwords do not match.",
+  "resetFailed": "Could not reset your password.",
+  "notFound": {
+    "title": "Page Not Found",
+    "body": "Looks like you took a wrong turn. Let’s get you back to the legal review experience.",
+    "cta": "Go to Homepage →"
+  }
+}

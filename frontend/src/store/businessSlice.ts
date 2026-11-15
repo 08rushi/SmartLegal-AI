@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit'
 import type { BusinessState, BusinessType, BusinessGuidance, BusinessApplication, ChecklistItem, ChecklistSaveItem } from '../types'
-import { apiClient } from '../services/api'
+import { apiClient, getCurrentLang } from '../services/api'
+import { apiErrorMessage } from '../utils/apiError'
 
 // ─── Async Thunks ─────────────────────────────────────────────────────────
 
@@ -8,11 +9,10 @@ export const fetchBusinessTypes = createAsyncThunk(
   'business/fetchTypes',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get<{ business_types: BusinessType[] }>('/business')
+      const response = await apiClient.get<{ business_types: BusinessType[] }>('/business', { params: { lang: getCurrentLang() } })
       return response.data.business_types
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to load business types')
+      return rejectWithValue(apiErrorMessage(err, 'store:business.typesFailed'))
     }
   }
 )
@@ -21,11 +21,10 @@ export const fetchBusinessGuidance = createAsyncThunk(
   'business/fetchGuidance',
   async (businessType: string, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get<{ guidance: BusinessGuidance }>(`/business/${businessType}`)
+      const response = await apiClient.get<{ guidance: BusinessGuidance }>(`/business/${businessType}`, { params: { lang: getCurrentLang() } })
       return response.data.guidance
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to load guidance')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.guidanceFailed'))
     }
   }
 )
@@ -37,8 +36,7 @@ export const createApplication = createAsyncThunk(
       const response = await apiClient.post<BusinessApplication>('/business/applications', data)
       return response.data
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to create application')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.createFailed'))
     }
   }
 )
@@ -47,11 +45,10 @@ export const fetchBusinessApplications = createAsyncThunk(
   'business/fetchApplications',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get<{ applications: BusinessApplication[] }>('/business/applications')
+      const response = await apiClient.get<{ applications: BusinessApplication[] }>('/business/applications', { params: { lang: getCurrentLang() } })
       return response.data.applications
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to load applications')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.applicationsFailed'))
     }
   }
 )
@@ -66,8 +63,7 @@ export const updateApplication = createAsyncThunk(
       })
       return response.data
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to update application')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.updateFailed'))
     }
   }
 )
@@ -79,8 +75,7 @@ export const deleteApplication = createAsyncThunk(
       await apiClient.delete(`/business/applications/${app_id}`)
       return app_id
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to delete application')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.deleteFailed'))
     }
   }
 )
@@ -89,11 +84,10 @@ export const fetchChecklist = createAsyncThunk(
   'business/fetchChecklist',
   async (app_id: string, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get<{ items: ChecklistItem[] }>(`/business/applications/${app_id}/checklist`)
+      const response = await apiClient.get<{ items: ChecklistItem[] }>(`/business/applications/${app_id}/checklist`, { params: { lang: getCurrentLang() } })
       return response.data.items
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to load checklist')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.checklistFailed'))
     }
   }
 )
@@ -107,8 +101,7 @@ export const saveBusinessChecklist = createAsyncThunk(
       })
       return response.data.items
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      return rejectWithValue(error.response?.data?.detail || 'Failed to save checklist')
+      return rejectWithValue(apiErrorMessage(err, 'store:hub.checklistSaveFailed'))
     }
   }
 )

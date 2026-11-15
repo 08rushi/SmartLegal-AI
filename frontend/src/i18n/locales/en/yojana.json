@@ -1,0 +1,166 @@
+{
+  "categories": {
+    "ALL": "All",
+    "Agriculture": "Agriculture",
+    "Healthcare": "Healthcare",
+    "Finance": "Finance",
+    "Women": "Women",
+    "Education": "Education",
+    "Housing": "Housing"
+  },
+  "states": {
+    "ALL": "All India",
+    "Maharashtra": "Maharashtra",
+    "Madhya Pradesh": "Madhya Pradesh",
+    "Uttar Pradesh": "Uttar Pradesh",
+    "Delhi": "Delhi",
+    "Gujarat": "Gujarat",
+    "Karnataka": "Karnataka",
+    "Tamil Nadu": "Tamil Nadu",
+    "Rajasthan": "Rajasthan",
+    "Bihar": "Bihar",
+    "West Bengal": "West Bengal",
+    "Punjab": "Punjab",
+    "Haryana": "Haryana",
+    "Odisha": "Odisha",
+    "Telangana": "Telangana",
+    "Kerala": "Kerala"
+  },
+  "levels": {
+    "central": "Central",
+    "state": "State"
+  },
+  "status": {
+    "eligible": "Eligible",
+    "partial": "Partly eligible",
+    "ineligible": "Not eligible"
+  },
+  "hub": {
+    "badge": "🏛️ Jan-Yojana AI Hub — Central & State Government Schemes",
+    "title": "Discover & Claim Government Benefits You Deserve",
+    "intro": "Auto-matched Central and State government schemes (PM-KISAN, ABHA Card, Ayushman Bharat, Ladli Behna, MJPJAY). Check personalized eligibility in 30 seconds and access verified official .gov.in application links.",
+    "ctaTest": "⚡ 30-Second Eligibility Test",
+    "ctaGuides": "📰 AI Citizen Guides & Blogs",
+    "tabs": {
+      "schemes": "All Active Schemes ({{count}})",
+      "matcher": "Personalized Eligibility Matcher",
+      "matcherCount": "Personalized Eligibility Matcher ({{count}} Matched)",
+      "blogs": "AI Citizen Blogs ({{count}})"
+    },
+    "filters": {
+      "category": "Category:",
+      "state": "State:"
+    },
+    "benefitsTitle": "🎁 Key Benefits & Financial Payout:",
+    "officialWebsite": "Official Website",
+    "checkMatch": "Check Match %",
+    "loading": "Loading schemes...",
+    "noSchemes": "No schemes found for this filter. Try another category or state.",
+    "matcher": {
+      "resultsTitle": "Matched Scheme Results",
+      "evaluated": "{{count}} schemes evaluated",
+      "fillForm": "Fill form to test eligibility",
+      "emptyTitle": "No Match Evaluation Yet",
+      "emptyBody": "Fill in your age, state, occupation, and income details on the left form to calculate your eligibility score across active schemes.",
+      "matchBadge": "{{score}}% Match ({{status}})",
+      "applyOfficial": "Apply Official 🔗",
+      "gapTitle": "Gap Analysis / Unmet Requirements:"
+    },
+    "blogs": {
+      "title": "AI Citizen Guides & Official Gazette Explanations",
+      "subtitle": "Simplified step-by-step application articles with verified government portal links (.gov.in) and real photographs.",
+      "viewAll": "View All Guides ({{count}}) →",
+      "badge": "Citizen Guide",
+      "read": "Read Guide",
+      "empty": "No guides are available yet."
+    }
+  },
+  "blogList": {
+    "breadcrumbHub": "Jan-Yojana Hub",
+    "breadcrumbGuides": "Citizen Guides",
+    "title": "AI Citizen Guides & Gazette Explanations",
+    "subtitle": "Plain-language breakdown of Central & State schemes with verified government links (.gov.in) and step-by-step application instructions.",
+    "ctaTest": "⚡ Test Eligibility Matcher",
+    "loading": "Loading AI Citizen Guides...",
+    "badge": "Verified Guide",
+    "read": "Read Step-by-Step Guide",
+    "empty": "No guides are available yet."
+  },
+  "blogDetail": {
+    "loading": "Loading AI Citizen Guide...",
+    "notFoundTitle": "Citizen Guide Not Found",
+    "notFoundBody": "The requested scheme guide could not be located.",
+    "backToHub": "← Return to Jan-Yojana Hub",
+    "breadcrumbHub": "Jan-Yojana Hub",
+    "breadcrumbGuides": "Citizen Guides",
+    "badge": "Verified Government Guide",
+    "published": "Published: {{date}}",
+    "portals": "Verified Official Portals:",
+    "plainTitle": "Plain Language Guide for Citizens",
+    "step1Title": "Check Eligibility",
+    "step1Body": "Keep your Aadhaar card, bank account and income certificate ready.",
+    "step2Title": "Apply Online",
+    "step2Body": "Go to the official website (.gov.in) and fill in the application form.",
+    "step3Title": "Direct Bank Transfer (DBT)",
+    "step3Body": "After verification, the amount is credited to your bank account.",
+    "footerTitle": "Check Your Eligibility For This Scheme",
+    "footerBody": "Use our 30-second Rule Evaluation engine to check if you qualify.",
+    "footerCta": "⚡ Test Eligibility Now"
+  },
+  "form": {
+    "title": "Personalized Yojana Matcher",
+    "intro": "Fill in your details below. Fields dynamically adapt based on your inputs to match eligible Central & State schemes.",
+    "state": "State of Domicile",
+    "allIndia": "All India (Central Schemes Only)",
+    "district": "District / City",
+    "optional": "(Optional)",
+    "districtPlaceholder": "e.g. Pune, Bhopal, Lucknow",
+    "age": "Age (Years)",
+    "gender": "Gender",
+    "genders": {
+      "male": "Male",
+      "female": "Female",
+      "all": "Other / Any"
+    },
+    "occupation": "Occupation / Current Activity",
+    "occupations": {
+      "farmer": "Farmer / Agriculture",
+      "student": "Student / Youth",
+      "salaried": "Salaried Employee",
+      "unemployed": "Unemployed / Job Seeker",
+      "self_employed": "Self-Employed / Small Business",
+      "construction_worker": "Construction Worker / Daily Wage Labor"
+    },
+    "land": {
+      "title": "🌾 Agricultural Landholding (Acres)",
+      "hint": "PM-KISAN and State Agriculture schemes evaluate land size.",
+      "placeholder": "e.g. 1.5"
+    },
+    "income": "Annual Family Income Bracket",
+    "incomes": {
+      "150000": "Below ₹1.5 Lakhs / yr",
+      "300000": "₹1.5L – ₹3.0 Lakhs / yr",
+      "800000": "₹3.0L – ₹8.0 Lakhs / yr",
+      "1500000": "Above ₹8.0 Lakhs / yr"
+    },
+    "socialCategory": "Social Category & Ration Status",
+    "socialCategories": {
+      "General": "General",
+      "OBC": "OBC",
+      "SC": "SC",
+      "ST": "ST",
+      "Minorities": "Minorities",
+      "BPL / Ration Card": "BPL / Ration Card"
+    },
+    "pregnant": {
+      "title": "🤰 Pregnant or Lactating Mother",
+      "hint": "Unlocks PMMVY and Women Welfare Benefits"
+    },
+    "disability": {
+      "title": "♿ Person with Disability (Divyangjan)",
+      "hint": "Unlocks Special Disability Pensions & Assistive Grants"
+    },
+    "submitting": "Evaluating Scheme Eligibility...",
+    "submit": "🔍 Match Eligible Schemes"
+  }
+}

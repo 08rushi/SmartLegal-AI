@@ -1,0 +1,19 @@
+{
+  "title": "Business License Hub",
+  "eyebrow": "Business Licences & Registrations",
+  "subtitle": "Guidance for 9 business registrations — GST, FSSAI Food Licence, MSME Udyam, Shop Act, Import Export Code (IEC), Trade Licence, Professional Tax, PAN/TAN and Startup India.",
+  "itemDescription": "Official registration steps, rules to follow, and a checklist for {{name}}.",
+  "backToHub": "Back to Business License Hub",
+  "notFound": "This business service was not found.",
+  "types": {
+    "gst": "GST Registration",
+    "fssai": "FSSAI Registration",
+    "msme": "MSME / Udyam Registration",
+    "shop_establishment": "Shop & Establishment Registration",
+    "iec": "IEC (Import Export Code) Registration",
+    "trade_license": "Trade Licence",
+    "professional_tax": "Professional Tax Registration",
+    "pan_tan": "PAN / TAN Registration",
+    "startup_india": "Startup India Registration"
+  }
+}

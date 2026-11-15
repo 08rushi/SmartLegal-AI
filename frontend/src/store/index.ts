@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit'
-import authReducer from './authSlice'
+import authReducer, { sessionExpired } from './authSlice'
+import { setUnauthorizedHandler } from '../services/api'
 import documentReducer from './documentSlice'
 import analysisReducer from './analysisSlice'
 import chatReducer from './chatSlice'
@@ -25,6 +26,8 @@ export const store = configureStore({
   },
 })
 
+// A 401 on any authenticated call means the cookie session ended: drop local user state.
+setUnauthorizedHandler(() => store.dispatch(sessionExpired()))
 
 // Infer types from store itself
 export type RootState = ReturnType<typeof store.getState>

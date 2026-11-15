@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useVoiceAsk } from '../hooks/useVoiceAsk'
+import { VoiceConversationPanel } from '../components/voice/VoiceConversationPanel'
+import { VoiceButton } from '../components/voice/VoiceButton'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { addUserMessage, fetchChatHistory, sendChatMessage, setDocumentId } from '../store/chatSlice'
 import { analyzeDocument } from '../store/analysisSlice'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
@@ -10,14 +15,7 @@ import type { AnalysisResult } from '../types'
 
 import { demoDocument } from '../utils/demoData'
 
-// Shown only when no analysis is available for the current document.
-const GENERIC_QUESTIONS = [
-  'What is this document about?',
-  'What are the main risks for me?',
-  'What are my key obligations?',
-  'Are there any important dates or deadlines?',
-  'Which parts are in my favour?',
-]
+const GENERIC_KEYS = ['about', 'risks', 'obligations', 'dates', 'favour'] as const
 
 function truncate(text: string, max = 52): string {
   const t = text.trim()
@@ -29,15 +27,16 @@ function truncate(text: string, max = 52): string {
  * specific to what the user actually uploaded (a rental clause, an FIR charge, a
  * cheque-bounce notice, etc.) rather than one static rental-only list.
  */
-function buildSuggestedQuestions(analysis: AnalysisResult | null, docId?: string): string[] {
-  if (!analysis || (docId && analysis.document_id !== docId)) return GENERIC_QUESTIONS
+function buildSuggestedQuestions(t: TFunction, analysis: AnalysisResult | null, docId?: string): string[] {
+  if (!analysis || (docId && analysis.document_id !== docId))
+    return GENERIC_KEYS.map((k) => t(`suggestions.generic.${k}`))
 
   const s = analysis.summary
-  const docType = (s.document_type || 'document').trim()
+  const docType = (s.document_type || t('defaultDocType')).trim()
   const out: string[] = []
 
-  out.push(`What does this ${docType} mean for me?`)
-  if ((s.high_risk_count ?? 0) > 0) out.push('What are the biggest risks I should worry about?')
+  out.push(t('suggestions.meaning', { docType }))
+  if ((s.high_risk_count ?? 0) > 0) out.push(t('suggestions.biggestRisks'))
 
   // Reference the actual highest-risk points from the document.
   const seen = new Set<string>()
@@ -49,12 +48,12 @@ function buildSuggestedQuestions(analysis: AnalysisResult | null, docId?: string
     const key = label.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)
-    out.push(`Explain: "${truncate(label)}"`)
+    out.push(t('suggestions.explain', { label: truncate(label) }))
   }
 
-  if (s.your_obligations && s.your_obligations.length) out.push('What do I need to do next?')
-  if (s.other_party_rights && s.other_party_rights.length) out.push('What can the other party do?')
-  if (s.beneficial_clauses && s.beneficial_clauses.length) out.push('Which points are in my favour?')
+  if (s.your_obligations && s.your_obligations.length) out.push(t('suggestions.next'))
+  if (s.other_party_rights && s.other_party_rights.length) out.push(t('suggestions.otherParty'))
+  if (s.beneficial_clauses && s.beneficial_clauses.length) out.push(t('suggestions.generic.favour'))
 
   // De-duplicate and cap.
   const unique = Array.from(new Set(out))
@@ -62,6 +61,8 @@ function buildSuggestedQuestions(analysis: AnalysisResult | null, docId?: string
 }
 
 export default function Chat() {
+  const { t, i18n } = useTranslation('chat')
+  const locale = `${i18n.language.slice(0, 2)}-IN`
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { messages, isLoading, error } = useAppSelector((s) => s.chat)
@@ -72,10 +73,24 @@ export default function Chat() {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const suggestedQuestions = useMemo(
-    () => buildSuggestedQuestions(analysis, currentDoc?.id),
-    [analysis, currentDoc?.id]
+    () => buildSuggestedQuestions(t, analysis, currentDoc?.id),
+    [t, analysis, currentDoc?.id]
   )
   const loadedAnalysisRef = useRef<string | null>(null)
+
+  const askByVoice = useCallback(
+    async (text: string, signal: AbortSignal) => {
+      if (!currentDoc) throw new Error('no document')
+      dispatch(addUserMessage(text))
+      trackEvent('chat_question_sent', { documentId: currentDoc.id, questionLength: text.length, voice: true })
+      const req = dispatch(sendChatMessage({ document_id: currentDoc.id, question: text }))
+      signal.addEventListener('abort', () => req.abort())
+      const msg = await req.unwrap()
+      return msg.content
+    },
+    [dispatch, currentDoc],
+  )
+  const voice = useVoiceAsk({ ask: askByVoice, disabled: isLoading })
 
   useEffect(() => {
     if (currentDoc && currentDoc.id !== 'demo') {
@@ -119,14 +134,14 @@ export default function Chat() {
       <div className="mx-auto grid max-w-7xl gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
         {/* Sidebar */}
         <Card as="aside" variant="section" className="hidden h-fit rounded-[24px] p-4 xl:block">
-          <p className="text-sm text-slate-500">SmartLegal AI</p>
+          <p className="text-sm text-slate-500">{t('assistantName')}</p>
 
           <h1 className="mt-2 text-2xl font-semibold text-white">
-            Ask Anything About Your Document
+            {t('title')}
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-400">
-            The assistant answers using only your uploaded document context.
+            {t('sidebarNote')}
           </p>
 
           <div className="mt-6 space-y-3">
@@ -137,7 +152,7 @@ export default function Chat() {
               }
               className="btn-secondary w-full justify-center"
             >
-              Back to Analysis
+              {t('backToAnalysis')}
             </button>
 
             <button
@@ -145,21 +160,21 @@ export default function Chat() {
               onClick={() => navigate('/upload')}
               className="btn-primary w-full justify-center"
             >
-              Upload New File
+              {t('uploadNew')}
             </button>
           </div>
 
           <Card variant="outline" className="mt-8 min-w-0 rounded-[24px] p-4">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-              Document
+              {t('document')}
             </p>
 
             <p className="mt-3 break-all text-sm text-white">
-              {currentDoc?.filename || 'Uploaded document'}
+              {currentDoc?.filename || t('uploadedDocument')}
             </p>
 
             <p className="mt-1 text-sm text-slate-400">
-              {analysis?.summary.document_type || 'Legal document'}
+              {analysis?.summary.document_type || t('legalDocument')}
             </p>
           </Card>
         </Card>
@@ -169,24 +184,24 @@ export default function Chat() {
         {/* Chat Header */}
         <div className="shrink-0 border-b border-white/8 pb-3 sm:pb-4">
           <p className="text-xs text-slate-500 sm:text-sm">
-            AI Chat Workspace
+            {t('workspace')}
           </p>
 
           <div className="mt-1 flex items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-white sm:text-2xl lg:text-3xl">
-              Ask Anything About Your Document
+              {t('title')}
             </h2>
 
             <span className="hidden shrink-0 rounded-full border border-[#8a5cff]/20 bg-[#8a5cff]/10 px-3 py-1 text-xs text-[#c5b4ff] sm:block">
-              Document AI
+              {t('badge')}
             </span>
           </div>
 
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-400 sm:mt-2 sm:text-sm sm:leading-6">
-            Ask about rights, notice periods, penalties, or any unclear clause
-            and get a document-grounded answer.
+            {t('subtitle')}
           </p>
         </div>
+
 
         {/* Chat Content */}
         <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center py-4 sm:py-5">
@@ -199,11 +214,11 @@ export default function Chat() {
 
               <div>
                 <h3 className="text-lg font-semibold text-white sm:text-xl">
-                  What would you like to know?
+                  {t('empty.title')}
                 </h3>
 
                 <p className="mx-auto mt-1 max-w-xl text-xs leading-5 text-slate-400 sm:text-sm">
-                  Ask anything about your uploaded legal document.
+                  {t('empty.subtitle')}
                 </p>
               </div>
 
@@ -241,7 +256,7 @@ export default function Chat() {
                   >
                     {msg.role === 'assistant' && (
                       <p className="mb-1 text-[9px] uppercase tracking-[0.2em] text-slate-500 sm:text-[10px]">
-                        SmartLegal AI
+                        {t('assistantName')}
                       </p>
                     )}
 
@@ -258,7 +273,7 @@ export default function Chat() {
                           : 'text-slate-500'
                       }`}
                     >
-                      {new Date(msg.timestamp).toLocaleTimeString([], {
+                      {new Date(msg.timestamp).toLocaleTimeString(locale, {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
@@ -273,7 +288,7 @@ export default function Chat() {
                   <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <span className="text-[9px] uppercase tracking-[0.2em] text-slate-500">
-                        Thinking
+                        {t('thinking')}
                       </span>
 
                       {[0, 1, 2].map((dot) => (
@@ -304,16 +319,18 @@ export default function Chat() {
 
         {/* Chat Input */}
         <div className="mx-auto w-full max-w-4xl shrink-0 border-t border-white/8 pt-3 sm:pt-4">
+          <VoiceConversationPanel voice={voice} className="mb-3" />
           <div className="flex items-end gap-2 sm:gap-3">
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleKeyDown}
               rows={1}
-              placeholder="Ask a question about your document..."
+              placeholder={t('inputPlaceholder')}
               disabled={isLoading}
               className="input-field min-h-[46px] flex-1 resize-none py-3 text-sm sm:min-h-[52px] sm:py-3.5"
             />
+            <VoiceButton voice={voice} />
 
             <button
               type="button"
@@ -321,12 +338,12 @@ export default function Chat() {
               disabled={!input.trim() || isLoading}
               className="btn-primary h-[46px] shrink-0 justify-center px-4 disabled:cursor-not-allowed disabled:opacity-60 sm:h-[52px] sm:px-6"
             >
-              Send →
+              {t('send')}
             </button>
           </div>
 
           <p className="mt-1.5 text-center text-[9px] text-slate-500 sm:mt-2 sm:text-[10px]">
-            Answers are based on your uploaded document and are not legal advice.
+            {t('disclaimer')}
           </p>
         </div>
       </Card>

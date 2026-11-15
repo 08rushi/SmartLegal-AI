@@ -250,9 +250,10 @@ test('[UNCLEAR] Semantics: [UNCLEAR] is treated as physical scan uncertainty, no
   const pillFile = path.join(FRONTEND_SRC, 'components', 'analysis', 'UnclearTextPill.tsx')
   assert.equal(fs.existsSync(pillFile), true, 'UnclearTextPill.tsx must exist')
 
-  const pillContent = fs.readFileSync(pillFile, 'utf-8')
-  assert.equal(pillContent.includes('Physical Document Verification Needed'), true)
-  assert.equal(pillContent.includes('This indicates scan legibility, not legal validity'), true)
+  // UI text now lives in the i18n locale files (English source of truth).
+  const clausesEn = fs.readFileSync(path.join(FRONTEND_SRC, 'i18n', 'locales', 'en', 'clauses.json'), 'utf-8')
+  assert.equal(clausesEn.includes('Physical Document Verification Needed'), true)
+  assert.equal(clausesEn.includes('This indicates scan legibility, not legal validity'), true)
 })
 
 // ── Suite 5: Phase 6 Telemetry Filtering (Information Disclosure) ───────────
@@ -352,7 +353,9 @@ test('Partial Analysis UX: Displays "Re-analyze Document" and prohibits "Re-anal
   const alertFile = path.join(FRONTEND_SRC, 'components', 'analysis', 'PartialAnalysisAlert.tsx')
   assert.equal(fs.existsSync(alertFile), true, 'PartialAnalysisAlert.tsx must exist')
 
-  const content = fs.readFileSync(alertFile, 'utf-8')
+  // UI text now lives in the i18n locale files (English source of truth).
+  const content = fs.readFileSync(alertFile, 'utf-8') +
+    fs.readFileSync(path.join(FRONTEND_SRC, 'i18n', 'locales', 'en', 'analysis.json'), 'utf-8')
   assert.equal(content.includes('Partial Document Analysis'), true)
   assert.equal(content.includes('Unprocessed Document Sections:'), true)
   assert.equal(content.includes('Re-analyze Document'), true)

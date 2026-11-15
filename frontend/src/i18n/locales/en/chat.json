@@ -1,0 +1,42 @@
+{
+  "title": "Ask Anything About Your Document",
+  "sidebarNote": "The assistant answers using only your uploaded document context.",
+  "backToAnalysis": "Back to Analysis",
+  "uploadNew": "Upload New File",
+  "document": "Document",
+  "uploadedDocument": "Uploaded document",
+  "legalDocument": "Legal document",
+  "workspace": "AI Chat Workspace",
+  "badge": "Document AI",
+  "subtitle": "Ask about rights, notice periods, penalties, or any unclear clause and get a document-grounded answer.",
+  "empty": {
+    "title": "What would you like to know?",
+    "subtitle": "Ask anything about your uploaded legal document."
+  },
+  "assistantName": "SmartLegal AI",
+  "thinking": "Thinking",
+  "inputPlaceholder": "Ask a question about your document...",
+  "send": "Send →",
+  "disclaimer": "Answers are based on your uploaded document and are not legal advice.",
+  "defaultDocType": "document",
+  "suggestions": {
+    "generic": {
+      "about": "What is this document about?",
+      "risks": "What are the main risks for me?",
+      "obligations": "What are my key obligations?",
+      "dates": "Are there any important dates or deadlines?",
+      "favour": "Which parts are in my favour?"
+    },
+    "meaning": "What does this {{docType}} mean for me?",
+    "biggestRisks": "What are the biggest risks I should worry about?",
+    "explain": "Explain: \"{{label}}\"",
+    "next": "What do I need to do next?",
+    "otherParty": "What can the other party do?"
+  },
+  "voice": {
+    "unsupported": "Voice recognition is not supported in your browser. Please type your query.",
+    "listeningTitle": "Listening... Speak now",
+    "idleTitle": "Voice search (Hindi / Marathi / English)",
+    "listening": "Listening..."
+  }
+}

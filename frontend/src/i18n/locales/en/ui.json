@@ -1,0 +1,11 @@
+{
+  "close": "Close",
+  "loading": "Loading...",
+  "required": "required",
+  "notice": {
+    "info": "Note",
+    "success": "Done",
+    "warn": "Careful",
+    "error": "Problem"
+  }
+}

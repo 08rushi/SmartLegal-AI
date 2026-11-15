@@ -1,0 +1,11 @@
+{
+  "network": "Could not reach the server. Please check your internet connection and try again.",
+  "uploadFailed": "Upload failed. Please try again.",
+  "history": "Could not load your documents. Please try again.",
+  "delete": "Could not delete the selected document(s). Please try again.",
+  "load": "Could not load the document. Please try again.",
+  "signIn": "Please sign in to use this feature.",
+  "consequences": "Could not generate the \"what if I sign\" simulation.",
+  "negotiation": "Could not generate negotiation guidance.",
+  "analysisFailed": "The analysis could not be completed. Please try again."
+}

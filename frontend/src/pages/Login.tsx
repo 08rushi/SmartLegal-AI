@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { loginUser, loginWithGoogle, clearAuthError } from '../store/authSlice'
 
@@ -21,9 +22,10 @@ declare global {
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 export default function Login() {
+  const { t } = useTranslation('auth')
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const { isLoading, error, token } = useAppSelector((s) => s.auth)
+  const { isLoading, error, isAuthenticated } = useAppSelector((s) => s.auth)
   const location = useLocation()
   const redirectTo = (location.state as { from?: string } | null)?.from || '/upload'
   const googleBtnRef = useRef<HTMLDivElement>(null)
@@ -34,8 +36,8 @@ export default function Login() {
 
   // Redirect if already logged in (back to where the user was headed, if known)
   useEffect(() => {
-    if (token) navigate(redirectTo, { replace: true })
-  }, [token, navigate, redirectTo])
+    if (isAuthenticated) navigate(redirectTo, { replace: true })
+  }, [isAuthenticated, navigate, redirectTo])
 
   // Clear errors when component mounts
   useEffect(() => {
@@ -99,12 +101,12 @@ export default function Login() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.22),transparent_40%),linear-gradient(180deg,#0a1020,#090d17)]" />
           <div className="relative z-10 flex h-full flex-col justify-between p-10">
             <div>
-              <p className="text-sm uppercase tracking-[0.26em] text-slate-500">Welcome Back</p>
+              <p className="text-sm uppercase tracking-[0.26em] text-slate-500">{t('login.eyebrow')}</p>
               <h1 className="mt-5 max-w-sm text-5xl font-semibold leading-tight text-white">
-                Sign in to continue your analysis.
+                {t('login.heroTitle')}
               </h1>
               <p className="mt-4 text-sm leading-7 text-slate-400">
-                All your uploaded documents, chat history, and risk reports — exactly where you left them.
+                {t('login.heroBody')}
               </p>
             </div>
             <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6">
@@ -118,15 +120,15 @@ export default function Login() {
         {/* Right form panel */}
         <div className="p-6 sm:p-8 lg:p-10">
           <div className="mx-auto max-w-md">
-            <p className="text-sm uppercase tracking-[0.26em] text-slate-500">Sign In</p>
-            <h2 className="mt-4 text-3xl font-semibold text-white">Access your saved reviews.</h2>
+            <p className="text-sm uppercase tracking-[0.26em] text-slate-500">{t('login.formEyebrow')}</p>
+            <h2 className="mt-4 text-3xl font-semibold text-white">{t('login.formTitle')}</h2>
             <p className="mt-3 text-sm leading-7 text-slate-400">
-              Resume previous uploads, keep your chat history, and continue reviewing legal documents with the same premium workspace.
+              {t('login.formBody')}
             </p>
 
             {/* Error banner */}
             {error && (
-              <div className="mt-5 rounded-[18px] border border-[#fb7185]/25 bg-[#2a1320]/65 px-4 py-3 text-sm text-[#fecdd3]">
+              <div id="login-error" role="alert" className="mt-5 rounded-[18px] border border-[#fb7185]/25 bg-[#2a1320]/65 px-4 py-3 text-sm text-[#fecdd3]">
                 {error}
               </div>
             )}
@@ -140,11 +142,11 @@ export default function Login() {
                   type="button"
                   disabled
                   className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white/[0.04] py-3 text-sm text-slate-400"
-                  title="Add VITE_GOOGLE_CLIENT_ID to .env.local to enable"
+                  title={t('googleTooltip')}
                 >
                   <GoogleIcon />
-                  Continue with Google
-                  <span className="ml-auto text-xs text-slate-600">(configure client ID)</span>
+                  {t('continueWithGoogle')}
+                  <span className="ml-auto text-xs text-slate-600">{t('configureClientId')}</span>
                 </button>
               )}
             </div>
@@ -152,32 +154,38 @@ export default function Login() {
             {/* Divider */}
             <div className="my-6 flex items-center gap-3">
               <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs text-slate-600">or sign in with email</span>
+              <span className="text-xs text-slate-600">{t('login.withEmail')}</span>
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
             {/* Email form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm text-slate-400">Email Address</label>
+                <label htmlFor="login-email" className="mb-2 block text-sm text-slate-400">{t('email')}</label>
                 <input
+                  id="login-email"
+                  aria-describedby={error ? 'login-error' : undefined}
+                  aria-invalid={error ? true : undefined}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
+                  placeholder={t('emailPlaceholder')}
                   required
                   autoComplete="email"
                   className="input-field"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm text-slate-400">Password</label>
+                <label htmlFor="login-password" className="mb-2 block text-sm text-slate-400">{t('password')}</label>
                 <div className="relative">
                   <input
+                    id="login-password"
+                    aria-describedby={error ? 'login-error' : undefined}
+                    aria-invalid={error ? true : undefined}
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder={t('login.passwordPlaceholder')}
                     required
                     autoComplete="current-password"
                     className="input-field pr-12"
@@ -185,9 +193,10 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
+                    aria-pressed={showPassword}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-300"
                   >
-                    {showPassword ? 'Hide' : 'Show'}
+                    {showPassword ? t('common:hide') : t('common:show')}
                   </button>
                 </div>
               </div>
@@ -199,25 +208,25 @@ export default function Login() {
                 {isLoading ? (
                   <span className="flex items-center gap-2">
                     <Spinner />
-                    Signing in...
+                    {t('login.submitting')}
                   </span>
                 ) : (
-                  'Sign In →'
+                  t('login.submit')
                 )}
               </button>
             </form>
 
             <div className="mt-5 flex items-center justify-between gap-3 text-sm">
               <Link to="/forgot-password" className="text-slate-500 transition hover:text-[#f5c26b]">
-                Forgot Password?
+                {t('login.forgot')}
               </Link>
               <Link to="/register" className="text-slate-400 transition hover:text-white">
-                Create an account
+                {t('login.create')}
               </Link>
             </div>
 
             <p className="mt-6 text-center text-xs leading-6 text-slate-600">
-              By signing in you agree to our Terms of Service. SmartLegal AI does not store your documents after analysis.
+              {t('login.terms')}
             </p>
           </div>
         </div>

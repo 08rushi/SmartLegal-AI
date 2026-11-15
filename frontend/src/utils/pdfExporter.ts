@@ -1,303 +1,90 @@
-import jsPDF from 'jspdf'
+import i18n from '../i18n'
+import { DEFAULT_LANGUAGE, LANGUAGES, normalizeLanguage } from '../i18n/languages'
 import type { AnalysisResult, UploadedDocument } from '../types'
+import { formatLocalDate } from './i18nHelpers'
+import {
+  PRINT_ROOT_ID,
+  buildReportHtml,
+  buildReportPdf,
+  reportCss,
+  reportFileBase,
+  type ReportContext,
+} from './pdfReport'
 
 /**
- * Generates and downloads a clean, executive PDF report for a SmartLegal AI Analysis
- * featuring a full-page low-opacity background watermark across every page.
+ * Exports the analysis report in the selected language.
+ *
+ *  - English: jsPDF, direct .pdf download (Latin text, built-in fonts).
+ *  - Hindi / Marathi: jsPDF cannot shape Devanagari (conjuncts/matras break with any embedded TTF),
+ *    so the report is rendered by the browser (HarfBuzz shaping, bundled Noto Sans Devanagari) in a
+ *    print-only DOM block and the print dialog opens ("Save as PDF"). Nothing is fetched at runtime.
+ *
+ * `result` must already be the view for `lang` (translated analysis for hi/mr).
  */
-export function exportAnalysisToPDF(result: AnalysisResult, document?: UploadedDocument | null) {
-  const doc = new jsPDF({
-    orientation: 'p',
-    unit: 'mm',
-    format: 'a4',
-  })
+export async function exportAnalysisToPDF(
+  result: AnalysisResult,
+  document?: UploadedDocument | null,
+  lang?: string,
+  options: { translated?: boolean } = {},
+): Promise<void> {
+  const code = normalizeLanguage(lang ?? i18n.language) ?? DEFAULT_LANGUAGE
+  const ctx: ReportContext = {
+    t: i18n.getFixedT(code, 'analysis') as ReportContext['t'],
+    lang: code,
+    dateText: formatLocalDate(new Date(), { day: 'numeric', month: 'short', year: 'numeric' }, code),
+    languageName: LANGUAGES.find((l) => l.code === code)?.nativeName ?? code,
+    translated: options.translated ?? code !== 'en',
+  }
+  const base = reportFileBase(result, document?.filename)
 
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-  const margin = 15
-  const contentWidth = pageWidth - margin * 2
-  let y = margin
+  if (code === 'en') {
+    const pdf = await buildReportPdf(result, document?.filename, ctx)
+    pdf.save(`${base}.pdf`)
+    return
+  }
+  await printReport(buildReportHtml(result, document?.filename, ctx), base, code)
+}
 
-  const checkPageBreak = (neededHeight: number) => {
-    if (y + neededHeight > pageHeight - 20) {
-      doc.addPage()
-      y = margin
-      addHeader()
-    }
+/** Renders `html` into a print-only block and opens the print dialog; cleans up afterwards. */
+async function printReport(html: string, title: string, lang: string): Promise<void> {
+  const doc = window.document
+  doc.getElementById(PRINT_ROOT_ID)?.remove()
+  doc.getElementById(`${PRINT_ROOT_ID}-style`)?.remove()
+
+  const style = doc.createElement('style')
+  style.id = `${PRINT_ROOT_ID}-style`
+  style.textContent = reportCss()
+  const root = doc.createElement('div')
+  root.id = PRINT_ROOT_ID
+  root.setAttribute('lang', lang)
+  root.innerHTML = html
+  doc.head.appendChild(style)
+  doc.body.appendChild(root)
+
+  // Make sure the Devanagari font faces (lazy, unicode-range subset) are loaded before printing.
+  try {
+    const sample = root.textContent?.slice(0, 400) || 'अ'
+    await Promise.all([
+      doc.fonts.load('400 11pt "Noto Sans Devanagari"', sample),
+      doc.fonts.load('700 11pt "Noto Sans Devanagari"', sample),
+    ])
+    await doc.fonts.ready
+  } catch {
+    /* font loading API unavailable: print with whatever is loaded */
   }
 
-  const addHeader = () => {
-    // Header bar
-    doc.setFillColor(15, 23, 42) // Dark Navy
-    doc.rect(0, 0, pageWidth, 12, 'F')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.setTextColor(245, 194, 107) // Gold
-    doc.text('SMARTLEGAL AI — LEGAL ANALYSIS REPORT', margin, 8)
+  // The default "Save as PDF" file name comes from the page title.
+  const previousTitle = doc.title
+  doc.title = title
 
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
-    doc.setTextColor(255, 255, 255)
-    doc.text(new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), pageWidth - margin, 8, { align: 'right' })
+  const cleanup = () => {
+    doc.title = previousTitle
+    root.remove()
+    style.remove()
+    window.removeEventListener('afterprint', cleanup)
   }
-
-  const addWatermark = (pageNumber: number) => {
-    doc.setPage(pageNumber)
-
-    // Set low opacity using GState transparency
-    const GState = (doc as any).GState
-    if (GState) {
-      doc.setGState(new GState({ opacity: 0.21 })) // ~14% opacity for clear yet non-intrusive background watermark
-    }
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(42)
-    doc.setTextColor(148, 163, 184) // Slate light grey
-
-    // Center of A4 page (105mm, 148.5mm), rotated 45 degrees
-    doc.text('SMARTLEGAL AI', pageWidth / 2, pageHeight / 2 - 15, {
-      align: 'center',
-      angle: 45,
-      rotationDirection: 0,
-    })
-
-    doc.setFontSize(26)
-    doc.text('CONFIDENTIAL LEGAL ANALYSIS', pageWidth / 2, pageHeight / 2 + 15, {
-      align: 'center',
-      angle: 45,
-      rotationDirection: 0,
-    })
-
-    // Reset GState opacity back to 1.0
-    if (GState) {
-      doc.setGState(new GState({ opacity: 1.0 }))
-    }
-  }
-
-  const addFooter = (pageNumber: number, totalPages: number) => {
-    doc.setPage(pageNumber)
-    doc.setDrawColor(226, 232, 240)
-    doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12)
-
-    doc.setFont('helvetica', 'italic')
-    doc.setFontSize(7.5)
-    doc.setTextColor(100, 116, 139)
-    doc.text('Confidential — Generated by SmartLegal AI for informational purposes. Not legal advice.', margin, pageHeight - 7)
-
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Page ${pageNumber} of ${totalPages}`, pageWidth - margin, pageHeight - 7, { align: 'right' })
-  }
-
-  // --- Start Page 1 ---
-  addHeader()
-  y = 20
-
-  // Title Section
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(18)
-  doc.setTextColor(15, 23, 42)
-  doc.text('Legal Document Review', margin, y)
-  y += 7
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.setTextColor(100, 116, 139)
-  const filenameText = `File: ${document?.filename || result.summary.document_type || 'Uploaded Agreement.pdf'}`
-  doc.text(filenameText, margin, y)
-  y += 10
-
-  // Executive Summary Card Container
-  doc.setFillColor(248, 250, 252) // slate-50
-  doc.setDrawColor(226, 232, 240)
-  doc.roundedRect(margin, y, contentWidth, 38, 3, 3, 'FD')
-
-  // Overall Risk Badge
-  const risk = result.summary.overall_risk.toUpperCase()
-  let badgeBg = '#34d399' // low
-  if (risk === 'HIGH') badgeBg = '#fb7185'
-  if (risk === 'MEDIUM') badgeBg = '#f5c26b'
-
-  doc.setFillColor(badgeBg)
-  doc.roundedRect(margin + 6, y + 6, 28, 7, 2, 2, 'F')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(15, 23, 42)
-  doc.text(`${risk} RISK`, margin + 20, y + 10.5, { align: 'center' })
-
-  // Summary stats
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
-  doc.setTextColor(15, 23, 42)
-  doc.text(`Total Clauses: ${result.summary.total_clauses}`, margin + 42, y + 10.5)
-
-  doc.setTextColor(225, 29, 72)
-  doc.text(`High Risk: ${result.summary.high_risk_count}`, margin + 85, y + 10.5)
-
-  doc.setTextColor(217, 119, 6)
-  doc.text(`Medium Risk: ${result.summary.medium_risk_count}`, margin + 120, y + 10.5)
-
-  doc.setTextColor(16, 185, 129)
-  doc.text(`Low Risk: ${result.summary.low_risk_count}`, margin + 155, y + 10.5)
-
-  // Risk summary paragraph
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(51, 65, 85)
-  const summaryLines = doc.splitTextToSize(result.summary.risk_summary || 'Analysis complete.', contentWidth - 12)
-  doc.text(summaryLines.slice(0, 3), margin + 6, y + 19)
-
-  y += 44
-
-  // Key Information (Parties & Dates)
-  if (result.summary.parties.length > 0 || result.summary.key_dates.length > 0) {
-    checkPageBreak(30)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.setTextColor(15, 23, 42)
-    doc.text('Key Contract Details', margin, y)
-    y += 6
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-
-    if (result.summary.parties.length > 0) {
-      doc.setFont('helvetica', 'bold')
-      doc.text('Parties Involved:', margin, y)
-      doc.setFont('helvetica', 'normal')
-      doc.text(result.summary.parties.join(' • '), margin + 30, y)
-      y += 6
-    }
-
-    if (result.summary.key_dates.length > 0) {
-      doc.setFont('helvetica', 'bold')
-      doc.text('Key Dates:', margin, y)
-      doc.setFont('helvetica', 'normal')
-      const datesFormatted = result.summary.key_dates.map((d) => `${d.label}: ${d.date}`).join(' | ')
-      const dateLines = doc.splitTextToSize(datesFormatted, contentWidth - 30)
-      doc.text(dateLines, margin + 30, y)
-      y += dateLines.length * 5 + 4
-    }
-    y += 2
-  }
-
-  // Rights & Obligations Section
-  if ((result.summary.your_obligations && result.summary.your_obligations.length > 0) ||
-      (result.summary.other_party_rights && result.summary.other_party_rights.length > 0)) {
-    checkPageBreak(35)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.setTextColor(15, 23, 42)
-    doc.text('Rights & Obligations Summary', margin, y)
-    y += 6
-
-    if (result.summary.your_obligations && result.summary.your_obligations.length > 0) {
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(9)
-      doc.setTextColor(217, 119, 6) // Gold / Warning
-      doc.text('• Your Core Obligations:', margin, y)
-      y += 5
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8.5)
-      doc.setTextColor(51, 65, 85)
-      result.summary.your_obligations.slice(0, 4).forEach((ob) => {
-        checkPageBreak(6)
-        const lines = doc.splitTextToSize(`- ${ob}`, contentWidth - 6)
-        doc.text(lines, margin + 4, y)
-        y += lines.length * 4.5
-      })
-      y += 2
-    }
-
-    if (result.summary.other_party_rights && result.summary.other_party_rights.length > 0) {
-      checkPageBreak(15)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(9)
-      doc.setTextColor(109, 40, 217) // Purple
-      doc.text('• Other Party Rights:', margin, y)
-      y += 5
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8.5)
-      doc.setTextColor(51, 65, 85)
-      result.summary.other_party_rights.slice(0, 4).forEach((rt) => {
-        checkPageBreak(6)
-        const lines = doc.splitTextToSize(`- ${rt}`, contentWidth - 6)
-        doc.text(lines, margin + 4, y)
-        y += lines.length * 4.5
-      })
-      y += 4
-    }
-  }
-
-  // Clause-by-Clause Breakdown Section
-  checkPageBreak(25)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.setTextColor(15, 23, 42)
-  doc.text(`Clause-by-Clause Breakdown (${result.clauses.length} Clauses Extracted)`, margin, y)
-  y += 8
-
-  result.clauses.forEach((clause, index) => {
-    checkPageBreak(38)
-
-    // Draw clause title header
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    doc.setTextColor(15, 23, 42)
-    doc.text(`${String(index + 1).padStart(2, '0')}. ${clause.title}`, margin + 3, y + 4)
-
-    // Risk Pill
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
-    doc.setTextColor(clause.risk_level === 'high' ? 225 : clause.risk_level === 'medium' ? 180 : 16, clause.risk_level === 'high' ? 29 : clause.risk_level === 'medium' ? 100 : 185, clause.risk_level === 'high' ? 72 : clause.risk_level === 'medium' ? 10 : 129)
-    doc.text(`[${clause.risk_level.toUpperCase()} RISK - Score: ${clause.risk_score}/10]`, pageWidth - margin, y + 4, { align: 'right' })
-
-    y += 9
-
-    // Plain English Breakdown
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8.5)
-    doc.setTextColor(51, 65, 85)
-    doc.text('Plain Language Summary:', margin + 3, y)
-    y += 4
-
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(30, 41, 59)
-    const englishLines = doc.splitTextToSize(clause.plain_english, contentWidth - 6)
-    doc.text(englishLines, margin + 3, y)
-    y += englishLines.length * 4.2 + 2
-
-    // Risk Rationale (if high/medium)
-    if (clause.risk_reason && clause.risk_level !== 'low') {
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8)
-      doc.setTextColor(225, 29, 72)
-      doc.text(`Risk Warning Rationale:`, margin + 3, y)
-      y += 4
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.setTextColor(71, 85, 105)
-      const reasonLines = doc.splitTextToSize(clause.risk_reason, contentWidth - 6)
-      doc.text(reasonLines, margin + 3, y)
-      y += reasonLines.length * 4 + 2
-    }
-
-    // Border line between clauses
-    doc.setDrawColor(226, 232, 240)
-    doc.line(margin, y, pageWidth - margin, y)
-    y += 6
-  })
-
-  // Apply Watermark & Footer to all generated pages
-  const totalPages = doc.getNumberOfPages()
-  for (let i = 1; i <= totalPages; i++) {
-    addWatermark(i)
-    addFooter(i, totalPages)
-  }
-
-  // Save PDF file
-  const sanitizeName = (document?.filename || result.summary.document_type || 'Legal_Analysis').replace(/[^a-zA-Z0-9_-]/g, '_')
-  doc.save(`SmartLegal_Analysis_${sanitizeName}.pdf`)
+  window.addEventListener('afterprint', cleanup)
+  // Root is display:none on screen; the print stylesheet reveals it. Let layout settle first.
+  await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+  window.print()
 }

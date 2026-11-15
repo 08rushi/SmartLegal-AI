@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { formatPercent } from '../../utils/i18nHelpers'
 
 interface DocumentReadabilityBadgeProps {
   pageType?: 'digital' | 'scanned' | 'empty' | string
@@ -11,6 +13,7 @@ export function DocumentReadabilityBadge({
   qualityScore,
   ocrConfidence,
 }: DocumentReadabilityBadgeProps) {
+  const { t, i18n } = useTranslation('analysis')
   const [showTooltip, setShowTooltip] = useState(false)
   const isDigital = pageType === 'digital'
   const isScanned = pageType === 'scanned'
@@ -18,25 +21,25 @@ export function DocumentReadabilityBadge({
   // Format OCR confidence string preserving null/unknown semantics
   let confidenceLabel: string
   if (isDigital) {
-    confidenceLabel = 'Not applicable (Digital document)'
+    confidenceLabel = t('readability.notApplicable')
   } else if (ocrConfidence === null || ocrConfidence === undefined) {
-    confidenceLabel = 'Not available'
+    confidenceLabel = t('readability.notAvailable')
   } else {
-    confidenceLabel = `${Math.round(ocrConfidence * 100)}% scan legibility`
+    confidenceLabel = t('readability.legibilityPct', { pct: formatPercent(ocrConfidence, i18n.language) })
   }
 
   // Format technical quality string strictly as typographic readability
-  let readabilityGrade = 'High'
+  let readabilityGrade = t('readability.grade.high')
   if (qualityScore != null) {
-    if (qualityScore < 0.5) readabilityGrade = 'Degraded'
-    else if (qualityScore < 0.75) readabilityGrade = 'Fair'
+    if (qualityScore < 0.5) readabilityGrade = t('readability.grade.degraded')
+    else if (qualityScore < 0.75) readabilityGrade = t('readability.grade.fair')
   }
 
   const badgeLabel = isDigital
-    ? 'Native Digital Text'
+    ? t('readability.badge.digital')
     : isScanned
-    ? 'OCR Scanned Document'
-    : 'Document'
+    ? t('readability.badge.scanned')
+    : t('readability.badge.other')
 
   return (
     <div className="relative inline-block align-middle">
@@ -47,7 +50,7 @@ export function DocumentReadabilityBadge({
         onMouseLeave={() => setShowTooltip(false)}
         onFocus={() => setShowTooltip(true)}
         onBlur={() => setShowTooltip(false)}
-        aria-label={`Document legibility status: ${badgeLabel}. Click or focus for technical legibility details.`}
+        aria-label={t('readability.aria', { label: badgeLabel })}
         aria-expanded={showTooltip}
         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition focus:outline-none focus:ring-2 focus:ring-amber-400 ${
           isDigital
@@ -67,31 +70,32 @@ export function DocumentReadabilityBadge({
           className="absolute z-50 top-full left-0 mt-2 w-80 max-w-[85vw] p-3.5 rounded-2xl bg-slate-900/95 border border-slate-700/80 text-xs text-slate-200 shadow-2xl backdrop-blur-md animate-fadeIn space-y-2 text-left"
         >
           <div className="font-bold text-white flex items-center justify-between">
-            <span>Technical Readability Provenance</span>
+            <span>{t('readability.tooltipTitle')}</span>
             <span className="text-[10px] text-amber-400 uppercase tracking-wider font-semibold">
-              Not Legal Advice
+              {t('readability.notLegalAdvice')}
             </span>
           </div>
 
           <div className="space-y-1 text-slate-300 leading-relaxed text-[11px]">
             <p>
-              <strong>Extraction Source:</strong>{' '}
+              <strong>{t('readability.source')}</strong>{' '}
               {isDigital
-                ? 'Extracted directly from digital vector text layer.'
-                : 'Extracted via optical character recognition (OCR) from raster image/scan.'}
+                ? t('readability.sourceDigital')
+                : t('readability.sourceScanned')}
             </p>
             <p>
-              <strong>OCR Scan Legibility:</strong> {confidenceLabel}
+              <strong>{t('readability.ocrLegibility')}</strong> {confidenceLabel}
             </p>
             {qualityScore != null && (
               <p>
-                <strong>Typographic Readability:</strong> {readabilityGrade} (Character coherence: {Math.round(qualityScore * 100)}%)
+                <strong>{t('readability.typographic')}</strong>{' '}
+                {t('readability.coherence', { grade: readabilityGrade, pct: formatPercent(qualityScore, i18n.language) })}
               </p>
             )}
           </div>
 
           <p className="text-[10px] text-slate-400/90 pt-1 border-t border-slate-800 italic">
-            Notice: Technical readability measures text clarity and character extraction. It does not measure legal validity, statutory compliance, or contractual accuracy.
+            {t('readability.notice')}
           </p>
         </div>
       )}

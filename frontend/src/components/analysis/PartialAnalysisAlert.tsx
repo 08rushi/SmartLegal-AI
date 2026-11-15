@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { formatNumber, formatPercent } from '../../utils/i18nHelpers'
 import type { IncompleteChunkInfo } from '../../types'
 
 interface PartialAnalysisAlertProps {
@@ -11,13 +13,13 @@ interface PartialAnalysisAlertProps {
   isReanalyzing?: boolean
 }
 
-function formatErrorReason(errorType?: string): string {
-  if (!errorType) return 'temporary service limitation'
+function reasonKey(errorType?: string): string {
+  if (!errorType) return 'default'
   const lower = errorType.toLowerCase()
-  if (lower.includes('rate') || lower.includes('429')) return 'server capacity limit'
-  if (lower.includes('timeout') || lower.includes('transient')) return 'network timeout'
-  if (lower.includes('unclear') || lower.includes('scanned') || lower.includes('quality')) return 'scan legibility limits'
-  return 'temporary processing limitation'
+  if (lower.includes('rate') || lower.includes('429')) return 'capacity'
+  if (lower.includes('timeout') || lower.includes('transient')) return 'timeout'
+  if (lower.includes('unclear') || lower.includes('scanned') || lower.includes('quality')) return 'scan'
+  return 'processing'
 }
 
 export function PartialAnalysisAlert({
@@ -29,12 +31,13 @@ export function PartialAnalysisAlert({
   onAskAdvocate,
   isReanalyzing = false,
 }: PartialAnalysisAlertProps) {
+  const { t, i18n } = useTranslation('analysis')
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
   const pct =
     completionRatio != null
-      ? Math.round(completionRatio * 100)
+      ? formatPercent(completionRatio, i18n.language)
       : totalChunks && successfulChunks
-      ? Math.round((successfulChunks / totalChunks) * 100)
+      ? formatPercent(successfulChunks / totalChunks, i18n.language)
       : null
 
   // Format distinct page spans from incompleteChunks
@@ -43,11 +46,14 @@ export function PartialAnalysisAlert({
     .map((c) => {
       const pageText =
         c.page_start === c.page_end
-          ? `Page ${c.page_start}`
-          : `Pages ${c.page_start}–${c.page_end}`
+          ? t('partial.page', { page: formatNumber(c.page_start as number, i18n.language) })
+          : t('partial.pages', {
+              start: formatNumber(c.page_start as number, i18n.language),
+              end: formatNumber(c.page_end as number, i18n.language),
+            })
       return {
         text: pageText,
-        reason: formatErrorReason(c.error_type),
+        reason: t(`partial.reason.${reasonKey(c.error_type)}`),
       }
     })
 
@@ -68,20 +74,20 @@ export function PartialAnalysisAlert({
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-lg font-bold text-white tracking-tight">
-                Partial Document Analysis
+                {t('partial.title')}
               </h2>
               {pct != null ? (
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40">
-                  {pct}% Analyzed
+                  {t('partial.pctBadge', { pct })}
                 </span>
               ) : (
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40">
-                  Partial Analysis
+                  {t('partial.badge')}
                 </span>
               )}
             </div>
             <p className="text-sm text-slate-300 leading-relaxed max-w-2xl">
-              Some sections of this document could not be analyzed due to temporary service limitations or low scan clarity. The verified clauses from the analyzed sections are shown below.
+              {t('partial.body')}
             </p>
           </div>
         </div>
@@ -94,15 +100,15 @@ export function PartialAnalysisAlert({
                 type="button"
                 onClick={onReanalyze}
                 disabled={isReanalyzing}
-                title="This will re-run analysis across the entire document, including previously analyzed pages."
-                aria-label="Re-analyze entire document. This will re-run analysis across the entire document, including previously analyzed pages."
+                title={t('partial.reanalyzeTitle')}
+                aria-label={t('partial.reanalyzeAria')}
                 className="min-h-[44px] px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40 font-semibold text-xs transition flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50"
               >
                 <span aria-hidden="true">{isReanalyzing ? '⏳' : '🔄'}</span>
-                <span>{isReanalyzing ? 'Re-analyzing...' : 'Re-analyze Document'}</span>
+                <span>{isReanalyzing ? t('partial.reanalyzing') : t('partial.reanalyze')}</span>
               </button>
               <span className="text-[10px] text-slate-400 max-w-[210px] leading-tight text-left sm:text-right">
-                Re-runs analysis across entire document
+                {t('partial.reanalyzeHint')}
               </span>
             </div>
           )}
@@ -111,11 +117,11 @@ export function PartialAnalysisAlert({
             <button
               type="button"
               onClick={onAskAdvocate}
-              aria-label="Ask a verified advocate for formal legal review"
+              aria-label={t('partial.askAdvocateAria')}
               className="min-h-[44px] px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs transition shadow-lg shadow-amber-500/20 flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-white"
             >
               <span aria-hidden="true">⚖️</span>
-              <span>Ask Advocate</span>
+              <span>{t('partial.askAdvocate')}</span>
             </button>
           )}
         </div>
@@ -126,14 +132,14 @@ export function PartialAnalysisAlert({
         <div className="pt-3 border-t border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span className="font-semibold text-slate-300">
-              Unprocessed Document Sections:
+              {t('partial.unprocessed')}
             </span>
             <button
               type="button"
               onClick={() => setShowTechnicalDetails((p) => !p)}
               className="text-[11px] text-amber-400/80 hover:text-amber-300 underline underline-offset-2"
             >
-              {showTechnicalDetails ? 'Hide details' : 'Show details'}
+              {showTechnicalDetails ? t('partial.hideDetails') : t('partial.showDetails')}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -144,14 +150,14 @@ export function PartialAnalysisAlert({
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
                 <span>
-                  {span.text} ({span.reason})
+                  {t('partial.spanReason', { span: span.text, reason: span.reason })}
                 </span>
               </span>
             ))}
           </div>
           {showTechnicalDetails && totalChunks && (
             <p className="text-[11px] text-slate-400 pt-1">
-              {successfulChunks ?? 0} of {totalChunks} document sections were analyzed successfully.
+              {t('partial.chunks', { ok: formatNumber(successfulChunks ?? 0, i18n.language), total: formatNumber(totalChunks, i18n.language) })}
             </p>
           )}
         </div>
@@ -161,7 +167,7 @@ export function PartialAnalysisAlert({
       <div className="pt-2 text-[11px] text-slate-400/90 flex items-center gap-1.5">
         <span aria-hidden="true">ℹ️</span>
         <span>
-          Risk assessments shown below are preliminary and calculated based solely on the analyzed sections.
+          {t('partial.preliminary')}
         </span>
       </div>
     </div>

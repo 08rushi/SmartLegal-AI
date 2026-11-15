@@ -1,0 +1,114 @@
+{
+  "breadcrumb": {
+    "home": "Home",
+    "channels": "Channels",
+    "current": "WhatsApp AI Channel"
+  },
+  "hero": {
+    "eyebrow": "SmartLegal AI on WhatsApp",
+    "titleLine1": "Your Legal Assistant,",
+    "titleLine2": "Right Inside WhatsApp.",
+    "body": "Ask legal questions, send documents, understand risks, and get clear legal guidance directly on WhatsApp.",
+    "start": "Start on WhatsApp",
+    "back": "Back to SmartLegal AI"
+  },
+  "connection": {
+    "channelStatus": "Channel Status",
+    "connectedTitle": "WhatsApp Connected",
+    "preparingTitle": "WhatsApp connection is being prepared.",
+    "connectedBody": "SmartLegal-AI is ready on your WhatsApp account.",
+    "preparingBody": "Our secure Meta WhatsApp Cloud API integration is being prepared for live onboarding. You can explore all supported capabilities below.",
+    "open": "Open WhatsApp",
+    "start": "Start on WhatsApp"
+  },
+  "capabilities": {
+    "title": "What can you do on WhatsApp?",
+    "subtitle": "SmartLegal-AI brings core legal assistance capabilities straight to your mobile chat.",
+    "items": {
+      "questions": {
+        "title": "Legal Questions",
+        "description": "Ask everyday legal questions and receive plain-language guidance grounded in Indian legal frameworks."
+      },
+      "analysis": {
+        "title": "Document Analysis",
+        "description": "Send supported legal documents (PDFs or images up to 25 MB) through WhatsApp for rapid contract analysis."
+      },
+      "risk": {
+        "title": "Legal Risk Understanding",
+        "description": "Understand critical risk ratings, high-risk clauses, obligations, and suggested next steps."
+      },
+      "drafting": {
+        "title": "Progressive Legal Drafting",
+        "description": "Progressively provide requirements and key terms through guided chat to work toward a legal draft."
+      },
+      "context": {
+        "title": "Context Preservation",
+        "description": "Seamlessly continue discussing active documents and legal contexts without restarting conversation workflows."
+      },
+      "multilingual": {
+        "title": "Multilingual Assistance",
+        "description": "Get responses in English, Hindi, or Marathi, and change your language setting anytime."
+      }
+    }
+  },
+  "howItWorks": {
+    "title": "How it works",
+    "subtitle": "Get started in three simple steps.",
+    "steps": {
+      "open": {
+        "title": "Open WhatsApp",
+        "description": "Start a conversation with the SmartLegal-AI WhatsApp assistant."
+      },
+      "send": {
+        "title": "Ask or Send",
+        "description": "Ask a legal question or send a supported agreement (PDF or Image)."
+      },
+      "help": {
+        "title": "Get Legal Help",
+        "description": "Receive clear, plain-language legal guidance and risk breakdown directly in chat."
+      }
+    }
+  },
+  "documentUseCase": {
+    "formats": "Supported Formats: PDF & Image (Up to 25 MB)",
+    "title": "Have a document? Send it on WhatsApp.",
+    "body": "Send an agreement, contract, or supported legal document directly in your chat. SmartLegal-AI analyzes it and helps you understand important clauses, risk ratings, and next steps.",
+    "pdfTitle": "PDF Documents",
+    "pdfExamples": "Rental, employment, NDA",
+    "imageTitle": "Image Files",
+    "imageExamples": "PNG, JPG, WebP contract photos"
+  },
+  "languageSupport": {
+    "title": "Multilingual Assistance",
+    "subtitle": "SmartLegal-AI supports three onboarding languages on WhatsApp. Type {{command}} anytime to switch.",
+    "languages": {
+      "en": { "name": "English", "desc": "Full legal analysis and plain-language answers" },
+      "hi": { "name": "Hindi", "desc": "Simple Hindi answers and analysis for legal questions" },
+      "mr": { "name": "Marathi", "desc": "Simple Marathi answers and analysis for legal questions" }
+    }
+  },
+  "security": {
+    "title": "Secure by Design",
+    "subtitle": "Application Security & Data Protection",
+    "body": "WhatsApp interactions are processed through SmartLegal-AI's secured application infrastructure."
+  },
+  "cta": {
+    "title": "Ready to experience SmartLegal AI on WhatsApp?",
+    "body": "Ask questions, send documents, and receive clear legal guidance straight to your WhatsApp chat.",
+    "start": "Start on WhatsApp →",
+    "back": "Back to SmartLegal AI"
+  },
+  "placeholder": {
+    "eyebrow": "Official SmartLegal AI Channel",
+    "title": "WhatsApp AI Legal Assistant",
+    "body": "Analyze legal agreements, verify government scheme eligibility, and receive plain-language explanations in English, Hindi and Marathi directly on WhatsApp.",
+    "instantTitle": "⚡ Instant Review",
+    "instantBody": "Upload agreements and contracts via WhatsApp chat for instant risk breakdown.",
+    "multiTitle": "🌐 Multilingual",
+    "multiBody": "Seamlessly switch responses between English, Hindi and Marathi.",
+    "confTitle": "🛡️ 100% Confidential",
+    "confBody": "Encrypted messaging integrated directly into SmartLegal security infrastructure.",
+    "hub": "SmartLegal AI WhatsApp Integration Hub Placeholder",
+    "backHome": "Back to Home"
+  }
+}

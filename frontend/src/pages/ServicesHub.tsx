@@ -1,16 +1,17 @@
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAppSelector } from '../hooks/redux'
 import CategoryArt from '../components/CategoryArt'
 import { Card } from '../components/Card'
 
 interface ServiceCard {
   key: string
-  title: string
-  description: string
+  /** Key under hubs:services.cards.<i18nKey> (title, description, iconLabel). */
+  i18nKey: 'legalId' | 'property' | 'business' | 'tracker' | 'documents' | 'chat'
   icon: string
-  iconLabel: string
   route: string
-  badge?: string
+  /** Key under hubs:services.badge.<badge>, or a literal symbol such as "4D". */
+  badge?: 'popular' | 'new' | '4D'
   color: 'blue' | 'purple' | 'green' | 'orange' | 'pink'
   art: 'legal-id' | 'property' | 'business' | 'tracker' | 'documents' | 'chat'
 }
@@ -18,43 +19,35 @@ interface ServiceCard {
 const services: ServiceCard[] = [
   {
     key: 'legal-id',
-    title: 'Legal ID Hub',
-    description: 'Government ID guidance — Aadhaar, PAN, Passport, Driving License, Voter ID & Certificates',
+    i18nKey: 'legalId',
     icon: 'ID',
-    iconLabel: 'Legal ID services',
     route: '/legal-id',
     color: 'blue',
-    badge: 'Popular',
+    badge: 'popular',
     art: 'legal-id'
   },
   {
     key: 'property',
-    title: 'Property Hub',
-    description: 'Property transaction guidance — Sale, Rental, Mutation, Registration & Encumbrance Certificate',
+    i18nKey: 'property',
     icon: 'PR',
-    iconLabel: 'Property services',
     route: '/property-hub',
     color: 'green',
-    badge: 'Popular',
+    badge: 'popular',
     art: 'property'
   },
   {
     key: 'business',
-    title: 'Business License Hub',
-    description: 'Business registration guidance - GST, FSSAI, MSME, Shop Act, IEC, Trade License & Startup India',
+    i18nKey: 'business',
     icon: 'BIZ',
-    iconLabel: 'Business license services',
     route: '/business-hub',
     color: 'orange',
-    badge: 'New',
+    badge: 'new',
     art: 'business'
   },
   {
     key: 'tracker',
-    title: 'Service Tracker',
-    description: 'Track applications, save checklists, set reminders, and enable browser notifications',
+    i18nKey: 'tracker',
     icon: '4D',
-    iconLabel: 'Service tracker',
     route: '/tracker',
     color: 'pink',
     badge: '4D',
@@ -62,20 +55,16 @@ const services: ServiceCard[] = [
   },
   {
     key: 'documents',
-    title: 'Document Analysis',
-    description: 'Upload and analyze legal documents — Get risk assessments and plain-language explanations',
+    i18nKey: 'documents',
     icon: 'DOC',
-    iconLabel: 'Document analysis',
     route: '/upload',
     color: 'purple',
     art: 'documents'
   },
   {
     key: 'chat',
-    title: 'AI Legal Assistant',
-    description: 'Ask questions about your documents — Get instant answers and clause clarifications',
+    i18nKey: 'chat',
     icon: 'AI',
-    iconLabel: 'AI legal assistant',
     route: '/chat',
     color: 'orange',
     art: 'chat'
@@ -92,7 +81,8 @@ const badgeColorMap = {
 
 export default function ServicesHub() {
   const navigate = useNavigate()
-  const { token } = useAppSelector((state) => state.auth)
+  const { t } = useTranslation('hubs')
+  const { isAuthenticated } = useAppSelector((state) => state.auth)
 
   return (
     <div className="content-wrap py-5 sm:py-6">
@@ -100,23 +90,23 @@ export default function ServicesHub() {
         {/* ─ Hero Section ─ */}
         <div>
           <div>
-            <span className="section-eyebrow">Government Services</span>
+            <span className="section-eyebrow">{t('services.eyebrow')}</span>
             <h1 className="text-4xl font-bold text-white mt-4">
-              Online Service Center
+              {t('services.title')}
             </h1>
             <p className="text-sm mt-3 text-white/60">
-              Complete legal guidance for Indians — from government IDs to property transactions to document analysis
+              {t('services.subtitle')}
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-sm mt-4">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs">
-              <span>✓</span> Expert Guidance
+              <span>✓</span> {t('services.chips.expert')}
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs">
-              <span>✓</span> Hindi & English
+              <span>✓</span> {t('services.chips.languages')}
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs">
-              <span>✓</span> AI-Powered
+              <span>✓</span> {t('services.chips.ai')}
             </span>
           </div>
         </div>
@@ -139,12 +129,12 @@ export default function ServicesHub() {
                 <div className="relative z-10 space-y-4">
                   {/* Icon & Badge */}
                   <div className="flex items-start justify-between">
-                    <span className="service-icon-badge" aria-label={service.iconLabel}>
+                    <span className="service-icon-badge" aria-label={t(`services.cards.${service.i18nKey}.iconLabel`)}>
                       {service.icon}
                     </span>
                     {service.badge && (
                       <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold border ${badgeColorMap[service.color]}`}>
-                        {service.badge}
+                        {service.badge === '4D' ? service.badge : t(`services.badge.${service.badge}`)}
                       </span>
                     )}
                   </div>
@@ -152,16 +142,16 @@ export default function ServicesHub() {
                   {/* Title & Description */}
                   <div>
                     <h3 className="text-2xl font-bold text-white group-hover:text-white transition-colors">
-                      {service.title}
+                      {t(`services.cards.${service.i18nKey}.title`)}
                     </h3>
                     <p className="mt-3 text-sm text-white/60 leading-relaxed">
-                      {service.description}
+                      {t(`services.cards.${service.i18nKey}.description`)}
                     </p>
                   </div>
 
                   {/* CTA */}
                   <div className="flex items-center gap-2 text-sm font-medium text-white/70 group-hover:text-white transition-colors pt-4">
-                    <span>Explore</span>
+                    <span>{t('services.explore')}</span>
                     <span className="group-hover:translate-x-1 transition-transform">→</span>
                   </div>
                 </div>
@@ -170,28 +160,28 @@ export default function ServicesHub() {
           </div>
 
           {/* Additional Info Section */}
-          {token && (
+          {isAuthenticated && (
             <Card variant="outline" className="mt-16 rounded-2xl p-8">
-              <h2 className="text-2xl font-bold text-white mb-4">Your Progress</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">{t('services.progress.title')}</h2>
               <p className="text-white/60">
-                Track your applications, save your progress, and manage your documents across all services — all in one place.
+                {t('services.progress.body')}
               </p>
             </Card>
           )}
         </div>
 
         {/* Login CTA */}
-        {!token && (
+        {!isAuthenticated && (
           <Card variant="outline" className="mt-6 rounded-2xl p-8 text-center">
-            <h2 className="text-2xl font-bold text-white mb-4">Sign In to Save Your Progress</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">{t('services.signIn.title')}</h2>
             <p className="text-white/60 mb-8 max-w-lg mx-auto">
-              Create an account to track your applications, save checklists, and manage all your documents in one place.
+              {t('services.signIn.body')}
             </p>
             <button
               onClick={() => navigate('/login')}
               className="btn-primary inline-flex items-center gap-2 px-8 py-3"
             >
-              Sign In Now
+              {t('services.signIn.cta')}
             </button>
           </Card>
         )}

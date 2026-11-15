@@ -1,19 +1,21 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 export default function NotFound() {
+  const { t } = useTranslation('errors')
   return (
     <div className="content-wrap py-6 sm:py-8">
       <div className="section-card mx-auto grid max-w-7xl items-center gap-8 rounded-[34px] p-6 sm:p-8 lg:grid-cols-[0.92fr_1.08fr]">
         <div className="space-y-5">
           <p className="text-7xl font-semibold tracking-[-0.06em] text-[#8a5cff] sm:text-8xl lg:text-[8rem]">404</p>
           <div>
-            <h1 className="text-3xl font-semibold text-white sm:text-4xl">Page Not Found</h1>
+            <h1 className="text-3xl font-semibold text-white sm:text-4xl">{t('notFound.title')}</h1>
             <p className="mt-3 max-w-xl text-sm leading-7 text-slate-400 sm:text-base">
-              Looks like you took a wrong turn. Let’s get you back to the legal review experience.
+              {t('notFound.body')}
             </p>
           </div>
           <Link to="/" className="btn-primary inline-flex px-6 py-3.5">
-            Go to Homepage →
+            {t('notFound.cta')}
           </Link>
         </div>
 

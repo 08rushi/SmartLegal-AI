@@ -1,0 +1,300 @@
+{
+  "welcome": {
+    "title": "Understand your legal papers",
+    "subtitle": "Pick what you want to do. Tap the speaker to hear it."
+  },
+  "tiles": {
+    "heading": "What do you want to do?",
+    "upload": "Upload a document",
+    "ask": "Ask a question",
+    "schemes": "Government schemes",
+    "services": "Get help with a service",
+    "documents": "My documents"
+  },
+  "simple": {
+    "title": "How it works",
+    "step1": { "title": "Upload", "text": "Take a photo or pick a file of your paper." },
+    "step2": { "title": "We explain it", "text": "You see what it means in simple words, and what is risky." },
+    "step3": { "title": "Ask anything", "text": "Ask your questions in your own language." }
+  },
+  "honest": "This app gives general information, not legal advice. For serious matters, please talk to a lawyer.",
+  "practice": {
+    "title": "Papers we can explain",
+    "hint": "Tap one to learn more.",
+    "demo": "See an example"
+  },
+  "language": {
+    "title": "Choose your language",
+    "hint": "Read everything in the language you are most comfortable with."
+  },
+  "hero": {
+    "eyebrow": "AI Legal Document Assistant",
+    "titleMain": "Understand Any Legal Document",
+    "titleAccent": " with AI Precision.",
+    "body": "Upload your rental agreement, employment contract, or loan document. Get plain-language explanations and risk warnings in English, Hindi and Marathi.",
+    "upload": "Upload a Document",
+    "demo": "View Demo Analysis",
+    "cardTop": "Rental agreement",
+    "cardScan": "AI Scan",
+    "riskWarning": "Risk Warning",
+    "highRisk": "High Risk",
+    "riskBody": "Unilateral rent increase without mutual consent and unclear maintenance liability.",
+    "protected": "Protected",
+    "securityDeposit": "Security Deposit",
+    "askAi": "Ask AI",
+    "askAiSample": "Break this clause down"
+  },
+  "features": {
+    "plain": {
+      "value": "Plain language",
+      "label": "Clear explanations of every clause"
+    },
+    "risk": {
+      "value": "Risk flags",
+      "label": "Clause-by-clause risk highlights"
+    },
+    "languages": {
+      "value": "Marathi, Hindi, English",
+      "label": "Switch language any time"
+    },
+    "ask": {
+      "value": "Ask AI",
+      "label": "Questions answered from your document"
+    }
+  },
+  "areas": {
+    "eyebrow": "What We Analyze",
+    "title": "Our Legal Practice Areas",
+    "body": "Comprehensive analysis across 12 major Indian legal document types. Swipe or use controls to explore.",
+    "scrollLeft": "Scroll left",
+    "scrollRight": "Scroll right",
+    "reviewTerms": "Review terms",
+    "all": "All Document Types",
+    "categories": {
+      "Housing": "Housing",
+      "Employment": "Employment",
+      "Finance": "Finance",
+      "Business": "Business",
+      "Legal": "Legal"
+    },
+    "items": {
+      "rental-agreement": {
+        "title": "Rental Agreement",
+        "description": "Analyze lease terms, rent escalation, security deposit caps, and landlord/tenant notice rules.",
+        "overview": "A legally binding agreement granting temporary residential occupancy rights. Essential for preventing unilateral rent hikes, illegal deposit retention, and abrupt eviction notices under Model Tenancy laws.",
+        "terms": {
+          "0": "Security Deposit Refund",
+          "1": "Lock-in Period",
+          "2": "Notice Period",
+          "3": "Rent Escalation Cap"
+        },
+        "risks": {
+          "0": "Lump-sum arbitrary maintenance fees",
+          "1": "Forfeiture of deposit without receipts"
+        }
+      },
+      "employment-contract": {
+        "title": "Employment Contract",
+        "description": "Review probation duration, notice pay in lieu, non-compete validity, IP assignment, and severance.",
+        "overview": "Defines your working terms, CTC breakdown, IP ownership, and exit conditions. Identifies non-compete clauses that are legally void under Section 27 of the Indian Contract Act.",
+        "terms": {
+          "0": "Probation & Confirmation",
+          "1": "Notice Pay",
+          "2": "Non-Compete Limits",
+          "3": "IP Ownership"
+        },
+        "risks": {
+          "0": "Unenforceable post-employment non-compete bonds",
+          "1": "Unilateral notice period extensions"
+        }
+      },
+      "loan-agreement": {
+        "title": "Loan & Debt Agreement",
+        "description": "Check floating vs fixed interest rates, EMI penalties, collateral hypothecation, and foreclosure fees.",
+        "overview": "Establishes debt repayment schedules and collateral security. Highlights illegal foreclosure fees prohibited by RBI guidelines for individual borrowers.",
+        "terms": {
+          "0": "Repo Benchmark Rate",
+          "1": "Foreclosure Fee Waiver",
+          "2": "Penal Interest Cap",
+          "3": "Collateral Release"
+        },
+        "risks": {
+          "0": "Compound interest on delayed EMI",
+          "1": "Delayed return of property title deeds"
+        }
+      },
+      "commercial-lease": {
+        "title": "Commercial Lease Agreement",
+        "description": "Understand fit-out free periods, Common Area Maintenance (CAM), subletting rights, and GST rules.",
+        "overview": "Governs office, retail, or industrial spaces. Analyzes heavy CAM surcharges, fit-out rent waivers, long-term escalation caps, and sub-leasing permissions.",
+        "terms": {
+          "0": "Fit-out Period",
+          "1": "CAM Breakdown",
+          "2": "Subleasing Rights",
+          "3": "Renewal ROFR"
+        },
+        "risks": {
+          "0": "Unverified lump-sum CAM billing",
+          "1": "Lack of municipal commercial usage approvals"
+        }
+      },
+      "nda": {
+        "title": "Non-Disclosure Agreement",
+        "description": "Evaluate unilateral vs mutual secrecy, definition of proprietary data, carve-outs, and term limits.",
+        "overview": "Protects business secrets, source code, and client databases. Ensures clear definition of confidential materials with reasonable survival timeframes.",
+        "terms": {
+          "0": "Scope of Confidentiality",
+          "1": "Standard Carve-outs",
+          "2": "Survival Period",
+          "3": "Data Return"
+        },
+        "risks": {
+          "0": "Overly broad non-disclosure scope",
+          "1": "Hidden non-compete clauses embedded in NDA"
+        }
+      },
+      "service-contract": {
+        "title": "Service & Freelance Contract",
+        "description": "Define Scope of Work (SOW), payment milestone triggers, revision limits, and liability caps.",
+        "overview": "Protects independent contractors and agencies. Mandates IP transfer only upon 100% full payment settlement and caps total liability to fees received.",
+        "terms": {
+          "0": "SOW Specifications",
+          "1": "IP Transfer on Payment",
+          "2": "Late Interest Fees",
+          "3": "Liability Capping"
+        },
+        "risks": {
+          "0": "Unbounded revision requests without extra pay",
+          "1": "Client withholding final payment without rejection notice"
+        }
+      },
+      "partnership-deed": {
+        "title": "Partnership & Founder Deed",
+        "description": "Vesting schedules, equity allocation, profit sharing ratios, decision deadlock rules, and partner exit.",
+        "overview": "Establishes founder equity vesting over 4 years to prevent early exits with full equity, and provides voting deadlock resolution procedures.",
+        "terms": {
+          "0": "Founder Reverse Vesting",
+          "1": "Profit Ratio",
+          "2": "Deadlock Mediation",
+          "3": "Buyout Valuation"
+        },
+        "risks": {
+          "0": "Immediate 100% upfront equity without vesting cliff",
+          "1": "Paralyzed bank accounts during founder disputes"
+        }
+      },
+      "sale-deed": {
+        "title": "Property Sale & Conveyance Deed",
+        "description": "Verify clear legal title warranties, encumbrance certificates, seller indemnity, and possession delivery.",
+        "overview": "Transfers absolute legal title from seller to buyer. Guarantees property is free from mortgages, litigation, or past municipal tax dues.",
+        "terms": {
+          "0": "Title Warranty",
+          "1": "Vendor Indemnity",
+          "2": "Vacant Possession",
+          "3": "Stamp Duty Rules"
+        },
+        "risks": {
+          "0": "Missing mother title deeds",
+          "1": "Undisclosed inherited property claims"
+        }
+      },
+      "power-of-attorney": {
+        "title": "Power of Attorney (PoA)",
+        "description": "Understand Special vs General PoA, NRI consulate attestation, revocability, and sub-registrar registration.",
+        "overview": "Authorizes an agent to act for principal in legal or property matters. Differentiates limited Special PoA from risky blanket General PoA.",
+        "terms": {
+          "0": "Special vs General Authority",
+          "1": "Express Revocability",
+          "2": "NRI Adjudication",
+          "3": "Self-Dealing Prohibition"
+        },
+        "risks": {
+          "0": "Executing blanket PoA when only one specific task is required",
+          "1": "Assuming PoA survives principal death"
+        }
+      },
+      "mou": {
+        "title": "Memorandum of Understanding",
+        "description": "Differentiate non-binding intent from binding exclusivity, confidentiality, and transition timelines.",
+        "overview": "Outlines preliminary business collaboration terms. Ensures non-binding intent statements are explicitly separated from binding confidentiality terms.",
+        "terms": {
+          "0": "Non-Binding Intent",
+          "1": "Exclusivity Window",
+          "2": "Definitive Target Date",
+          "3": "Cost Sharing"
+        },
+        "risks": {
+          "0": "Heavy financial penalty clauses in non-binding MoU",
+          "1": "Indefinite MoU without expiration date"
+        }
+      },
+      "affidavit": {
+        "title": "General Affidavit & Sworn Statement",
+        "description": "Notarization rules, stamp paper denomination, sworn fact verification, and perjury liabilities under BNS/IPC.",
+        "overview": "Sworn written statement of facts verified before a Notary Public. Highlights serious criminal liabilities for false statements under perjury laws.",
+        "terms": {
+          "0": "Deponent Sworn Statement",
+          "1": "Notarial Attestation",
+          "2": "Stamp Duty Compliance",
+          "3": "Perjury Warning"
+        },
+        "risks": {
+          "0": "Signing affidavit outside notary presence",
+          "1": "Name spelling mismatches with government ID"
+        }
+      },
+      "vendor-agreement": {
+        "title": "Vendor & Supply Chain Agreement",
+        "description": "SLAs, MSME 45-day payment rules, force majeure conditions, quality inspection, and liquidated damages.",
+        "overview": "Governs supply of goods and raw materials. Enforces statutory 45-day MSME payment rules under Section 15 of MSMED Act 2006.",
+        "terms": {
+          "0": "SLA Quality Inspection",
+          "1": "MSME 45-Day Payment Rule",
+          "2": "Force Majeure",
+          "3": "Liquidated Damages"
+        },
+        "risks": {
+          "0": "Buyer delaying MSME payments beyond statutory 45-day limit",
+          "1": "Uncapped delay penalty charges"
+        }
+      }
+    }
+  },
+  "modal": {
+    "close": "Close",
+    "coreClauses": "Core Clauses Analyzed by SmartLegal AI",
+    "riskTraps": "High Risk Traps Flagged in this Agreement",
+    "readArticle": "Read Full Knowledge Base Article →",
+    "uploadType": "Upload {{title}} →"
+  },
+  "how": {
+    "eyebrow": "How It Works",
+    "title": "A guided review flow for legal documents.",
+    "body": "Three simple steps: upload, understand the risks, and ask questions in your own language.",
+    "steps": {
+      "upload": {
+        "title": "Upload Your Document",
+        "description": "Drop a text-based PDF and let the app organize it instantly."
+      },
+      "review": {
+        "title": "Review Key Risks",
+        "description": "See clause-by-clause flags, scores, and plain-language summaries."
+      },
+      "ask": {
+        "title": "Ask Follow-up Questions",
+        "description": "Use the AI workspace to ask only about your uploaded document."
+      }
+    }
+  },
+  "surface": {
+    "eyebrow": "Product Surface",
+    "title": "Built to feel like a premium analysis cockpit.",
+    "items": {
+      "clauses": "Clause-by-clause explainers",
+      "risk": "Risk warning levels",
+      "kb": "Knowledge base and articles",
+      "auth": "Responsive auth and 404 states"
+    },
+    "cta": "Start With Your Document"
+  }
+}

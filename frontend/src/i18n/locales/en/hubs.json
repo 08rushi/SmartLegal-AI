@@ -1,0 +1,133 @@
+{
+  "services": {
+    "eyebrow": "Government Services",
+    "title": "Online Service Center",
+    "subtitle": "Complete legal guidance for Indians — from government IDs to property transactions to document analysis",
+    "chips": {
+      "expert": "Expert Guidance",
+      "languages": "Marathi, Hindi & English",
+      "ai": "AI-Powered"
+    },
+    "explore": "Explore",
+    "badge": {
+      "popular": "Popular",
+      "new": "New"
+    },
+    "progress": {
+      "title": "Your Progress",
+      "body": "Track your applications, save your progress, and manage your documents across all services — all in one place."
+    },
+    "signIn": {
+      "title": "Sign In to Save Your Progress",
+      "body": "Create an account to track your applications, save checklists, and manage all your documents in one place.",
+      "cta": "Sign In Now"
+    },
+    "cards": {
+      "legalId": {
+        "title": "Legal ID Hub",
+        "description": "Government ID guidance — Aadhaar, PAN, Passport, Driving Licence, Voter ID & Certificates",
+        "iconLabel": "Legal ID services"
+      },
+      "property": {
+        "title": "Property Hub",
+        "description": "Property transaction guidance — Sale, Rental, Mutation, Registration & Encumbrance Certificate",
+        "iconLabel": "Property services"
+      },
+      "business": {
+        "title": "Business License Hub",
+        "description": "Business registration guidance - GST, FSSAI, MSME, Shop Act, IEC, Trade License & Startup India",
+        "iconLabel": "Business license services"
+      },
+      "tracker": {
+        "title": "Service Tracker",
+        "description": "Track applications, save checklists, set reminders, and enable browser notifications",
+        "iconLabel": "Service tracker"
+      },
+      "documents": {
+        "title": "Document Analysis",
+        "description": "Upload and analyze legal documents — Get risk assessments and plain-language explanations",
+        "iconLabel": "Document analysis"
+      },
+      "chat": {
+        "title": "AI Legal Assistant",
+        "description": "Ask questions about your documents — Get instant answers and clause clarifications",
+        "iconLabel": "AI legal assistant"
+      }
+    }
+  },
+  "hub": {
+    "defaultEyebrow": "Civic & Legal Services",
+    "loading": "Loading services...",
+    "retry": "Try Again",
+    "steps_one": "{{count}} Step",
+    "steps_other": "{{count}} Steps",
+    "explore": "See the Application Guide",
+    "myApplications": "My Active Applications ({{count}})",
+    "updated": "Updated: {{date}}",
+    "viewTracker": "View Tracker →"
+  },
+  "status": {
+    "in_progress": "In progress",
+    "submitted": "Submitted",
+    "received": "Received",
+    "under_review": "Under review",
+    "completed": "Completed",
+    "unknown": "Unknown"
+  },
+  "detail": {
+    "loading": "Loading details...",
+    "officialPortal": "Official Portal →",
+    "myApplications": "My Applications",
+    "noApplications": "No applications yet.",
+    "viewChecklist": "View Checklist →",
+    "trackNew": "Track New Application",
+    "signInPrompt": "Sign in to track your application progress and save checklists.",
+    "signIn": "Sign In",
+    "tabs": {
+      "services": "Services",
+      "checklist": "Checklist",
+      "faqs": "Common Questions",
+      "rights": "Your Rights"
+    },
+    "where": "Where",
+    "documentsRequired": "Documents Required",
+    "fee": "Fee",
+    "timeline": "Time Taken",
+    "officialDetails": "View Official Details →",
+    "checklist": {
+      "signIn": "Sign in to view and manage your checklist.",
+      "select": "Select an application or create a new one to view its checklist.",
+      "empty": "This checklist has no items yet.",
+      "save": "Save Checklist",
+      "saving": "Saving...",
+      "saved": "Checklist saved.",
+      "loadFailed": "Could not load the checklist: {{error}}",
+      "saveFailed": "Could not save the checklist: {{error}}"
+    },
+    "rights": {
+      "protections": "Your Legal Protections",
+      "commonIssues": "Common Problems & Solutions",
+      "disclaimer": "Please note"
+    },
+    "modal": {
+      "title": "Track New Application",
+      "intro": "Create a new application tracker for {{name}}",
+      "selectService": "Select Service",
+      "choose": "Choose a service...",
+      "notes": "Notes (Optional)",
+      "notesPlaceholder": "Write anything you want to remember about this application...",
+      "cancel": "Cancel",
+      "create": "Create Application",
+      "creating": "Creating...",
+      "status": "Application Status"
+    },
+    "backShort": "Back to Hub",
+    "statusFailed": "Could not update the application status. Please try again.",
+    "description": "Description"
+  },
+  "art": {
+    "gst": "GST",
+    "id": "ID",
+    "record712": "7/12"
+  }
+}

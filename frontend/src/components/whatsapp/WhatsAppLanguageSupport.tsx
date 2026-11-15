@@ -1,18 +1,26 @@
+import { Trans, useTranslation } from 'react-i18next'
+
+// Native names are always shown in their own script (same in every UI language).
 const languages = [
-  { code: 'EN', name: 'English', native: 'English', desc: 'Full legal analysis and plain-language answers' },
-  { code: 'HI', name: 'Hindi', native: 'हिंदी', desc: 'विधिक प्रश्नों के सरल हिंदी उत्तर एवं विश्लेषण' },
-  { code: 'MR', name: 'Marathi', native: 'मराठी', desc: 'कायदेशीर प्रश्नांची सोप्या मराठीत उत्तरे व विश्लेषण' },
+  { code: 'EN', key: 'en', native: 'English' },
+  { code: 'HI', key: 'hi', native: 'हिंदी' },
+  { code: 'MR', key: 'mr', native: 'मराठी' },
 ]
 
 export default function WhatsAppLanguageSupport() {
+  const { t } = useTranslation('whatsapp')
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-white tracking-tight">
-          Multilingual Assistance
+          {t('languageSupport.title')}
         </h2>
         <p className="text-sm text-slate-400">
-          SmartLegal-AI supports three onboarding languages on WhatsApp. Type <code className="text-amber-400">language</code> anytime to switch.
+          <Trans
+            t={t}
+            i18nKey="languageSupport.subtitle"
+            values={{ command: 'language' }} // the bot's literal keyword; never translated
+          />
         </p>
       </div>
 
@@ -28,8 +36,8 @@ export default function WhatsAppLanguageSupport() {
               </span>
               <span className="text-base font-bold text-white">{lang.native}</span>
             </div>
-            <h3 className="text-sm font-semibold text-slate-200">{lang.name}</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">{lang.desc}</p>
+            <h3 className="text-sm font-semibold text-slate-200">{t(`languageSupport.languages.${lang.key}.name`)}</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">{t(`languageSupport.languages.${lang.key}.desc`)}</p>
           </div>
         ))}
       </div>

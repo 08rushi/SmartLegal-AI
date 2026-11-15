@@ -1,0 +1,63 @@
+{
+  "eyebrow": "03 Upload Document",
+  "title": "Upload Your Document",
+  "subtitle": "Drop a PDF, or a photo/scan of a printed document. Preview it first, then run analysis. Scanned & regional-language documents are read automatically.",
+  "steps": {
+    "upload": "Upload",
+    "preview": "Preview",
+    "analyze": "Analyze",
+    "results": "Results"
+  },
+  "docTypes": {
+    "agreements": "Agreements & Deeds — rent, employment, loan, sale, gift, POA, NDA, will",
+    "court": "Court & case files — FIR, charge sheet, bail, plaint, judgment, summons",
+    "family": "Family matters — divorce, maintenance, custody, domestic violence",
+    "notices": "Notices & complaints — legal notice, cheque bounce (s.138), consumer, RTI"
+  },
+  "units": {
+    "byte": "{{value}} B",
+    "kb": "{{value}} KB",
+    "mb": "{{value}} MB"
+  },
+  "loading": {
+    "uploadingTitle": "Uploading... {{progress}}%",
+    "analyzingTitle": "Analyzing your document...",
+    "uploadingSubtitle": "We are securely storing your file and preparing it for review.",
+    "analyzingSubtitle": "AI is reading every clause and building a structured overview for you.",
+    "chipExtracting": "Extracting pages",
+    "chipScoring": "Scoring risks",
+    "chipSummary": "Preparing summary",
+    "uploadingLine": "Uploading {{progress}}%",
+    "preparing": "Preparing analysis workspace"
+  },
+  "preview": {
+    "label": "File Preview",
+    "intro": "Review the file details below, then start analysis when you are ready.",
+    "iframeTitle": "Preview of {{name}}",
+    "pdfReady": "This file is ready to analyze. You can proceed to document analysis.",
+    "fileFallback": "FILE"
+  },
+  "before": {
+    "title": "Before you analyze",
+    "confirm": "Confirm this is the exact document version you want reviewed.",
+    "limits": "PDFs and images (JPG/PNG/WebP) up to 25MB. Scans & photos are read with OCR.",
+    "time": "Analysis can take up to a couple of minutes for long contracts.",
+    "large": "File is {{size}}. Adaptive document optimization will be applied automatically for high-speed processing."
+  },
+  "actions": {
+    "analyze": "Analyze Document",
+    "replace": "Replace File",
+    "remove": "Remove",
+    "browse": "Browse Files"
+  },
+  "empty": {
+    "title": "Drag & drop your document here",
+    "hint": "Choose a file first, preview it, then run AI analysis when you are ready.",
+    "formats": "PDF or image (JPG/PNG) · Max 25MB"
+  },
+  "error": {
+    "title": "Upload / Processing Notice",
+    "dismiss": "Dismiss",
+    "dismissAria": "Dismiss error notice"
+  }
+}

@@ -1,8 +1,11 @@
+import { useTranslation } from 'react-i18next'
+
 interface StatusBadgeProps {
   status: string
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
+  const { t } = useTranslation('shell')
   const normalized = status.toLowerCase()
 
   let style = 'bg-slate-800 text-slate-300 border-slate-700'
@@ -10,13 +13,13 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 
   if (normalized === 'completed' || normalized === 'ready' || normalized === 'received') {
     style = 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
-    label = 'Completed'
+    label = t('badge.completed')
   } else if (normalized === 'in_progress' || normalized === 'processing' || normalized === 'submitted') {
     style = 'bg-amber-500/10 text-amber-300 border-amber-500/20 animate-pulse'
-    label = 'In Progress'
+    label = t('badge.inProgress')
   } else if (normalized === 'error' || normalized === 'failed') {
     style = 'bg-rose-500/10 text-rose-300 border-rose-500/20'
-    label = 'Failed'
+    label = t('badge.failed')
   }
 
   return (

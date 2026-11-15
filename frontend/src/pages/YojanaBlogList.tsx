@@ -2,14 +2,20 @@ import React, { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '../hooks/redux'
 import { fetchYojanaBlogs } from '../store/yojanaSlice'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 export const YojanaBlogList: React.FC = () => {
+  const { t, i18n } = useTranslation('yojana')
+  const lang = i18n.language.slice(0, 2)
+  const locale = `${lang}-IN`
   const dispatch = useAppDispatch()
   const { blogs, isLoading } = useAppSelector((s) => s.yojana)
 
   useEffect(() => {
+    // TODO(i18n-content): blog title/summary/body arrive in the active language once the backend
+    // supports `lang` (X-Lang header is already sent; refetch when the language changes).
     dispatch(fetchYojanaBlogs())
-  }, [dispatch])
+  }, [dispatch, lang])
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
@@ -19,13 +25,13 @@ export const YojanaBlogList: React.FC = () => {
         <div className="border-b border-slate-800 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-indigo-400 mb-1">
-              <Link to="/yojana" className="hover:underline">Jan-Yojana Hub</Link>
+              <Link to="/yojana" className="hover:underline">{t('blogList.breadcrumbHub')}</Link>
               <span>/</span>
-              <span>Citizen Guides</span>
+              <span>{t('blogList.breadcrumbGuides')}</span>
             </div>
-            <h1 className="text-3xl font-extrabold text-white">AI Citizen Guides & Gazette Explanations</h1>
+            <h1 className="text-3xl font-extrabold text-white">{t('blogList.title')}</h1>
             <p className="text-sm text-slate-400 mt-1">
-              Plain-language breakdown of Central & State schemes with verified government links (.gov.in) and step-by-step application instructions.
+              {t('blogList.subtitle')}
             </p>
           </div>
 
@@ -33,17 +39,20 @@ export const YojanaBlogList: React.FC = () => {
             to="/yojana"
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg transition-all self-start sm:self-auto"
           >
-            ⚡ Test Eligibility Matcher
+            {t('blogList.ctaTest')}
           </Link>
         </div>
 
         {/* Grid of Blog Posts */}
         {isLoading ? (
           <div className="py-12 text-center text-slate-500 text-sm">
-            Loading AI Citizen Guides...
+            {t('blogList.loading')}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {blogs.length === 0 && (
+              <p className="col-span-full py-8 text-center text-sm text-slate-400">{t('blogList.empty')}</p>
+            )}
             {blogs.map((b) => {
               const bannerImg = b.image_url || '/illustrations/pm_kisan_banner.jpg'
               return (
@@ -62,10 +71,10 @@ export const YojanaBlogList: React.FC = () => {
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent" />
                       <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
                         <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-indigo-300 border border-indigo-500/30 text-[10px] font-bold uppercase rounded-lg shadow-md">
-                          Verified Guide
+                          {t('blogList.badge')}
                         </span>
                         <span className="px-2.5 py-1 bg-slate-900/80 backdrop-blur-md text-slate-300 text-[10px] font-medium rounded-lg">
-                          {new Date(b.published_at).toLocaleDateString()}
+                          {new Date(b.published_at).toLocaleDateString(locale)}
                         </span>
                       </div>
                     </div>
@@ -101,7 +110,7 @@ export const YojanaBlogList: React.FC = () => {
                         to={`/yojana/blogs/${b.slug}`}
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-300 pt-1"
                       >
-                        <span>Read Step-by-Step Guide</span>
+                        <span>{t('blogList.read')}</span>
                         <span>→</span>
                       </Link>
                     </div>

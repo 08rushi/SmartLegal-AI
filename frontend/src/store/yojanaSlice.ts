@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import { apiClient } from '../services/api'
+import { apiErrorMessage } from '../utils/apiError'
 import { YojanaState, YojanaScheme, YojanaMatchProfile, YojanaMatchResult, YojanaBlog } from '../types'
 
 const initialProfile: YojanaMatchProfile = {
@@ -33,7 +34,7 @@ export const fetchYojanaSchemes = createAsyncThunk(
       const response = await apiClient.get('/yojana/schemes', { params: filters })
       return response.data.schemes as YojanaScheme[]
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.detail || 'Failed to load government schemes')
+      return rejectWithValue(apiErrorMessage(err, 'store:yojana.schemesFailed'))
     }
   }
 )
@@ -45,7 +46,7 @@ export const fetchSchemeDetails = createAsyncThunk(
       const response = await apiClient.get(`/yojana/schemes/${schemeId}`)
       return response.data.scheme as YojanaScheme
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.detail || 'Failed to load scheme details')
+      return rejectWithValue(apiErrorMessage(err, 'store:yojana.schemeFailed'))
     }
   }
 )
@@ -57,7 +58,7 @@ export const matchYojanaEligibility = createAsyncThunk(
       const response = await apiClient.post('/yojana/match', profile)
       return response.data.matches as YojanaMatchResult[]
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.detail || 'Failed to evaluate scheme eligibility')
+      return rejectWithValue(apiErrorMessage(err, 'store:yojana.eligibilityFailed'))
     }
   }
 )
@@ -69,7 +70,7 @@ export const fetchYojanaBlogs = createAsyncThunk(
       const response = await apiClient.get('/yojana/blogs')
       return response.data.blogs as YojanaBlog[]
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.detail || 'Failed to load citizen guides')
+      return rejectWithValue(apiErrorMessage(err, 'store:yojana.guidesFailed'))
     }
   }
 )
@@ -81,7 +82,7 @@ export const fetchYojanaBlogBySlug = createAsyncThunk(
       const response = await apiClient.get(`/yojana/blogs/${slug}`)
       return response.data.blog as YojanaBlog
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.detail || 'Failed to load citizen guide')
+      return rejectWithValue(apiErrorMessage(err, 'store:yojana.guideFailed'))
     }
   }
 )

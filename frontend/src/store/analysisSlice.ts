@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
-import type { AnalysisState, AnalysisResult, FrontendAnalysisState } from '../types'
+import type { AnalysisState, AnalysisResult, FrontendAnalysisState, TranslationState } from '../types'
 import { apiClient } from '../services/api'
+import i18n from '../i18n'
 
 type AnalyzeDocumentArgs =
   | string
@@ -139,14 +140,14 @@ async function pollUntilDone(
       return data.analysis
     }
     if (data.status === 'error') {
-      throw new Error(data.error ?? 'Analysis failed on the server.')
+      throw new Error(data.error ?? i18n.t('store:analysis.serverFailed'))
     }
     // A processing response is expected for a background job. Back off rather
     // than hammering the status endpoint if extraction/OCR/model calls are slow.
     intervalMs = Math.min(MAX_INTERVAL_MS, Math.round(intervalMs * 1.5))
   }
 
-  throw new Error('Analysis is still processing after an hour. Automatic status checks have stopped; please check again or retry the analysis.')
+  throw new Error(i18n.t('store:analysis.timedOut'))
 }
 
 // ── Async thunks ──────────────────────────────────────────────────────────────
@@ -211,7 +212,7 @@ export const analyzeDocument = createAsyncThunk(
         error.response?.data?.detail ??
         error.response?.data?.error ??
         error.message ??
-        'Analysis failed'
+        i18n.t('store:analysis.failed')
       const retryAfter = error.response?.data?.retry_after
 
       if (
@@ -265,13 +266,59 @@ export const analyzeComparisonDocument = createAsyncThunk(
         response?: { data?: { detail?: string } }
       }
       return rejectWithValue(
-        error.response?.data?.detail ?? error.message ?? 'Analysis failed'
+        error.response?.data?.detail ?? error.message ?? i18n.t('store:analysis.failed')
       )
     }
   }
 )
 
+/**
+ * Translate the stored analysis (POST /analyze/{id}/translate). Cached server-side per language, so
+ * repeat calls are instant. Resolves with the translated view + `partial`; rejects with {status, message}
+ * (502 = the AI translation failed, retry is safe).
+ */
+export const translateAnalysis = createAsyncThunk(
+  'analysis/translate',
+  async (
+    { documentId, lang }: { documentId: string; lang: string },
+    { rejectWithValue, signal }
+  ) => {
+    try {
+      const { data } = await apiClient.post<{
+        analysis: AnalysisResult
+        lang: string
+        cached: boolean
+        partial: boolean
+      }>(`/analyze/${documentId}/translate`, { lang }, { signal, timeout: 5 * 60 * 1000 })
+      return { documentId, lang, analysis: data.analysis, partial: Boolean(data.partial) }
+    } catch (err: unknown) {
+      const e = err as {
+        name?: string
+        code?: string
+        response?: { status?: number; data?: { detail?: string } }
+      }
+      if (e.name === 'AbortError' || e.name === 'CanceledError' || e.code === 'ERR_CANCELED') {
+        return rejectWithValue({ cancelled: true, status: null, message: '' })
+      }
+      return rejectWithValue({
+        cancelled: false,
+        status: e.response?.status ?? null,
+        message: typeof e.response?.data?.detail === 'string' ? e.response.data.detail : '',
+      })
+    }
+  }
+)
+
 // ── Initial state ─────────────────────────────────────────────────────────────
+
+const emptyTranslation = (): TranslationState => ({
+  documentId: null,
+  lang: null,
+  status: 'idle',
+  errorStatus: null,
+  error: null,
+  byLang: {},
+})
 
 const initialState: AnalysisState = {
   result: null,
@@ -282,6 +329,7 @@ const initialState: AnalysisState = {
   elapsedSeconds: 0,
   retryAfterRemaining: null,
   isRetryingProvider: false,
+  translation: emptyTranslation(),
 }
 
 // ── Slice ─────────────────────────────────────────────────────────────────────
@@ -298,6 +346,12 @@ const analysisSlice = createSlice({
       state.elapsedSeconds = 0
       state.retryAfterRemaining = null
       state.isRetryingProvider = false
+      state.translation = emptyTranslation()
+    },
+    /** Drop a cached translated view (e.g. before retrying a partial one). */
+    dropTranslation(state, action: PayloadAction<string>) {
+      delete state.translation.byLang[action.payload]
+      if (state.translation.lang === action.payload) state.translation.status = 'idle'
     },
     clearAnalysisError(state) {
       state.error = null
@@ -344,6 +398,8 @@ const analysisSlice = createSlice({
         state.isRetryingProvider = false
         state.result = action.payload
         state.state = deriveAnalysisState(action.payload, false, null) || 'completed'
+        // A fresh/updated analysis invalidates every translated view of the old one.
+        state.translation = emptyTranslation()
       })
       .addCase(analyzeDocument.rejected, (state, action) => {
         state.isLoading = false
@@ -368,9 +424,40 @@ const analysisSlice = createSlice({
           state.retryAfterRemaining = payloadObj.retryAfter
           return
         }
-        const errorMsg = (action.payload as string) || 'Analysis failed'
+        const errorMsg = (action.payload as string) || i18n.t('store:analysis.failed')
         state.error = errorMsg
         state.state = deriveAnalysisState(null, false, errorMsg) || 'failed'
+      })
+
+    builder
+      .addCase(translateAnalysis.pending, (state, action) => {
+        const { documentId, lang } = action.meta.arg
+        if (state.translation.documentId !== documentId) {
+          state.translation = emptyTranslation()
+          state.translation.documentId = documentId
+        }
+        state.translation.lang = lang
+        state.translation.status = 'loading'
+        state.translation.error = null
+        state.translation.errorStatus = null
+      })
+      .addCase(translateAnalysis.fulfilled, (state, action) => {
+        const { documentId, lang, analysis, partial } = action.payload
+        if (state.translation.documentId !== documentId) return
+        state.translation.byLang[lang] = { result: analysis, partial }
+        if (state.translation.lang === lang) state.translation.status = 'idle'
+      })
+      .addCase(translateAnalysis.rejected, (state, action) => {
+        const payload = action.payload as { cancelled?: boolean; status: number | null; message: string } | undefined
+        if (payload?.cancelled || action.meta.aborted) {
+          if (state.translation.lang === action.meta.arg.lang) state.translation.status = 'idle'
+          return
+        }
+        // A newer request for another language superseded this one: ignore the stale failure.
+        if (state.translation.lang !== action.meta.arg.lang) return
+        state.translation.status = 'error'
+        state.translation.errorStatus = payload?.status ?? null
+        state.translation.error = payload?.message || null
       })
 
     builder.addCase(
@@ -382,7 +469,7 @@ const analysisSlice = createSlice({
   },
 })
 
-export const { clearAnalysis, clearAnalysisError, setAnalysisState, setElapsedSeconds, setJobProgress } =
+export const { clearAnalysis, dropTranslation, clearAnalysisError, setAnalysisState, setElapsedSeconds, setJobProgress } =
   analysisSlice.actions
 
 // ── Phase 8A Selectors & Metadata Accessors ──────────────────────────────────

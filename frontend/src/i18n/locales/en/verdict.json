@@ -1,0 +1,71 @@
+{
+  "page": {
+    "title": "Your document check",
+    "fallbackName": "Uploaded document"
+  },
+  "level": {
+    "safe": "Safe to sign",
+    "careful": "Read carefully",
+    "avoid": "Do not sign yet"
+  },
+  "sentence": {
+    "safe": "We found no big problems. Still, read the document once before you sign.",
+    "careful": "Some parts need your attention before you sign.",
+    "avoid": "This document has serious risks. Do not sign until you understand them or a lawyer has checked it.",
+    "partial": "We could check only part of this document, so be careful.",
+    "empty": "We could not find clear clauses. Ask the AI or a lawyer before you sign."
+  },
+  "docType": "Document type: {{type}}",
+  "listen": "Listen to the result",
+  "speech": {
+    "docType": "This is a {{type}}.",
+    "risksHeading_one": "The main risk.",
+    "risksHeading_other": "The {{count}} main risks.",
+    "stepsHeading": "What to do next."
+  },
+  "risks": {
+    "title": "Main risks",
+    "none": "No big risks were found in this document.",
+    "seeClause": "See full clause"
+  },
+  "steps": {
+    "title": "What to do next",
+    "askChange_one": "Ask the other side to change or remove this clause: {{title}}.",
+    "askChange_other": "Ask the other side to change or remove these {{count}} risky clauses. Start with: {{title}}.",
+    "checkMissing": "Some parts could not be read well. Check the original paper, or upload a clearer copy.",
+    "readMedium_one": "Read the {{count}} clause that needs care before you sign.",
+    "readMedium_other": "Read the {{count}} clauses that need care before you sign.",
+    "obligation": "Make sure you can do this: {{item}}",
+    "date": "Note this date: {{label}}, {{date}}.",
+    "lawyer": "Talk to a lawyer",
+    "lawyerHint": "A lawyer can check the risky parts with you before you sign."
+  },
+  "money": {
+    "title": "Money and dates",
+    "amounts": "Amounts",
+    "dates": "Dates and deadlines",
+    "notice": "Notice period"
+  },
+  "mode": {
+    "label": "How much to show",
+    "simple": "Simple",
+    "details": "Full details"
+  },
+  "summary": {
+    "title": "Short summary"
+  },
+  "details": {
+    "title": "Full details",
+    "clausesHint": "Every clause found in your document, with its risk."
+  },
+  "clause": {
+    "listen": "Listen to this clause",
+    "original": "Original text of the document",
+    "number": "Clause {{num}}"
+  },
+  "pdf": {
+    "glance": "Result at a glance",
+    "risks": "Main risks",
+    "steps": "What to do next"
+  }
+}
