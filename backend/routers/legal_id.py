@@ -18,6 +18,8 @@ from pydantic import BaseModel, Field
 from database import get_db
 from limiter import limiter
 from routers.auth import get_current_user
+from services.kb_i18n import localize, localized_checklist
+from services.lang import lang_from_request
 from services.legal_id_kb import (
     get_all_id_types, get_id_guidance, get_id_checklist, _normalize_id_type,
 )
@@ -50,17 +52,17 @@ class ApplicationCreate(BaseModel):
 
 class ApplicationUpdate(BaseModel):
     status: str | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ChecklistItemCreate(BaseModel):
-    id: str | None = None
-    item_text: str
+    id: str | None = Field(default=None, max_length=100)
+    item_text: str = Field(..., max_length=500)
     is_done: bool = False
 
 
 class ChecklistUpdate(BaseModel):
-    items: list[ChecklistItemCreate]
+    items: list[ChecklistItemCreate] = Field(..., max_length=100)
 
 
 class ApplicationOut(BaseModel):
@@ -130,6 +132,9 @@ async def create_application(
         raise HTTPException(status_code=400, detail=f"Invalid ID type: {data.id_type}")
 
     checklist_items = get_id_checklist(normalized, data.service)
+    if checklist_items is not None:
+        # Seed the checklist in the user's language (English fallback); the service name stays English.
+        checklist_items = localized_checklist(get_id_guidance(normalized), normalized, "legal_id", data.service, lang_from_request(request)) or checklist_items
     if checklist_items is None:
         raise HTTPException(
             status_code=400,
@@ -249,7 +254,11 @@ async def save_checklist(
 @limiter.limit("100/minute")
 async def list_id_types(request: Request):
     """List all 6 supported government ID types (no auth required)."""
-    return {"id_types": get_all_id_types()}
+    lang = lang_from_request(request)
+    return {
+        "id_types": [localize(t, "legal_id", lang, root=t["key"]) for t in get_all_id_types()],
+        "lang": lang,
+    }
 
 
 @router.get("/{id_type}")
@@ -259,4 +268,6 @@ async def get_guidance(request: Request, id_type: str):
     guidance = get_id_guidance(id_type)
     if not guidance:
         raise HTTPException(status_code=404, detail=f"ID type '{id_type}' not found")
-    return {"guidance": guidance}
+    lang = lang_from_request(request)
+    key = guidance.get("key") or _normalize_id_type(id_type) or id_type
+    return {"guidance": localize(guidance, "legal_id", lang, root=key), "lang": lang}

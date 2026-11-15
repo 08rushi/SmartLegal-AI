@@ -34,7 +34,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from cache import delete_analysis, get_analysis, set_analysis, set_doc_text
@@ -43,6 +43,10 @@ from database import get_db
 from limiter import limiter
 from routers.auth import get_current_user
 from services.analysis_schema import validate_analysis
+from services.i18n_messages import translate_message
+from services.lang import lang_from_request, normalize_lang
+from services import translation_service
+from services import storage
 from services.groq_service import analyze_legal_document
 from services.pdf_parser import extract_text_from_pdf, assess_readability
 from services.page_content import PageContentList
@@ -57,6 +61,14 @@ settings = get_settings()
 
 
 # ── Sentry helpers ────────────────────────────────────────────────────────────
+
+def _public_error_message(exc: Exception) -> str:
+    """Client-safe failure text; provider/parser details stay in server logs only."""
+    text = str(exc).lower()
+    if "rate-limit" in text or "rate limit" in text or "429" in text or "cooloff" in text:
+        return "The AI service is busy right now. Please try again in a minute."
+    return "Analysis failed. Please try again."
+
 
 def _capture(exc: Exception, context: dict) -> None:
     try:
@@ -298,7 +310,7 @@ async def _run_analysis(document_id: str, file_bytes: bytes, filename: str) -> N
             if isinstance(exc, asyncio.TimeoutError):
                 message = "Analysis timed out. The document may be too large — please try again."
             else:
-                message = str(exc) or "Analysis failed. Please try again."
+                message = _public_error_message(exc)
             _capture(
                 exc,
                 {
@@ -308,7 +320,7 @@ async def _run_analysis(document_id: str, file_bytes: bytes, filename: str) -> N
                     "stage": "background_analysis",
                 },
             )
-            print(f"[analyze] FAILED {document_id}: {message}")
+            print(f"[analyze] FAILED {document_id}: {type(exc).__name__}: {str(exc)[:300]}")
 
             error_payload = json.dumps(
                 {"status": "error", "error": message, "document_id": document_id}
@@ -451,7 +463,7 @@ async def analyze_document(
                 # Good result
                 if len(cached.get("clauses", [])) > 0 or cached.get("summary", {}).get("total_clauses", 0) > 0:
                     print(f"[analyze] L1 Redis HIT  document_id={req.document_id}")
-                    return {"analysis": cached}
+                    return {"analysis": _localized_view(cached, request.query_params.get("lang"))}
 
         # ── L2: Database ──────────────────────────────────────────────────────
         row = await db.fetchrow(
@@ -471,7 +483,7 @@ async def analyze_document(
             if clause_count > 0 or total_clauses > 0:
                 print(f"[analyze] L2 DB HIT — backfilling Redis  document_id={req.document_id}")
                 await set_analysis(req.document_id, db_result, ttl=settings.redis_cache_ttl)
-                return {"analysis": db_result}
+                return {"analysis": _localized_view(db_result, request.query_params.get("lang"))}
 
     # ── Cache miss (or force_reanalyze) — clear stale entries ─────────────────
     await delete_analysis(req.document_id)          # Redis
@@ -482,31 +494,18 @@ async def analyze_document(
     # ── Read file bytes ────────────────────────────────────────────────────────
     file_url = doc["file_url"]
     try:
-        if file_url.startswith("local://"):
-            import os
-            local_path = file_url.replace("local://", "")
-            if not os.path.exists(local_path):
-                raise HTTPException(
-                    status_code=404,
-                    detail="The original document file is no longer available on temporary server storage. Please re-upload the document to run a new analysis."
-                )
-            with open(local_path, "rb") as f:
-                file_bytes = f.read()
-        else:
-            import httpx
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(file_url)
-                if resp.status_code >= 400:
-                    raise HTTPException(
-                        status_code=resp.status_code,
-                        detail="Could not retrieve the document file from remote storage."
-                    )
-                file_bytes = resp.content
+        file_bytes = await storage.read_document_bytes(file_url)
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="The original document file is no longer available on temporary server storage. Please re-upload the document to run a new analysis."
+        )
     except HTTPException:
         raise
     except Exception as exc:
-        _capture(exc, {"document_id": req.document_id, "file_url": file_url, "stage": "file_read"})
-        raise HTTPException(status_code=500, detail=f"Could not read document: {exc}")
+        _capture(exc, {"document_id": req.document_id, "stage": "file_read"})
+        print(f"[analyze] could not read document {req.document_id}: {type(exc).__name__}")
+        raise HTTPException(status_code=500, detail="Could not read the document. Please try again.")
 
     # ── Dispatch to durable ARQ worker (SL-012) ────────────────────────────────
     from worker import enqueue_analysis
@@ -536,9 +535,109 @@ async def analyze_document(
 
 
 
+def _localized_view(result: dict, lang: Optional[str]) -> dict:
+    """
+    Base result by default. With an explicit ?lang=mr|hi and a cached translation, return the
+    translated text merged on top of the base shape (same JSON the UI already renders).
+    """
+    if not lang or not isinstance(result, dict):
+        return result
+    code = normalize_lang(lang)
+    entry = (result.get("translations") or {}).get(code) if code != "en" else None
+    if not entry or not entry.get("patch"):
+        return result
+    view = translation_service.apply_patch(result, entry["patch"])
+    view["translations"] = dict(result.get("translations") or {})
+    view["view_lang"] = code
+    return view
+
+
+class TranslateRequest(BaseModel):
+    lang: Optional[str] = None
+
+
+_translate_locks: dict[str, asyncio.Lock] = {}
+
+
+@router.post("/{document_id}/translate")
+@limiter.limit("6/minute")
+async def translate_analysis_result(
+    request: Request,
+    document_id: str,
+    req: Optional[TranslateRequest] = None,
+    lang: Optional[str] = Query(None),
+    db=Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Translate the stored analysis into Marathi/Hindi (or return the base for English).
+    Cached in result_json["translations"][lang]; the second call is instant.
+    Response: {"analysis": <translated view, same shape>, "lang", "cached", "partial"}.
+    """
+    doc = await db.fetchrow("SELECT user_id FROM documents WHERE id = $1", document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if doc["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You do not have permission to access this document.")
+
+    target = normalize_lang((req.lang if req and req.lang else None) or lang or request.headers.get("x-lang"))
+
+    row = await db.fetchrow("SELECT id, result_json FROM analyses WHERE document_id = $1", document_id)
+    try:
+        result = json.loads(row["result_json"]) if row else None
+    except (TypeError, ValueError):
+        result = None
+    if not result or result.get("status") not in (None, "done") or not result.get("clauses"):
+        raise HTTPException(status_code=400, detail="Please analyze this document first.")
+
+    if target == "en":
+        base = {k: v for k, v in result.items() if k != "translations"}
+        return {"analysis": base, "lang": "en", "cached": True, "partial": False}
+
+    existing = (result.get("translations") or {}).get(target)
+    if existing and existing.get("patch"):
+        return {"analysis": _localized_view(result, target), "lang": target, "cached": True, "partial": False}
+
+    lock = _translate_locks.setdefault(f"{document_id}:{target}", asyncio.Lock())
+    async with lock:
+        # Re-read inside the lock: a concurrent request may have just stored it.
+        row = await db.fetchrow("SELECT id, result_json FROM analyses WHERE document_id = $1", document_id)
+        try:
+            result = json.loads(row["result_json"]) if row else result
+        except (TypeError, ValueError):
+            pass
+        existing = (result.get("translations") or {}).get(target)
+        if existing and existing.get("patch"):
+            return {"analysis": _localized_view(result, target), "lang": target, "cached": True, "partial": False}
+
+        try:
+            patch, complete = await translation_service.translate_analysis(result, target)
+        except Exception as exc:
+            _capture(exc, {"document_id": document_id, "stage": "translate", "lang": target})
+            print(f"[analyze] translate FAILED {document_id} -> {target}: {type(exc).__name__}")
+            raise HTTPException(status_code=502, detail="Could not translate the analysis right now. Please try again.")
+
+        stored = {"patch": patch, "translated_at": datetime.utcnow().isoformat()}
+        if complete:
+            result.setdefault("translations", {})[target] = stored
+            await _upsert_analysis(
+                db, row["id"] if row else str(uuid.uuid4()), document_id,
+                json.dumps(result), datetime.utcnow().isoformat(),
+            )
+            await set_analysis(document_id, result, ttl=settings.redis_cache_ttl)
+            return {"analysis": _localized_view(result, target), "lang": target, "cached": False, "partial": False}
+
+        # Partial translation: show it, but do not cache so a retry can complete it.
+        tmp = dict(result)
+        tmp["translations"] = {**(result.get("translations") or {}), target: stored}
+        return {"analysis": _localized_view(tmp, target), "lang": target, "cached": False, "partial": True}
+
+
 @router.get("/{document_id}/status")
 async def get_analysis_status(
+    request: Request,
     document_id: str,
+    lang: Optional[str] = Query(None, description="mr | hi | en - return the translated view when a translation is cached"),
     db=Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -565,9 +664,9 @@ async def get_analysis_status(
         cached = await get_analysis(document_id)
         if cached and cached.get("status") in ("done", "error", "processing"):
             if cached.get("status") == "error":
-                return {"status": "error", "error": cached.get("error", "Unknown error")}
+                return {"status": "error", "error": translate_message(cached.get("error", "Unknown error"), lang_from_request(request))}
             if cached.get("status") == "done":
-                return {"status": "done", "analysis": cached}
+                return {"status": "done", "analysis": _localized_view(cached, lang)}
         return {"status": "processing"}
 
     result = json.loads(row["result_json"])
@@ -586,7 +685,7 @@ async def get_analysis_status(
                 datetime.now(timezone.utc).isoformat(),
             )
             await set_analysis(document_id, {"status": "error", "error": message, "document_id": document_id}, ttl=settings.redis_cache_ttl)
-            return {"status": "error", "error": message}
+            return {"status": "error", "error": translate_message(message, lang_from_request(request))}
         # Live progress from the worker (ignore leftovers of a previous finished/failed run).
         job = await db.fetchrow(
             "SELECT stage, progress_pct FROM analysis_jobs WHERE document_id = $1", document_id
@@ -598,11 +697,11 @@ async def get_analysis_status(
         # Refresh the cache with the authoritative terminal state, replacing
         # any old `processing` entry left behind by a previous worker attempt.
         await set_analysis(document_id, result, ttl=settings.redis_cache_ttl)
-        return {"status": "error", "error": result.get("error", "Unknown error")}
+        return {"status": "error", "error": translate_message(result.get("error", "Unknown error"), lang_from_request(request))}
 
     # Backfill/refresh Redis only with a completed DB result.
     await set_analysis(document_id, result, ttl=settings.redis_cache_ttl)
-    return {"status": "done", "analysis": result}
+    return {"status": "done", "analysis": _localized_view(result, lang)}
 
 
 @router.delete("/{document_id}/cache")

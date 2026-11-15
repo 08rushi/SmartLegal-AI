@@ -30,11 +30,11 @@ def upgrade() -> None:
             prompt_tokens           INTEGER DEFAULT 0,
             completion_tokens       INTEGER DEFAULT 0,
             estimated_cost_usd      REAL DEFAULT 0.0,
-            started_at              TIMESTAMP WITH TIME ZONE NOT NULL,
-            completed_at            TIMESTAMP WITH TIME ZONE NOT NULL,
+            started_at              TEXT NOT NULL,
+            completed_at            TEXT NOT NULL,
             latency_ms              INTEGER NOT NULL,
             rollout_stage           TEXT DEFAULT 'shadow',
-            created_at              TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            created_at              TEXT NOT NULL,
             CONSTRAINT uq_exp_doc UNIQUE (experiment_id, document_id)
         )
     """)
@@ -56,7 +56,7 @@ def upgrade() -> None:
             token_delta             INTEGER DEFAULT 0,
             cost_delta_usd          REAL DEFAULT 0.0,
             metrics_json            TEXT DEFAULT '{}',
-            created_at              TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            created_at              TEXT NOT NULL,
             CONSTRAINT uq_comparison UNIQUE (experiment_id, document_id)
         )
     """)

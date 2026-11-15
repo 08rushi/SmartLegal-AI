@@ -8,6 +8,14 @@ from fastapi.testclient import TestClient
 # Ensure backend root is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Environment is fail-closed (defaults to production); the suite runs as development.
+os.environ["ENVIRONMENT"] = "development"
+# Production defaults are body-token OFF / reset-token-in-response OFF. Most existing tests read
+# `access_token` from login JSON and `reset_token` from /forgot-password, so the suite enables both;
+# tests/test_security_wave2.py patches them back to the (secure) defaults to verify those paths.
+os.environ["AUTH_RETURN_BODY_TOKEN"] = "true"
+os.environ["EXPOSE_RESET_TOKEN_IN_RESPONSE"] = "true"
+
 # The WhatsApp router is disabled by default in the app; keep its test suite working.
 os.environ.setdefault("WHATSAPP_ENABLED", "true")
 # Keep the suite hermetic: never let analysis tests reach the real Gemini API.

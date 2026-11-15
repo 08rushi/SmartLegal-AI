@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 
 from database import get_db, get_db_ctx
 from config import get_settings
+from limiter import limiter
 from schemas.whatsapp import (
     InboundMessagePayload,
     SimulatedMessageResponse,
@@ -257,13 +258,20 @@ async def receive_meta_whatsapp_webhook(
     summary="Simulate incoming WhatsApp message (Dev endpoint)",
     description="Development-safe endpoint to simulate incoming messages from WhatsApp users.",
 )
+@limiter.limit("20/minute")
 async def simulate_inbound_whatsapp_message(
+    request: Request,
     payload: InboundMessagePayload,
     db=Depends(get_db),
 ):
     """
     Development API endpoint to receive and process simulated incoming WhatsApp messages.
+    Not available in production (404).
     """
+    if settings.is_production:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+    if len(payload.message_text or "") > 4000:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Field 'message_text' is too long.")
     if not payload.from_phone or not payload.from_phone.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -284,7 +292,9 @@ async def simulate_inbound_whatsapp_message(
     response_model=WhatsAppShareResponse,
     summary="Send document summary to WhatsApp (SL-072)",
 )
+@limiter.limit("10/minute")
 async def send_summary_to_whatsapp(
+    request: Request,
     req: WhatsAppShareRequest,
     current_user=Depends(get_current_user),
 ):
@@ -295,7 +305,7 @@ async def send_summary_to_whatsapp(
     formatted_msg = format_whatsapp_analysis_summary(
         req.document_name, req.risk_level, req.high_risk_count, req.obligations
     )
-    result = send_whatsapp_message(req.phone_number, formatted_msg)
+    result = send_whatsapp_message(req.phone_number, formatted_msg[:3500])
     return WhatsAppShareResponse(
         message="WhatsApp summary queued successfully.",
         details=result,

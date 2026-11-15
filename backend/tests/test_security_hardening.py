@@ -28,6 +28,7 @@ def test_register_and_login_still_work(client):
 
 
 def test_ingest_notice_requires_login(client):
+    client.cookies.clear()
     r = client.post("/api/v1/yojana/ingest-notice", json={"text": "x" * 80})
     assert r.status_code == 401
 

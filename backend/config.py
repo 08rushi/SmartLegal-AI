@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator
 from functools import lru_cache
 from typing import Optional
 
@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
     # Model must be one your Groq account has access to (see GET /openai/v1/models).
     groq_model: str = Field(default="openai/gpt-oss-120b", alias="GROQ_MODEL")
+    groq_stt_model: str = Field(default="whisper-large-v3", alias="GROQ_STT_MODEL")
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")  # unused at runtime
     # Gemini vision/OCR model. Cloud vision is separately controlled by
     # CLOUD_VISION_ENABLED and PRIVACY_MODE; use the current registry default
@@ -47,7 +48,10 @@ class Settings(BaseSettings):
     # Auth
     secret_key: str = Field(default="", alias="SECRET_KEY")
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 10080  # 7 days
+    access_token_expire_minutes: int = Field(default=1440, alias="ACCESS_TOKEN_EXPIRE_MINUTES")  # 24 hours
+    # DEPRECATED: the credential is the HttpOnly sl_token cookie. When true, login/register/google
+    # also return `access_token` in the JSON body (only for the legacy frontend during migration).
+    auth_return_body_token: bool = Field(default=False, alias="AUTH_RETURN_BODY_TOKEN")
     google_client_id: str = ""  # OAuth 2.0 Client ID from Google Cloud Console
 
     # Cloudinary
@@ -65,8 +69,12 @@ class Settings(BaseSettings):
     # CORS
     allowed_origins: str = "http://localhost:5173"
 
-    # Runtime environment — "production" enables durable-storage enforcement etc.
-    environment: str = Field(default="development", alias="ENVIRONMENT")
+    # Runtime environment. FAIL-CLOSED: anything other than development/dev/test/testing/local
+    # (including unset) is treated as production. Dev-only behaviours require ENVIRONMENT=development.
+    environment: str = Field(default="production", alias="ENVIRONMENT")
+    # Dev convenience: return the password-reset token in the /forgot-password response.
+    # Honoured ONLY when ENVIRONMENT is a development value AND this is true.
+    expose_reset_token_in_response: bool = Field(default=False, alias="EXPOSE_RESET_TOKEN_IN_RESPONSE")
 
     # Sentry — leave blank to disable
     sentry_dsn: str = ""
@@ -98,6 +106,13 @@ class Settings(BaseSettings):
 
     # Password reset token lifetime.
     reset_token_expire_minutes: int = 30
+
+    # Transactional email via Resend (https://resend.com). Blank key = email disabled.
+    resend_api_key: str = Field(default="", alias="RESEND_API_KEY")
+    # Verified sender, e.g. "SmartLegal AI <no-reply@yourdomain.com>".
+    email_from: str = Field(default="", alias="EMAIL_FROM")
+    # Public frontend base URL used to build links in emails.
+    frontend_url: str = Field(default="http://localhost:5173", alias="FRONTEND_URL")
 
     # OCR (scanned / photographed documents) — Tesseract via pytesseract.
     ocr_enabled: bool = Field(default=True, alias="OCR_ENABLED")
@@ -155,13 +170,39 @@ class Settings(BaseSettings):
     optimization_text_loss_tolerance: float = Field(default=0.02, alias="OPTIMIZATION_TEXT_LOSS_TOLERANCE")
     optimization_quality_delta_tolerance: float = Field(default=0.05, alias="OPTIMIZATION_QUALITY_DELTA_TOLERANCE")
 
+    # Whether startup runs create_tables() DDL. Unset (blank) = auto: true for
+    # SQLite/dev, false for production + Postgres (schema then governed by Alembic).
+    auto_create_schema: Optional[bool] = Field(default=None, alias="AUTO_CREATE_SCHEMA")
+
+    @field_validator("auto_create_schema", mode="before")
+    @classmethod
+    def _blank_auto_create_schema(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
+    @property
+    def is_sqlite_url(self) -> bool:
+        return self.database_url.strip().lower().startswith("sqlite")
+
+    @property
+    def effective_auto_create_schema(self) -> bool:
+        if self.auto_create_schema is not None:
+            return self.auto_create_schema
+        return not (self.is_production and not self.is_sqlite_url)
+
     @property
     def max_upload_size_bytes(self) -> int:
         return self.max_upload_size_mb * 1024 * 1024
 
     @property
+    def is_development(self) -> bool:
+        return self.environment.strip().lower() in ("development", "dev", "test", "testing", "local")
+
+    @property
     def is_production(self) -> bool:
-        return self.environment.strip().lower() in ("production", "prod")
+        # Fail-closed: not explicitly a development environment => production rules apply.
+        return not self.is_development
 
     @property
     def origins_list(self) -> list[str]:
@@ -174,9 +215,65 @@ class Settings(BaseSettings):
         case_sensitive = False  # Allow lowercase field names with UPPERCASE env vars
 
 
+_INSECURE_SECRET_MARKERS = (
+    "changeme", "change-me", "change_me", "secret", "password", "your-", "your_",
+    "example", "placeholder", "default", "insecure",
+)
+
+
+def validate_production_config(s: "Settings") -> tuple[list[str], list[str]]:
+    """Return (errors, warnings) for a production deployment. Never includes secret values."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    if not s.is_production:
+        return errors, warnings
+
+    key = s.secret_key or ""
+    if len(key) < 32:
+        errors.append("SECRET_KEY must be set to a random value of at least 32 characters "
+                      "(e.g. `openssl rand -hex 32`).")
+    elif any(m in key.lower() for m in _INSECURE_SECRET_MARKERS) or len(set(key)) < 8:
+        errors.append("SECRET_KEY looks like a placeholder/insecure value; generate a random one.")
+
+    if not (s.database_url or "").strip():
+        errors.append("DATABASE_URL is not set.")
+    elif s.is_sqlite_url:
+        errors.append("DATABASE_URL points at SQLite; production requires a Postgres DATABASE_URL.")
+
+    origins = [o.strip() for o in (s.allowed_origins or "").split(",") if o.strip()]
+    if not origins:
+        errors.append("ALLOWED_ORIGINS is not set (comma-separated list of frontend origins).")
+    elif "*" in origins:
+        errors.append("ALLOWED_ORIGINS must not contain '*' in production.")
+    elif all(("localhost" in o or "127.0.0.1" in o) for o in origins):
+        errors.append("ALLOWED_ORIGINS only contains localhost origins; set the real frontend origin(s).")
+
+    if not all((s.cloudinary_cloud_name, s.cloudinary_api_key, s.cloudinary_api_secret)):
+        errors.append("Cloudinary (CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET) is required in production; "
+                      "local file storage is not durable.")
+
+    if not s.sentry_dsn:
+        warnings.append("SENTRY_DSN is not set; error monitoring is disabled.")
+    if not s.resend_api_key or not s.email_from:
+        warnings.append("RESEND_API_KEY / EMAIL_FROM not set; password-reset emails will not be sent.")
+    if not s.redis_url:
+        warnings.append("REDIS_URL is not set; no L1 cache and analysis jobs run inline (no durable queue).")
+    if "localhost" in (s.frontend_url or "") or "127.0.0.1" in (s.frontend_url or ""):
+        warnings.append("FRONTEND_URL points at localhost; email links will be wrong.")
+    return errors, warnings
+
+
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
+
+    errors, warnings = validate_production_config(settings)
+    for w in warnings:
+        print(f"[config] WARNING: {w}")
+    if errors:
+        raise RuntimeError(
+            "Invalid production configuration:\n  - " + "\n  - ".join(errors)
+        )
 
     # JWT signing key: refuse to boot in production without a strong one;
     # warn loudly in development.

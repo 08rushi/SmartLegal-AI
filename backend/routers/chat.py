@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 import json
+import logging
 import uuid
 
 from cache import get_analysis, get_doc_text, set_doc_text
@@ -13,14 +14,20 @@ from services.groq_service import answer_question_about_document
 from services.gemini_service import detect_document_type, get_law_context
 from services.pdf_parser import extract_text_from_pdf_str
 from services.retrieval import select_relevant_text
+from services.lang import resolve_lang
+from services import storage
 
 router = APIRouter()
 settings = get_settings()
 
 
+logger = logging.getLogger(__name__)
+
+
 class ChatRequest(BaseModel):
     document_id: str
-    question: str
+    question: str = Field(..., min_length=1, max_length=4000)
+    lang: str | None = Field(default=None, description="mr | hi | en (falls back to X-Lang header, then en)")
 
 
 @router.post("")
@@ -46,19 +53,11 @@ async def chat(
     if not doc_text:
         file_url = doc["file_url"]
         try:
-            if file_url.startswith("local://"):
-                local_path = file_url.replace("local://", "")
-                with open(local_path, "rb") as f:
-                    file_bytes = f.read()
-            else:
-                import httpx
-                async with httpx.AsyncClient() as client:
-                    resp = await client.get(file_url)
-                    file_bytes = resp.content
-
+            file_bytes = await storage.read_document_bytes(file_url)
             doc_text = extract_text_from_pdf_str(file_bytes)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Could not read document: {str(e)}")
+            logger.exception("[chat] could not read document %s: %s", req.document_id, type(e).__name__)
+            raise HTTPException(status_code=500, detail="Could not read the document. Please try again.")
         await set_doc_text(req.document_id, doc_text, ttl=settings.redis_cache_ttl)
 
     # ── Grounding: document type + relevant Indian Acts ───────────────────────
@@ -96,6 +95,7 @@ async def chat(
         user_msg_id, req.document_id, current_user["id"], req.question, user_now,
     )
 
+    lang = resolve_lang(request, req.lang)
     try:
         answer = await answer_question_about_document(
             # Long documents: send the opening + the pages that match the question, not just the first 12K chars.
@@ -105,9 +105,11 @@ async def chat(
             law_context=law_context,
             analysis_summary=analysis_summary,
             history=history,
+            lang=lang,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI failed to answer: {str(e)}")
+        logger.exception("[chat] AI answer failed for document %s: %s", req.document_id, type(e).__name__)
+        raise HTTPException(status_code=500, detail="The AI could not answer right now. Please try again.")
 
     ai_msg_id = str(uuid.uuid4())
     ai_now = datetime.utcnow().isoformat()
@@ -154,12 +156,15 @@ async def get_chat_history(
 
 
 class MultiChatRequest(BaseModel):
-    document_ids: list[str]
-    question: str
+    document_ids: list[str] = Field(..., min_length=1, max_length=5)
+    question: str = Field(..., min_length=1, max_length=4000)
+    lang: str | None = Field(default=None, description="mr | hi | en (falls back to X-Lang header, then en)")
 
 
 @router.post("/multi")
+@limiter.limit("20/minute")
 async def multi_document_chat(
+    request: Request,
     req: MultiChatRequest,
     db=Depends(get_db),
     current_user=Depends(get_current_user),
@@ -172,9 +177,17 @@ async def multi_document_chat(
 
     combined_sources = []
     for doc_id in req.document_ids[:5]:
-        doc = await db.fetchrow("SELECT id, filename, user_id FROM documents WHERE id = $1", doc_id)
+        doc = await db.fetchrow("SELECT id, filename, user_id, file_url FROM documents WHERE id = $1", doc_id)
         if doc and doc["user_id"] == current_user["id"]:
             text = await get_doc_text(doc_id)
+            if not text:
+                try:
+                    file_bytes = await storage.read_document_bytes(doc["file_url"])
+                    text = extract_text_from_pdf_str(file_bytes)
+                    await set_doc_text(doc_id, text, ttl=settings.redis_cache_ttl)
+                except Exception as exc:
+                    logger.warning("[chat/multi] could not read document %s: %s", doc_id, type(exc).__name__)
+                    text = ""
             if text:
                 combined_sources.append(f"--- DOCUMENT [{doc['filename']}] (ID: {doc_id}) ---\n{text[:3000]}\n")
 
@@ -184,10 +197,12 @@ async def multi_document_chat(
     context_str = "\n".join(combined_sources)
     try:
         answer = await answer_question_about_document(
-            context_str, req.question, doc_type_name="multiple documents"
+            context_str, req.question, doc_type_name="multiple documents",
+            lang=resolve_lang(request, req.lang),
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"AI failed to answer: {exc}")
+        logger.exception("[chat/multi] AI answer failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="The AI could not answer right now. Please try again.")
 
     return {
         "question": req.question,

@@ -52,11 +52,17 @@ class SQLiteConnectionWrapper:
 
     async def execute(self, query: str, *args):
         q, params = self._convert_query(query, args)
+        status = None
         if ";" in q and not args:
             await self._conn.executescript(q)
         else:
-            await self._conn.execute(q, params)
+            cur = await self._conn.execute(q, params)
+            # Mirror asyncpg's command-status string ("UPDATE 1") so callers can read affected rows.
+            verb = (q.split(None, 1)[0] if q.strip() else "EXEC").upper()
+            status = f"{verb} {cur.rowcount}"
+            await cur.close()
         await self._conn.commit()
+        return status
 
     async def commit(self):
         await self._conn.commit()
@@ -99,13 +105,65 @@ async def init_db_pool():
             command_timeout=60,
             **({"ssl": "require"} if use_ssl else {}),
         )
-        await create_tables()
         _is_sqlite = False
+        await prepare_schema()
+    except SchemaNotAtHeadError:
+        # Must not fall back to SQLite: the operator needs to see this.
+        pool, _db_pool = _db_pool, None
+        if pool is not None:
+            await pool.close()
+        raise
     except Exception as exc:
         print(f"[DB] PostgreSQL unavailable: {exc}. Using local SQLite database (smartlegal.db)")
         _is_sqlite = True
         _db_pool = SQLitePoolWrapper(_sqlite_path)
         await create_tables()
+
+
+class SchemaNotAtHeadError(RuntimeError):
+    """Raised at startup when AUTO_CREATE_SCHEMA is off and the DB is behind Alembic head."""
+
+
+def get_alembic_head() -> str | None:
+    """Latest revision id from the migration scripts (no DB access)."""
+    import os
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    cfg = Config(os.path.join(base, "alembic.ini"))
+    cfg.set_main_option("script_location", os.path.join(base, "alembic"))
+    return ScriptDirectory.from_config(cfg).get_current_head()
+
+
+async def get_db_revision() -> str | None:
+    """Current revision stored in alembic_version, or None if missing/empty."""
+    try:
+        async with _db_pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT version_num FROM alembic_version LIMIT 1")
+    except Exception:
+        return None
+    return row["version_num"] if row else None
+
+
+async def verify_schema_at_head() -> None:
+    head = get_alembic_head()
+    current = await get_db_revision()
+    if current != head:
+        raise SchemaNotAtHeadError(
+            f"Database schema is not at Alembic head (database: {current or 'none'}, "
+            f"expected: {head}). AUTO_CREATE_SCHEMA is disabled; run "
+            "`alembic upgrade head` before starting the app."
+        )
+    print(f"[DB] Schema verified at Alembic head ({head}).")
+
+
+async def prepare_schema() -> None:
+    """Create tables (AUTO_CREATE_SCHEMA on) or verify Alembic head (off)."""
+    if settings.effective_auto_create_schema:
+        await create_tables()
+    else:
+        await verify_schema_at_head()
 
 
 async def init_db():
@@ -446,6 +504,7 @@ async def create_tables():
             "CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_contact_id ON whatsapp_messages(contact_id)",
             "CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_contact_time ON whatsapp_messages(contact_id, created_at)",
             "CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_provider_id ON whatsapp_messages(provider_message_id)",
+            "CREATE INDEX IF NOT EXISTS ix_password_resets_token_hash ON password_resets(token_hash)",
         ]
         for stmt in index_statements:
             try:

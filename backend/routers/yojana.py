@@ -11,6 +11,9 @@ from pydantic import BaseModel
 from database import get_db
 from limiter import limiter
 from routers.auth import require_admin
+from services.i18n_messages import translate_message
+from services.kb_i18n import localize
+from services.lang import lang_from_request
 from services.yojana_ingest import seed_default_schemes_if_empty, parse_scheme_notice_with_llm
 
 router = APIRouter()
@@ -109,6 +112,7 @@ def evaluate_scheme_eligibility(scheme: dict, req: SchemeMatchRequest) -> dict:
 
 @router.get("/schemes")
 async def list_schemes(
+    request: Request,
     category: str | None = Query(None, description="Filter by category e.g. Healthcare, Agriculture"),
     state: str | None = Query(None, description="Filter by state e.g. Maharashtra, Madhya Pradesh"),
     level: str | None = Query(None, description="Filter by level e.g. central, state"),
@@ -152,11 +156,14 @@ async def list_schemes(
             item["required_docs"] = []
         results.append(item)
 
-    return {"count": len(results), "schemes": results}
+    lang = lang_from_request(request)
+    if lang != "en":
+        results = [localize(i, "yojana_schemes", lang, root=str(i.get("scheme_code", ""))) for i in results]
+    return {"count": len(results), "schemes": results, "lang": lang}
 
 
 @router.get("/schemes/{scheme_id}")
-async def get_scheme_details(scheme_id: str, db=Depends(get_db)):
+async def get_scheme_details(request: Request, scheme_id: str, db=Depends(get_db)):
     """Fetch detailed scheme roadmap and application details."""
     row = await db.fetchrow("SELECT * FROM yojana_schemes WHERE id = $1 OR scheme_code = $1", scheme_id)
     if not row:
@@ -172,7 +179,8 @@ async def get_scheme_details(scheme_id: str, db=Depends(get_db)):
         item["eligibility"] = {}
         item["required_docs"] = []
 
-    return {"scheme": item}
+    lang = lang_from_request(request)
+    return {"scheme": localize(item, "yojana_schemes", lang, root=str(item.get("scheme_code", ""))), "lang": lang}
 
 
 @router.post("/ingest-notice")
@@ -242,6 +250,7 @@ async def match_citizen_eligibility(
     await seed_default_schemes_if_empty(db)
 
     rows = await db.fetch("SELECT * FROM yojana_schemes")
+    lang = lang_from_request(request)
     all_matches = []
 
     for r in rows:
@@ -256,6 +265,9 @@ async def match_citizen_eligibility(
             item["required_docs"] = []
 
         evaluation = evaluate_scheme_eligibility(item, req)
+        if lang != "en":
+            evaluation["scheme"] = localize(evaluation["scheme"], "yojana_schemes", lang, root=str(item.get("scheme_code", "")))
+            evaluation["gap_analysis"] = [translate_message(g, lang) for g in evaluation["gap_analysis"]]
         all_matches.append(evaluation)
 
     # Sort by match_score DESC
@@ -274,12 +286,13 @@ async def match_citizen_eligibility(
         "total_schemes_evaluated": len(all_matches),
         "eligible_count": eligible_count,
         "partial_count": partial_count,
-        "matches": all_matches
+        "matches": all_matches,
+        "lang": lang,
     }
 
 
 @router.get("/blogs")
-async def list_ai_blogs(db=Depends(get_db)):
+async def list_ai_blogs(request: Request, db=Depends(get_db)):
     """Fetch AI-generated citizen guides and scheme articles."""
     from services.yojana_blog_service import seed_default_blogs_if_empty
     await seed_default_blogs_if_empty(db)
@@ -294,11 +307,14 @@ async def list_ai_blogs(db=Depends(get_db)):
             item["official_links"] = []
         blogs.append(item)
 
-    return {"count": len(blogs), "blogs": blogs}
+    lang = lang_from_request(request)
+    if lang != "en":
+        blogs = [localize(b, "yojana_blogs", lang, root=str(b.get("slug", ""))) for b in blogs]
+    return {"count": len(blogs), "blogs": blogs, "lang": lang}
 
 
 @router.get("/blogs/{slug}")
-async def get_blog_by_slug(slug: str, db=Depends(get_db)):
+async def get_blog_by_slug(request: Request, slug: str, db=Depends(get_db)):
     """Fetch a single AI citizen guide by unique slug."""
     from services.yojana_blog_service import seed_default_blogs_if_empty
     await seed_default_blogs_if_empty(db)
@@ -313,6 +329,7 @@ async def get_blog_by_slug(slug: str, db=Depends(get_db)):
     except Exception:
         item["official_links"] = []
 
-    return {"blog": item}
+    lang = lang_from_request(request)
+    return {"blog": localize(item, "yojana_blogs", lang, root=str(item.get("slug", ""))), "lang": lang}
 
 

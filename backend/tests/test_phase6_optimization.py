@@ -46,6 +46,20 @@ from PIL import Image
 import pytest
 
 from config import get_settings
+
+
+@pytest.fixture
+def auth_headers_user_a(client):
+    """Real registered user: /upload now validates the user exists (audit fix #2)."""
+    import uuid
+    r = client.post(
+        "/api/v1/auth/register",
+        json={"name": "P6 Tester", "email": f"p6_{uuid.uuid4().hex[:8]}@example.com", "password": "Str0ng-pass!"},
+    )
+    assert r.status_code == 201
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
 from services.adaptive_optimizer import (
     AdaptiveOptimizationEngine,
     OptimizationTelemetry,

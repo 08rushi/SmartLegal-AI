@@ -13,6 +13,7 @@ Both:
 """
 
 import json
+import logging
 import uuid
 from datetime import datetime
 
@@ -22,8 +23,10 @@ from database import get_db
 from limiter import limiter
 from routers.auth import get_current_user
 from services.groq_service import simulate_consequences, generate_negotiation
+from services.lang import lang_from_request
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 async def _load_owned_analysis(db, document_id: str, current_user: dict):
@@ -64,6 +67,11 @@ async def _store(db, document_id: str, kind: str, data: dict) -> None:
     )
 
 
+def _kind(base: str, lang: str) -> str:
+    """Cache key per language. English keeps the legacy key so existing cached rows still hit."""
+    return base if lang == "en" else f"{base}:{lang}"
+
+
 def _doc_type_of(doc, analysis) -> str:
     return (
         analysis.get("summary", {}).get("document_type")
@@ -82,21 +90,24 @@ async def get_consequences(
     current_user=Depends(get_current_user),
 ):
     doc, analysis = await _load_owned_analysis(db, document_id, current_user)
+    lang = lang_from_request(request)
+    kind = _kind("consequences", lang)
 
     if not force:
-        cached = await _get_cached(db, document_id, "consequences")
+        cached = await _get_cached(db, document_id, kind)
         if cached:
-            return {"consequences": cached, "cached": True}
+            return {"consequences": cached, "cached": True, "lang": lang}
 
     try:
         data = await simulate_consequences(
-            _doc_type_of(doc, analysis), analysis.get("summary", {}), analysis.get("clauses", [])
+            _doc_type_of(doc, analysis), analysis.get("summary", {}), analysis.get("clauses", []), lang=lang
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Could not generate consequences: {exc}")
+        logger.exception("[insights] consequences failed for %s: %s", document_id, type(exc).__name__)
+        raise HTTPException(status_code=502, detail="Could not generate consequences right now. Please try again.")
 
-    await _store(db, document_id, "consequences", data)
-    return {"consequences": data, "cached": False}
+    await _store(db, document_id, kind, data)
+    return {"consequences": data, "cached": False, "lang": lang}
 
 
 @router.post("/{document_id}/negotiation")
@@ -109,18 +120,21 @@ async def get_negotiation(
     current_user=Depends(get_current_user),
 ):
     doc, analysis = await _load_owned_analysis(db, document_id, current_user)
+    lang = lang_from_request(request)
+    kind = _kind("negotiation", lang)
 
     if not force:
-        cached = await _get_cached(db, document_id, "negotiation")
+        cached = await _get_cached(db, document_id, kind)
         if cached:
-            return {"negotiation": cached, "cached": True}
+            return {"negotiation": cached, "cached": True, "lang": lang}
 
     try:
         data = await generate_negotiation(
-            _doc_type_of(doc, analysis), analysis.get("summary", {}), analysis.get("clauses", [])
+            _doc_type_of(doc, analysis), analysis.get("summary", {}), analysis.get("clauses", []), lang=lang
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Could not generate negotiation guidance: {exc}")
+        logger.exception("[insights] negotiation failed for %s: %s", document_id, type(exc).__name__)
+        raise HTTPException(status_code=502, detail="Could not generate negotiation guidance right now. Please try again.")
 
-    await _store(db, document_id, "negotiation", data)
-    return {"negotiation": data, "cached": False}
+    await _store(db, document_id, kind, data)
+    return {"negotiation": data, "cached": False, "lang": lang}

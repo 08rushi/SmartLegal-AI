@@ -326,7 +326,8 @@ async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) 
             if isinstance(exc, asyncio.TimeoutError):
                 message = "Analysis timed out. The document may be too large — please try again."
             else:
-                message = str(exc) or "Analysis failed. Please try again."
+                from routers.analyze import _public_error_message
+                message = _public_error_message(exc)
             _capture(
                 exc,
                 {
@@ -336,7 +337,7 @@ async def _execute_analysis(document_id: str, file_bytes: bytes, filename: str) 
                     "stage": "worker_analysis",
                 },
             )
-            print(f"[worker] FAILED {document_id}: {message}")
+            print(f"[worker] FAILED {document_id}: {type(exc).__name__}: {str(exc)[:300]}")
             await _update_job_stage(db, document_id, "failed", 0, error_message=message)
             error_payload = json.dumps(
                 {"status": "error", "error": message, "document_id": document_id}

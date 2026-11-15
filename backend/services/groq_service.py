@@ -414,17 +414,20 @@ RULES:
 """
 
 
-async def get_legal_advice(message: str, history: list[dict] | None = None) -> str:
+async def get_legal_advice(message: str, history: list[dict] | None = None, lang: str = "en") -> str:
     """General Indian-law consultation (no uploaded document required)."""
-    messages: list[dict] = [{"role": "system", "content": LEGAL_ADVISOR_SYSTEM_PROMPT}]
+    from services.lang import with_language, localize_prompt_disclaimer, ensure_disclaimer
+    system_prompt = with_language(localize_prompt_disclaimer(LEGAL_ADVISOR_SYSTEM_PROMPT, lang), lang)
+    messages: list[dict] = [{"role": "system", "content": system_prompt}]
     for m in (history or [])[-12:]:
         role = "assistant" if m.get("role") == "assistant" else "user"
         content = str(m.get("content", "")).strip()
         if content:
             messages.append({"role": role, "content": content[:2500]})
-    messages.append({"role": "user", "content": message.strip()})
+    messages.append({"role": "user", "content": with_language(message.strip(), lang)})
     try:
-        return await _call_groq_chat(messages, max_tokens=1900, temperature=0.25)
+        answer = await _call_groq_chat(messages, max_tokens=1900, temperature=0.25)
+        return ensure_disclaimer(answer, lang, "advisor")
     except Exception as exc:
         raise RuntimeError(f"Advisor failed to answer: {exc}") from exc
 
@@ -619,11 +622,14 @@ async def answer_question_about_document(
     law_context: str | None = None,
     analysis_summary: dict | None = None,
     history: list | None = None,
+    lang: str = "en",
 ) -> str:
     """Answer a user question grounded in document text + Indian law using Groq."""
+    from services.lang import with_language, localize_prompt_disclaimer, ensure_disclaimer
     prompt = _chat_prompt(doc_text, question, doc_type_name, law_context, analysis_summary, history)
+    prompt = with_language(localize_prompt_disclaimer(prompt, lang), lang)
     try:
-        return await _call_groq(prompt, max_tokens=1600)
+        return ensure_disclaimer(await _call_groq(prompt, max_tokens=1600), lang, "chat")
     except Exception as exc:
         raise RuntimeError(f"Groq AI failed to answer: {exc}") from exc
 
@@ -714,9 +720,10 @@ Return ONLY valid JSON (no markdown, no prose outside JSON) in EXACTLY this shap
 Rules: cover the 4-8 most important clauses to renegotiate, highest-risk first. Keep counter_text professional and legally sensible under Indian law. Output JSON only."""
 
 
-async def simulate_consequences(doc_type_name: str, summary: dict, clauses: list) -> dict:
+async def simulate_consequences(doc_type_name: str, summary: dict, clauses: list, lang: str = "en") -> dict:
     """'What happens if I sign?' — realistic consequence simulation from a stored analysis."""
-    raw = await _call_groq(_consequences_prompt(doc_type_name or "legal document", summary or {}, clauses or []), max_tokens=3200)
+    from services.lang import with_language
+    raw = await _call_groq(with_language(_consequences_prompt(doc_type_name or "legal document", summary or {}, clauses or []), lang), max_tokens=3200)
     data = _extract_json(raw)
     if not isinstance(data, dict):
         raise RuntimeError("Consequence simulation returned an unexpected shape.")
@@ -730,9 +737,10 @@ async def simulate_consequences(doc_type_name: str, summary: dict, clauses: list
     return data
 
 
-async def generate_negotiation(doc_type_name: str, summary: dict, clauses: list) -> dict:
+async def generate_negotiation(doc_type_name: str, summary: dict, clauses: list, lang: str = "en") -> dict:
     """Negotiation helper — safer-clause alternatives + copy-ready counter text."""
-    raw = await _call_groq(_negotiation_prompt(doc_type_name or "legal document", summary or {}, clauses or []), max_tokens=3600)
+    from services.lang import with_language
+    raw = await _call_groq(with_language(_negotiation_prompt(doc_type_name or "legal document", summary or {}, clauses or []), lang), max_tokens=3600)
     data = _extract_json(raw)
     if not isinstance(data, dict):
         raise RuntimeError("Negotiation helper returned an unexpected shape.")

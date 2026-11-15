@@ -11,7 +11,9 @@ each turn — so no new database table is required.
 """
 
 from datetime import datetime
+import logging
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -19,18 +21,21 @@ from pydantic import BaseModel, Field
 from limiter import limiter
 from routers.auth import get_current_user
 from services.groq_service import get_legal_advice
+from services.lang import resolve_lang
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class AdvisorTurn(BaseModel):
-    role: str
-    content: str
+    role: Literal["user", "assistant"]
+    content: str = Field(..., max_length=4000)
 
 
 class AdvisorRequest(BaseModel):
-    message: str = Field(..., min_length=1, max_length=6000)
+    message: str = Field(..., min_length=1, max_length=4000)
     history: list[AdvisorTurn] = Field(default_factory=list)
+    lang: str | None = Field(default=None, description="mr | hi | en (falls back to X-Lang header, then en)")
 
 
 @router.post("")
@@ -48,9 +53,10 @@ async def ask_advisor(
     history = [{"role": t.role, "content": t.content} for t in req.history][-12:]
 
     try:
-        answer = await get_legal_advice(question, history)
+        answer = await get_legal_advice(question, history, lang=resolve_lang(request, req.lang))
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Advisor failed to answer: {exc}")
+        logger.exception("[advisor] failed to answer: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="The advisor could not answer right now. Please try again.")
 
     return {
         "message": {

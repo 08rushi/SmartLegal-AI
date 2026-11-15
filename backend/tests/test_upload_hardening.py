@@ -7,6 +7,18 @@ and file type checking.
 
 import pytest
 import io
+import uuid
+
+
+@pytest.fixture
+def auth_headers_user_a(client):
+    """A real registered user: /upload now validates the user exists (audit fix #2)."""
+    r = client.post(
+        "/api/v1/auth/register",
+        json={"name": "Upload Tester", "email": f"up_{uuid.uuid4().hex[:8]}@example.com", "password": "Str0ng-pass!"},
+    )
+    assert r.status_code == 201
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
 def test_oversized_file_rejected(client, auth_headers_user_a):

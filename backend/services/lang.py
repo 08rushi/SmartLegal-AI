@@ -1,0 +1,144 @@
+"""
+Shared language helpers: which language did the user pick (mr | hi | en), the
+instruction we append to AI prompts, and localized server-added disclaimers.
+
+The frontend sends the selected language on every request in the ``X-Lang``
+header (and also as a ``lang`` query/body field on language-specific endpoints).
+Anything missing/unknown falls back to English.
+"""
+
+from __future__ import annotations
+
+from typing import Optional
+
+from fastapi import Request
+
+SUPPORTED_LANGS = ("en", "hi", "mr")
+DEFAULT_LANG = "en"
+
+LANG_NAMES = {"en": "English", "hi": "Hindi", "mr": "Marathi"}
+LANG_NATIVE = {"en": "English", "hi": "हिन्दी", "mr": "मराठी"}
+
+
+def normalize_lang(value: Optional[str]) -> str:
+    """Return 'mr' | 'hi' | 'en'. Accepts 'mr-IN', 'HI', ' en ' etc.; anything else -> 'en'."""
+    if not value or not isinstance(value, str):
+        return DEFAULT_LANG
+    code = value.strip().lower().replace("_", "-").split("-")[0].split(",")[0].split(";")[0]
+    return code if code in SUPPORTED_LANGS else DEFAULT_LANG
+
+
+def lang_from_request(request: Optional[Request]) -> str:
+    """Language of a request: X-Lang header, then ?lang= query, else 'en'."""
+    if request is None:
+        return DEFAULT_LANG
+    try:
+        raw = request.headers.get("x-lang") or request.query_params.get("lang")
+    except Exception:
+        raw = None
+    return normalize_lang(raw)
+
+
+async def get_request_lang(request: Request) -> str:
+    """FastAPI dependency: ``lang: str = Depends(get_request_lang)``."""
+    return lang_from_request(request)
+
+
+def resolve_lang(request: Optional[Request], explicit: Optional[str] = None) -> str:
+    """An explicit (body/query) lang wins when valid; otherwise the request header."""
+    if explicit and normalize_lang(explicit) != DEFAULT_LANG:
+        return normalize_lang(explicit)
+    if explicit and str(explicit).strip().lower().startswith("en"):
+        return "en"
+    return lang_from_request(request)
+
+
+# ── Prompt instruction ───────────────────────────────────────────────────────
+
+_SCRIPT_NOTE = {
+    "hi": "Hindi (Devanagari script)",
+    "mr": "Marathi (Devanagari script)",
+    "en": "English",
+}
+
+
+def language_instruction(lang: str) -> str:
+    """Instruction appended to every user-facing AI prompt."""
+    lang = normalize_lang(lang)
+    name = _SCRIPT_NOTE[lang]
+    if lang == "en":
+        return (
+            "LANGUAGE: Respond entirely in English, even if the question or document is in another language. "
+            "Keep legal section numbers, statute names and proper nouns exactly as in the source."
+        )
+    return (
+        f"LANGUAGE (MANDATORY): Respond entirely in {name}, even if the question, the history or the "
+        f"document is in another language. Every sentence, heading, bullet and the final note must be in "
+        f"{LANG_NAMES[lang]}. Keep legal section numbers (e.g. s.138), Act names, Article numbers, "
+        f"numerals, party names, amounts, dates and other proper nouns exactly as in the source "
+        f"(you may add the {LANG_NAMES[lang]} transliteration in brackets for Act names). "
+        f"JSON keys and enumerated values (low|medium|high etc.) must stay in English; only the "
+        f"human-readable text values are in {LANG_NAMES[lang]}."
+    )
+
+
+def with_language(prompt: str, lang: str) -> str:
+    """Append the language instruction to a prompt (no-op for plain English default prompts)."""
+    lang = normalize_lang(lang)
+    if lang == "en":
+        return prompt  # existing prompts are English-first; keep behaviour byte-identical
+    return f"{prompt}\n\n{language_instruction(lang)}\n"
+
+
+# ── Server-side disclaimers ──────────────────────────────────────────────────
+
+CHAT_DISCLAIMER_EN = "Note: This is AI-assisted analysis, not formal legal advice. Consult a qualified advocate before acting."
+ADVISOR_DISCLAIMER_EN = (
+    "Note: This is AI legal guidance based on Indian law, not a substitute for a licensed advocate. "
+    "Outcomes depend on your specific facts, evidence and forum — please consult a qualified lawyer before acting."
+)
+
+CHAT_DISCLAIMER = {
+    "en": CHAT_DISCLAIMER_EN,
+    "hi": "नोट: यह AI की सहायता से किया गया विश्लेषण है, औपचारिक कानूनी सलाह नहीं। कोई भी कदम उठाने से पहले किसी योग्य अधिवक्ता से परामर्श करें।",
+    "mr": "टीप: हे AI च्या मदतीने केलेले विश्लेषण आहे, औपचारिक कायदेशीर सल्ला नाही. कोणतीही कृती करण्यापूर्वी पात्र वकिलांचा सल्ला घ्या.",
+}
+ADVISOR_DISCLAIMER = {
+    "en": ADVISOR_DISCLAIMER_EN,
+    "hi": "नोट: यह भारतीय कानून पर आधारित AI मार्गदर्शन है, लाइसेंसधारी अधिवक्ता का विकल्प नहीं। परिणाम आपके विशिष्ट तथ्यों, साक्ष्यों और मंच पर निर्भर करते हैं — कोई भी कदम उठाने से पहले कृपया योग्य वकील से परामर्श करें।",
+    "mr": "टीप: हे भारतीय कायद्यावर आधारित AI मार्गदर्शन आहे, परवानाधारक वकिलाचा पर्याय नाही. निकाल तुमच्या विशिष्ट तथ्यांवर, पुराव्यांवर आणि न्यायमंचावर अवलंबून असतो — कोणतीही कृती करण्यापूर्वी कृपया पात्र वकिलांचा सल्ला घ्या.",
+}
+GENERIC_DISCLAIMER = {
+    "en": "This is legal information generated by AI, not legal advice.",
+    "hi": "यह AI द्वारा तैयार की गई कानूनी जानकारी है, कानूनी सलाह नहीं।",
+    "mr": "ही AI ने तयार केलेली कायदेशीर माहिती आहे, कायदेशीर सल्ला नाही.",
+}
+
+
+def localize_prompt_disclaimer(prompt: str, lang: str) -> str:
+    """Swap the English 'end with exactly this line' disclaimers in a prompt for the localized ones."""
+    lang = normalize_lang(lang)
+    if lang == "en":
+        return prompt
+    return (
+        prompt.replace(CHAT_DISCLAIMER_EN, CHAT_DISCLAIMER[lang])
+        .replace(ADVISOR_DISCLAIMER_EN, ADVISOR_DISCLAIMER[lang])
+    )
+
+
+def ensure_disclaimer(answer: str, lang: str, kind: str = "chat") -> str:
+    """
+    Guarantee the answer ends with the localized disclaimer. If the model left the
+    English disclaimer in place, replace it; if it omitted a disclaimer entirely, append one.
+    """
+    lang = normalize_lang(lang)
+    table = ADVISOR_DISCLAIMER if kind == "advisor" else CHAT_DISCLAIMER
+    text = (answer or "").rstrip()
+    if lang == "en":
+        return text
+    for en in (CHAT_DISCLAIMER_EN, ADVISOR_DISCLAIMER_EN):
+        if en in text:
+            return text.replace(en, table[lang])
+    if table[lang] in text:
+        return text
+    return f"{text}\n\n{table[lang]}"

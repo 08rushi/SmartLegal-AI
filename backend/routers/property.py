@@ -18,6 +18,8 @@ from pydantic import BaseModel, Field
 from database import get_db
 from limiter import limiter
 from routers.auth import get_current_user
+from services.kb_i18n import localize, localized_checklist
+from services.lang import lang_from_request
 from services.property_kb import (
     get_all_property_types, get_property_guidance, get_property_checklist, _normalize_property_type,
 )
@@ -50,17 +52,17 @@ class PropertyApplicationCreate(BaseModel):
 
 class PropertyApplicationUpdate(BaseModel):
     status: str | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ChecklistItemCreate(BaseModel):
-    id: str | None = None
-    item_text: str
+    id: str | None = Field(default=None, max_length=100)
+    item_text: str = Field(..., max_length=500)
     is_done: bool = False
 
 
 class ChecklistUpdate(BaseModel):
-    items: list[ChecklistItemCreate]
+    items: list[ChecklistItemCreate] = Field(..., max_length=100)
 
 
 class PropertyApplicationOut(BaseModel):
@@ -130,6 +132,9 @@ async def create_application(
         raise HTTPException(status_code=400, detail=f"Invalid property type: {data.property_type}")
 
     checklist_items = get_property_checklist(normalized, data.service)
+    if checklist_items is not None:
+        # Seed the checklist in the user's language (English fallback); the service name stays English.
+        checklist_items = localized_checklist(get_property_guidance(normalized), normalized, "property", data.service, lang_from_request(request)) or checklist_items
     if checklist_items is None:
         raise HTTPException(
             status_code=400,
@@ -249,7 +254,11 @@ async def save_checklist(
 @limiter.limit("100/minute")
 async def list_property_types(request: Request):
     """List all 8 supported property document types (no auth required)."""
-    return {"property_types": get_all_property_types()}
+    lang = lang_from_request(request)
+    return {
+        "property_types": [localize(t, "property", lang, root=t["key"]) for t in get_all_property_types()],
+        "lang": lang,
+    }
 
 
 @router.get("/{property_type}")
@@ -259,4 +268,6 @@ async def get_guidance(request: Request, property_type: str):
     guidance = get_property_guidance(property_type)
     if not guidance:
         raise HTTPException(status_code=404, detail=f"Property type '{property_type}' not found")
-    return {"guidance": guidance}
+    lang = lang_from_request(request)
+    key = guidance.get("key") or _normalize_property_type(property_type) or property_type
+    return {"guidance": localize(guidance, "property", lang, root=key), "lang": lang}

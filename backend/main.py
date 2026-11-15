@@ -1,6 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from PIL import Image
+
+Image.MAX_IMAGE_PIXELS = 50_000_000  # decompression-bomb guard (default is ~179M)
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -8,8 +13,10 @@ from config import get_settings
 from database import init_db_pool, close_db_pool
 from limiter import limiter
 from cache import init_redis, close_redis
-from routers import auth, upload, analyze, chat, advisor, insights, legal_id, property, business, yojana, whatsapp, internal_shadow
+from routers import auth, upload, analyze, chat, advisor, insights, legal_id, property, business, yojana, whatsapp, internal_shadow, voice
 import auth_google
+from services.i18n_messages import translate_message
+from services.lang import lang_from_request
 
 
 settings = get_settings()
@@ -93,6 +100,38 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+
+# -- Localized errors: HTTPException.detail is translated using the X-Lang header --
+@app.exception_handler(StarletteHTTPException)
+async def _localized_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    detail = exc.detail
+    if isinstance(detail, str):
+        detail = translate_message(detail, lang_from_request(request))
+    return JSONResponse(
+        {"detail": detail},
+        status_code=exc.status_code,
+        headers=getattr(exc, "headers", None),
+    )
+
+
+async def _localized_rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    lang = lang_from_request(request)
+    response = JSONResponse(
+        {
+            "error": f"Rate limit exceeded: {exc.detail}",
+            "detail": translate_message(f"Rate limit exceeded: {exc.detail}", lang),
+        },
+        status_code=429,
+    )
+    try:
+        response = request.app.state.limiter._inject_headers(response, request.state.view_rate_limit)
+    except Exception:
+        pass
+    return response
+
+
+app.add_exception_handler(RateLimitExceeded, _localized_rate_limit_handler)
+
 # ── CORS ──────────────────────────────────────────────────────────────────────
 # In development accept the frontend on any localhost/127.0.0.1 port (Vite moves to
 # 5174, 5175… when 5173 is busy, and browsers treat 127.0.0.1 as a different origin).
@@ -118,6 +157,7 @@ app.include_router(legal_id.router,     prefix="/api/v1/legal-id",  tags=["Legal
 app.include_router(property.router,     prefix="/api/v1/property",  tags=["Property"])
 app.include_router(business.router,     prefix="/api/v1/business",  tags=["Business"])
 app.include_router(yojana.router,       prefix="/api/v1/yojana",    tags=["Jan-Yojana"])
+app.include_router(voice.router,        prefix="/api/v1/voice",     tags=["Voice"])
 # WhatsApp bot is a planned future integration: its code stays in the repo but is not
 # mounted unless WHATSAPP_ENABLED=true (its dev endpoints are unauthenticated).
 if settings.whatsapp_enabled:

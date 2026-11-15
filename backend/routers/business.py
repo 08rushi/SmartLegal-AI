@@ -18,6 +18,8 @@ from pydantic import BaseModel, Field
 from database import get_db
 from limiter import limiter
 from routers.auth import get_current_user
+from services.kb_i18n import localize, localized_checklist
+from services.lang import lang_from_request
 from services.business_kb import (
     get_all_business_types, get_business_guidance, get_business_checklist, _normalize_business_type,
 )
@@ -50,17 +52,17 @@ class ApplicationCreate(BaseModel):
 
 class ApplicationUpdate(BaseModel):
     status: str | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ChecklistItemCreate(BaseModel):
-    id: str | None = None
-    item_text: str
+    id: str | None = Field(default=None, max_length=100)
+    item_text: str = Field(..., max_length=500)
     is_done: bool = False
 
 
 class ChecklistUpdate(BaseModel):
-    items: list[ChecklistItemCreate]
+    items: list[ChecklistItemCreate] = Field(..., max_length=100)
 
 
 class ApplicationOut(BaseModel):
@@ -130,6 +132,9 @@ async def create_application(
         raise HTTPException(status_code=400, detail=f"Invalid business type: {data.business_type}")
 
     checklist_items = get_business_checklist(normalized, data.service)
+    if checklist_items is not None:
+        # Seed the checklist in the user's language (English fallback); the service name stays English.
+        checklist_items = localized_checklist(get_business_guidance(normalized), normalized, "business", data.service, lang_from_request(request)) or checklist_items
     if checklist_items is None:
         raise HTTPException(
             status_code=400,
@@ -249,7 +254,11 @@ async def save_checklist(
 @limiter.limit("100/minute")
 async def list_business_types(request: Request):
     """List all 9 supported business registration types (no auth required)."""
-    return {"business_types": get_all_business_types()}
+    lang = lang_from_request(request)
+    return {
+        "business_types": [localize(t, "business", lang, root=t["key"]) for t in get_all_business_types()],
+        "lang": lang,
+    }
 
 
 @router.get("/{business_type}")
@@ -259,4 +268,6 @@ async def get_guidance(request: Request, business_type: str):
     guidance = get_business_guidance(business_type)
     if not guidance:
         raise HTTPException(status_code=404, detail=f"Business type '{business_type}' not found")
-    return {"guidance": guidance}
+    lang = lang_from_request(request)
+    key = guidance.get("key") or _normalize_business_type(business_type) or business_type
+    return {"guidance": localize(guidance, "business", lang, root=key), "lang": lang}

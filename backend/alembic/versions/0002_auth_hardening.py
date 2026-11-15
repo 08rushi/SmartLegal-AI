@@ -9,6 +9,7 @@ Revises: 0001
 Create Date: 2026-08-25
 """
 from alembic import op
+import sqlalchemy as sa
 
 revision = "0002"
 down_revision = "0001"
@@ -17,12 +18,16 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0")
+    # SQLite has no "ADD COLUMN IF NOT EXISTS", so inspect first (works on both dialects).
+    bind = op.get_bind()
+    user_cols = {c["name"] for c in sa.inspect(bind).get_columns("users")}
+    if "token_version" not in user_cols:
+        op.execute("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0")
     op.execute(
         """
         CREATE TABLE IF NOT EXISTS password_resets (
             id          TEXT PRIMARY KEY,
-            user_id     TEXT NOT NULL REFERENCES users(id),
+            user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             token_hash  TEXT NOT NULL,
             expires_at  TEXT NOT NULL,
             used        INTEGER DEFAULT 0,

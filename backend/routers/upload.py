@@ -1,11 +1,10 @@
 from datetime import datetime
 import os
+import re
 import tempfile
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
 from pydantic import BaseModel
 
 from cache import delete_analysis
@@ -13,6 +12,7 @@ from config import get_settings
 from database import get_db
 from limiter import limiter
 from routers.auth import get_current_user
+from services import storage
 
 router = APIRouter()
 settings = get_settings()
@@ -30,9 +30,6 @@ MAGIC_SIGNATURES: list[tuple[bytes, int, str]] = [
 ]
 
 ALLOWED_MIME_TYPES = {sig[2] for sig in MAGIC_SIGNATURES}
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
-
 
 def _detect_mime(content: bytes) -> str | None:
     for magic, offset, mime in MAGIC_SIGNATURES:
@@ -107,19 +104,11 @@ def _validate_file(content: bytes, filename: str) -> str:
 
 
 
-def _get_user_id_from_token(token: str | None) -> str:
-    """
-    Try to decode the JWT and return the user_id.
-    Returns "anonymous" if no token or invalid token — upload still works.
-    """
-    if not token:
-        return "anonymous"
-    try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-        user_id: str = payload.get("sub", "anonymous")
-        return user_id or "anonymous"
-    except JWTError:
-        return "anonymous"
+def safe_storage_filename(filename: str | None) -> str:
+    """Reduce a client-supplied filename to a safe basename for local temp storage."""
+    name = os.path.basename((filename or "").replace("\\", "/")).replace("\x00", "")
+    name = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", name).strip("._")
+    return name[:100] or "document"
 
 
 def should_use_cloudinary() -> bool:
@@ -168,6 +157,7 @@ def _store_file(content: bytes, filename: str, user_id: str) -> str:
             result = cloudinary.uploader.upload(
                 content,
                 resource_type="raw",
+                type="authenticated",  # private: not reachable without a server-signed URL
                 folder="smartlegal",
                 public_id=f"{user_id}/{uuid.uuid4()}",
             )
@@ -188,7 +178,7 @@ def _store_file(content: bytes, filename: str, user_id: str) -> str:
 
     local_path = os.path.join(
         tempfile.gettempdir(),
-        f"{uuid.uuid4()}_{filename or 'document'}",
+        f"{uuid.uuid4()}_{safe_storage_filename(filename)}",
     )
     with open(local_path, "wb") as f:
         f.write(content)
@@ -197,8 +187,10 @@ def _store_file(content: bytes, filename: str, user_id: str) -> str:
 
 def _cloudinary_public_id(url: str) -> str | None:
     """'https://res.cloudinary.com/<cloud>/raw/upload/v123/smartlegal/<user>/<uuid>' → 'smartlegal/<user>/<uuid>'."""
-    import re
-    m = re.search(r"/(?:raw|image|video)/upload/(?:v\d+/)?(.+?)(?:\?.*)?$", url or "")
+    m = re.search(
+        r"/(?:raw|image|video)/(?:upload|authenticated|private)/(?:s--[^/]+--/)?(?:v\d+/)?(.+?)(?:\?.*)?$",
+        url or "",
+    )
     return m.group(1) if m else None
 
 
@@ -207,10 +199,16 @@ def _delete_cloud_file(file_url: str) -> bool:
     public_id = _cloudinary_public_id(file_url)
     if not public_id or not should_use_cloudinary():
         return False
+    info = storage.parse_cloudinary_url(file_url) or {}
     try:
         _configure_cloudinary()
         import cloudinary.uploader
-        result = cloudinary.uploader.destroy(public_id, resource_type="raw", invalidate=True)
+        result = cloudinary.uploader.destroy(
+            public_id,
+            resource_type=info.get("resource_type", "raw"),
+            type=info.get("type", "upload"),
+            invalidate=True,
+        )
         return result.get("result") in ("ok", "not found")
     except Exception as exc:
         print(f"[upload] Cloudinary delete failed for {public_id}: {exc}")
@@ -220,9 +218,9 @@ def _delete_cloud_file(file_url: str) -> bool:
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class DocumentOut(BaseModel):
+    # NOTE: file_url is intentionally NOT exposed; downloads go through GET /{id}/download.
     id: str
     filename: str
-    file_url: str
     file_size: int
     document_type: str
     status: str
@@ -241,7 +239,7 @@ class UploadResponse(BaseModel):
 async def upload_document(
     request: Request,
     file: UploadFile = File(...),
-    token: str | None = Depends(oauth2_scheme),
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
     # Read in 1 MB pieces and stop as soon as the limit is exceeded, so an oversized upload
@@ -262,7 +260,7 @@ async def upload_document(
     content = b"".join(chunks)
     _validate_file(content, file.filename or "")
 
-    user_id = _get_user_id_from_token(token)
+    user_id = current_user["id"]
 
     # Document hashing & deduplication (SL-023)
     import hashlib
@@ -288,7 +286,6 @@ async def upload_document(
                 document=DocumentOut(
                     id=existing_doc["id"],
                     filename=file.filename or existing_doc["filename"],
-                    file_url=replacement_url,
                     file_size=len(content),
                     document_type=existing_doc["document_type"] or "",
                     status="ready",
@@ -300,7 +297,6 @@ async def upload_document(
             document=DocumentOut(
                 id=existing_doc["id"],
                 filename=existing_doc["filename"],
-                file_url=existing_doc["file_url"],
                 file_size=existing_doc["file_size"],
                 document_type=existing_doc["document_type"] or "",
                 status=existing_doc["status"],
@@ -313,15 +309,6 @@ async def upload_document(
     doc_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
 
-    # Ensure anonymous user row exists (no-op if already there)
-    if user_id == "anonymous":
-        await db.execute(
-            """INSERT INTO users (id, name, email, password, created_at)
-               VALUES ($1, $2, $3, $4, $5)
-               ON CONFLICT (id) DO NOTHING""",
-            "anonymous", "Anonymous", "anonymous@smartlegal.local", "", now,
-        )
-
     await db.execute(
         """INSERT INTO documents (id, user_id, filename, file_url, file_size, document_type, file_hash, status, uploaded_at)
            VALUES ($1, $2, $3, $4, $5, '', $6, 'ready', $7)""",
@@ -332,7 +319,6 @@ async def upload_document(
         document=DocumentOut(
             id=doc_id,
             filename=file.filename or "document",
-            file_url=file_url,
             file_size=len(content),
             document_type="",
             status="ready",
@@ -346,26 +332,22 @@ async def upload_document(
 async def get_document_history(
     page: int = 1,
     limit: int = 20,
-    token: str | None = Depends(oauth2_scheme),
+    current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
     """
     Return paginated document history for the currently logged-in user (SL-057).
     """
-    if not token:
-        raise HTTPException(status_code=401, detail="Sign in to view document history.")
-
-    user_id = _get_user_id_from_token(token)
-    if user_id == "anonymous":
-        raise HTTPException(status_code=401, detail="Sign in to view document history.")
-
-    offset = (max(1, page) - 1) * limit
+    user_id = current_user["id"]
+    page = max(1, page)
+    limit = min(100, max(1, limit))
+    offset = (page - 1) * limit
 
     count_row = await db.fetchrow("SELECT COUNT(*) as cnt FROM documents WHERE user_id = $1", user_id)
     total_count = count_row["cnt"] if count_row else 0
 
     rows = await db.fetch(
-        """SELECT d.id, d.filename, d.file_url, d.file_size, d.document_type, d.status, d.uploaded_at,
+        """SELECT d.id, d.filename, d.file_size, d.document_type, d.status, d.uploaded_at,
                   EXISTS(SELECT 1 FROM analyses a WHERE a.document_id = d.id) AS analyzed
            FROM documents d
            WHERE d.user_id = $1
@@ -381,7 +363,6 @@ async def get_document_history(
             {
                 "id": row["id"],
                 "filename": row["filename"],
-                "file_url": row["file_url"],
                 "file_size": row["file_size"],
                 "document_type": row["document_type"] or "",
                 "status": row["status"],
@@ -424,7 +405,6 @@ async def get_document(
     return DocumentOut(
         id=row["id"],
         filename=row["filename"],
-        file_url=row["file_url"],
         file_size=row["file_size"],
         document_type=row["document_type"] or "",
         status=row["status"],
@@ -502,7 +482,14 @@ async def download_document(
             content_disposition_type="attachment",
         )
 
-    # For Cloudinary or external storage, issue signed URL or redirect securely
+    # Cloudinary: short-lived (~5 min) signed URL, generated only after the ownership check.
+    try:
+        signed = storage.signed_download_url(file_url, storage.SIGNED_URL_TTL_SECONDS)
+    except storage.StorageError:
+        raise HTTPException(status_code=404, detail="Document file is not available.")
+    except Exception as exc:
+        print(f"[upload] could not sign download URL: {type(exc).__name__}")
+        raise HTTPException(status_code=502, detail="File storage is temporarily unavailable.")
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=file_url)
+    return RedirectResponse(url=signed, headers={"Cache-Control": "no-store"})
 

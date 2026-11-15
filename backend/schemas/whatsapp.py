@@ -2,8 +2,8 @@
 whatsapp.py — Pydantic schemas for WhatsApp bot interaction and summary sharing.
 """
 
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Annotated, Optional, List, Dict, Any
+from pydantic import BaseModel, Field, StringConstraints
 
 
 class InboundMessagePayload(BaseModel):
@@ -38,11 +38,13 @@ class SimulatedMessageResponse(BaseModel):
 class WhatsAppShareRequest(BaseModel):
     """Request model for sending analysis summary via WhatsApp (SL-072)."""
 
-    phone_number: str = Field(..., description="Recipient phone number")
-    document_name: str = Field(..., description="Name of analyzed document")
-    risk_level: str = Field(..., description="Overall document risk rating")
-    high_risk_count: int = Field(..., description="Count of high risk clauses")
-    obligations: List[str] = Field(default_factory=list, description="Key obligations summary")
+    phone_number: str = Field(..., max_length=20, description="Recipient phone number")
+    document_name: str = Field(..., max_length=200, description="Name of analyzed document")
+    risk_level: str = Field(..., max_length=50, description="Overall document risk rating")
+    high_risk_count: int = Field(..., ge=0, le=10000, description="Count of high risk clauses")
+    obligations: List[Annotated[str, StringConstraints(max_length=300)]] = Field(
+        default_factory=list, max_length=10, description="Key obligations summary"
+    )
 
 
 class WhatsAppShareResponse(BaseModel):

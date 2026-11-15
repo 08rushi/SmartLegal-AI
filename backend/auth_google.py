@@ -10,7 +10,7 @@ Security:
 - Validates issuer (iss claim) is Google
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from datetime import datetime
 import uuid
@@ -19,12 +19,17 @@ import json
 
 from database import get_db
 from config import get_settings
-from routers.auth import create_access_token, UserOut, TokenResponse, _set_auth_cookie
+from limiter import limiter
+from routers.auth import create_access_token, UserOut, TokenResponse, _set_auth_cookie, build_token_response
 
 router = APIRouter()
 settings = get_settings()
 
-GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+# Marker for a password neutralised on Google linking: "!" + bcrypt hash of an unknown random
+# value. Never verifies (unrecognised hash), but is non-empty so "forgot password" still works.
+UNUSABLE_PASSWORD_PREFIX = "!"
+
+GOOGLE_TOKEN_INFO_URL ="https://oauth2.googleapis.com/tokeninfo"
 
 
 class GoogleTokenRequest(BaseModel):
@@ -32,7 +37,8 @@ class GoogleTokenRequest(BaseModel):
 
 
 @router.post("/google", response_model=TokenResponse, status_code=200)
-async def google_signin(data: GoogleTokenRequest, response: Response, db=Depends(get_db)):
+@limiter.limit("10/minute")
+async def google_signin(request: Request, data: GoogleTokenRequest, response: Response, db=Depends(get_db)):
     """
     Verify Google ID token and sign the user in / create account.
     Frontend sends the credential from Google Identity Services.
@@ -82,7 +88,22 @@ async def google_signin(data: GoogleTokenRequest, response: Response, db=Depends
         user_id = user["id"]
         user_name = user["name"]
         created_at = user["created_at"]
-        token_version = dict(user).get("token_version", 0)
+        token_version = int(dict(user).get("token_version", 0) or 0)
+        if user["password"] and not user["password"].startswith(UNUSABLE_PASSWORD_PREFIX):
+            # Account takeover defence: Google is linking to a pre-existing password account.
+            # Whoever pre-registered this email may not know the real owner's Google identity, so
+            # neutralise the old password (replace with a hash of an unknown random secret, which
+            # keeps "forgot password" usable) and revoke every existing session.
+            from routers.auth import hash_password
+            import secrets
+            token_version += 1
+            await db.execute(
+                "UPDATE users SET password = $1, token_version = $2 WHERE id = $3",
+                UNUSABLE_PASSWORD_PREFIX + hash_password(secrets.token_urlsafe(32)),
+                token_version, user_id,
+            )
+            print(f"[auth] Google sign-in linked to an existing password account "
+                  f"(user_id={user_id}); password invalidated and sessions revoked.")
     else:
         user_id = str(uuid.uuid4())
         user_name = name
@@ -95,7 +116,6 @@ async def google_signin(data: GoogleTokenRequest, response: Response, db=Depends
 
     token = create_access_token(user_id, token_version)
     _set_auth_cookie(response, token)
-    return TokenResponse(
-        user=UserOut(id=user_id, name=user_name, email=email, created_at=created_at),
-        access_token=token,
+    return build_token_response(
+        UserOut(id=user_id, name=user_name, email=email, created_at=created_at), token
     )

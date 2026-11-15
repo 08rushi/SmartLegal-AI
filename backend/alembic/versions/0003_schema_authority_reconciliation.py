@@ -71,11 +71,10 @@ def upgrade() -> None:
         "ALTER TABLE analyses DROP CONSTRAINT IF EXISTS analyses_document_id_fkey, ADD CONSTRAINT analyses_document_id_fkey FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE",
         "ALTER TABLE chat_messages DROP CONSTRAINT IF EXISTS chat_messages_document_id_fkey, ADD CONSTRAINT chat_messages_document_id_fkey FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE"
     ]
-    for alter_sql in cascade_alters:
-        try:
+    # SQLite cannot ALTER constraints; 0001/0002 already declare CASCADE for fresh SQLite DBs.
+    if op.get_bind().dialect.name != "sqlite":
+        for alter_sql in cascade_alters:
             op.execute(alter_sql)
-        except Exception:
-            pass
 
     # 5. Performance B-Tree Indexes (SL-004)
     indexes = [

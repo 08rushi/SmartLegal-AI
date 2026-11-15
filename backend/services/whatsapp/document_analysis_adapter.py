@@ -22,6 +22,7 @@ from typing import Dict, Any, Optional, List
 
 from config import get_settings
 from services.ai_provider import ai_orchestrator
+from services import storage
 from services.groq_service import analyze_legal_document
 from services.pdf_parser import extract_text_from_pdf, assess_readability
 from services.ocr_service import ocr_available, ocr_image_bytes, ocr_pdf_scanned
@@ -185,9 +186,11 @@ async def execute_whatsapp_document_analysis(
         file_bytes = b""
         file_url = doc.get("file_url", "")
 
-        if os.path.exists(file_url.replace("local://", "")):
-            with open(file_url.replace("local://", ""), "rb") as f:
-                file_bytes = f.read()
+        try:
+            file_bytes = await storage.read_document_bytes(file_url)
+        except Exception as read_exc:
+            logger.warning("whatsapp: could not read stored document: %s", type(read_exc).__name__)
+            file_bytes = b""
 
         if not file_bytes:
             # Construct dev fallback text if file_url is simulated
