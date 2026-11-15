@@ -96,3 +96,24 @@ npm run build
 2. **PostgreSQL**: Supabase PostgreSQL with transaction pooling (`port 6543`).
 3. **Redis**: Upstash Redis or ElastiCache.
 4. **Frontend**: Vercel or Netlify static hosting with SPA routing rules.
+
+### Production checklist
+
+`ENVIRONMENT` is **fail-closed**: if unset (or anything other than `development`/`dev`/`test`/`testing`/`local`) the app behaves as production. Development conveniences (localhost CORS regex, relaxed checks, returning the password-reset token via `EXPOSE_RESET_TOKEN_IN_RESPONSE=true`) require `ENVIRONMENT=development` explicitly — set it in your local `backend/.env`.
+
+**Auth/session settings (production):** the credential is the HttpOnly `sl_token` cookie (SameSite=Lax, `Secure` in production, default lifetime `ACCESS_TOKEN_EXPIRE_MINUTES=1440`). Cookie-authenticated POST/PUT/PATCH/DELETE requests must carry an `Origin` (or `Referer`) listed in `ALLOWED_ORIGINS`. `AUTH_RETURN_BODY_TOKEN` (default `false`, deprecated) re-adds `access_token` to login/register/google JSON bodies for legacy clients. `/auth/logout` revokes the session (bumps `token_version`).
+
+**Private documents:** new uploads are stored in Cloudinary as `authenticated` (private) raw assets and are only reachable via `GET /api/v1/upload/{id}/download`, which returns a redirect to a ~5-minute signed URL after the ownership check; `file_url` is never returned by the API. For assets uploaded before this change run (after a DB backup) `python scripts/migrate_cloudinary_to_private.py` (dry run, counts only) and then `--apply`.
+
+Set `ENVIRONMENT=production`. The app **refuses to start** (clear error, no secret values logged) unless:
+- `SECRET_KEY` is a random string of at least 32 characters (`openssl rand -hex 32`), not a placeholder.
+- `DATABASE_URL` is a Postgres URL (SQLite is rejected).
+- `ALLOWED_ORIGINS` lists the real frontend origin(s) (not empty, `*`, or localhost only).
+- `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` are set (local file storage is not durable).
+
+Startup logs a **warning** (does not fail) when these are missing: `SENTRY_DSN`, `RESEND_API_KEY` + `EMAIL_FROM` (password-reset emails), `REDIS_URL` (cache + durable queue), or when `FRONTEND_URL` is still localhost (it is used to build links in emails).
+
+**Schema / migrations**
+- `AUTO_CREATE_SCHEMA` defaults to `true` for SQLite/dev and `false` for production + Postgres. When false, startup does not run `create_tables()`; it checks `alembic_version` against the Alembic head and aborts with "run `alembic upgrade head`" if they differ. Set it explicitly to override.
+- Deploy step, before starting new app instances: `cd backend && alembic upgrade head`.
+- Rehearse migrations on a copy of the production database (restore a backup/branch, run `alembic upgrade head`, smoke-test) before touching production.
