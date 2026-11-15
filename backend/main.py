@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -167,12 +169,41 @@ app.include_router(internal_shadow.router, prefix="/api/v1",         tags=["Inte
 
 
 
-@app.get("/")
-async def root():
-    return {"message": "SmartLegal AI API is running", "docs": "/docs"}
+# Single-container deployment: when the built frontend is present (backend/static, copied in by the
+# Dockerfile, or STATIC_DIR) this server also serves the website, so the browser talks to ONE origin
+# (first-party cookie, no CORS, no custom domain needed).
+STATIC_DIR = Path(os.environ.get("STATIC_DIR") or (Path(__file__).resolve().parent / "static"))
+SERVE_FRONTEND = (STATIC_DIR / "index.html").is_file()
+
+if not SERVE_FRONTEND:
+    @app.get("/")
+    async def root():
+        return {"message": "SmartLegal AI API is running", "docs": "/docs"}
 
 
 @app.get("/health")
 async def health():
     from services.ocr_service import ocr_status
     return {"status": "ok", "ocr": ocr_status()}
+
+
+# ── Frontend (single-page app) ────────────────────────────────────────────────
+# Registered last so every API route above wins. Unknown non-API paths fall back to index.html.
+if SERVE_FRONTEND:
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    if (STATIC_DIR / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    _NO_SPA_PREFIXES = ("api/", "internal/", "docs", "redoc", "openapi.json")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        if full_path.startswith(_NO_SPA_PREFIXES):
+            raise StarletteHTTPException(status_code=404, detail="Not found")
+        root_dir = STATIC_DIR.resolve()
+        candidate = (STATIC_DIR / full_path).resolve()
+        if full_path and candidate.is_file() and root_dir in candidate.parents:
+            return FileResponse(candidate)
+        return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})

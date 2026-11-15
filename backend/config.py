@@ -1,3 +1,5 @@
+import os
+
 from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator
 from functools import lru_cache
@@ -113,6 +115,12 @@ class Settings(BaseSettings):
     email_from: str = Field(default="", alias="EMAIL_FROM")
     # Public frontend base URL used to build links in emails.
     frontend_url: str = Field(default="http://localhost:5173", alias="FRONTEND_URL")
+    # Optional SMTP sender (e.g. a Gmail app password) for hosts without a verified Resend domain.
+    smtp_host: str = Field(default="", alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT")
+    smtp_user: str = Field(default="", alias="SMTP_USER")
+    smtp_password: str = Field(default="", alias="SMTP_PASSWORD")
+    smtp_from: str = Field(default="", alias="SMTP_FROM")
 
     # OCR (scanned / photographed documents) — Tesseract via pytesseract.
     ocr_enabled: bool = Field(default=True, alias="OCR_ENABLED")
@@ -254,8 +262,9 @@ def validate_production_config(s: "Settings") -> tuple[list[str], list[str]]:
 
     if not s.sentry_dsn:
         warnings.append("SENTRY_DSN is not set; error monitoring is disabled.")
-    if not s.resend_api_key or not s.email_from:
-        warnings.append("RESEND_API_KEY / EMAIL_FROM not set; password-reset emails will not be sent.")
+    if not (s.resend_api_key and s.email_from) and not (s.smtp_host and s.smtp_user and s.smtp_password):
+        warnings.append("No email sender configured (RESEND_API_KEY+EMAIL_FROM or SMTP_*); "
+                        "password-reset emails will not be sent.")
     if not s.redis_url:
         warnings.append("REDIS_URL is not set; no L1 cache and analysis jobs run inline (no durable queue).")
     if "localhost" in (s.frontend_url or "") or "127.0.0.1" in (s.frontend_url or ""):
@@ -263,9 +272,32 @@ def validate_production_config(s: "Settings") -> tuple[list[str], list[str]]:
     return errors, warnings
 
 
+def _platform_public_url() -> str:
+    """Public URL the hosting platform assigned to this service (Render / Koyeb), or ''."""
+    url = (os.environ.get("RENDER_EXTERNAL_URL") or "").strip()
+    if not url and os.environ.get("KOYEB_PUBLIC_DOMAIN"):
+        url = "https://" + os.environ["KOYEB_PUBLIC_DOMAIN"].strip()
+    return url.rstrip("/")
+
+
+def _apply_platform_url(s: "Settings") -> None:
+    """When the platform tells us our public URL, trust it as the (same-origin) frontend origin
+    so ALLOWED_ORIGINS / FRONTEND_URL need no manual edit after the first deploy."""
+    url = _platform_public_url()
+    if not url:
+        return
+    origins = [o.strip() for o in (s.allowed_origins or "").split(",") if o.strip()]
+    if url not in origins:
+        origins = [o for o in origins if "localhost" not in o and "127.0.0.1" not in o] + [url]
+        s.allowed_origins = ",".join(origins)
+    if "localhost" in (s.frontend_url or "") or "127.0.0.1" in (s.frontend_url or ""):
+        s.frontend_url = url
+
+
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
+    _apply_platform_url(settings)
 
     errors, warnings = validate_production_config(settings)
     for w in warnings:

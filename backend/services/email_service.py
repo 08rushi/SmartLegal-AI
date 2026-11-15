@@ -1,6 +1,10 @@
 """Transactional email via Resend. Never raises; never logs tokens or bodies."""
+import asyncio
 import html
 import logging
+import smtplib
+import ssl
+from email.message import EmailMessage
 from urllib.parse import quote
 
 import httpx
@@ -12,9 +16,38 @@ logger = logging.getLogger(__name__)
 RESEND_URL = "https://api.resend.com/emails"
 
 
-def email_configured() -> bool:
+def _resend_configured() -> bool:
     s = get_settings()
     return bool(s.resend_api_key.strip() and s.email_from.strip())
+
+
+def _smtp_configured() -> bool:
+    s = get_settings()
+    return bool(s.smtp_host.strip() and s.smtp_user.strip() and s.smtp_password.strip())
+
+
+def email_configured() -> bool:
+    return _resend_configured() or _smtp_configured()
+
+
+def _send_smtp_blocking(to: str, subject: str, html_body: str, text_body: str) -> None:
+    s = get_settings()
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = (s.smtp_from or s.smtp_user).strip()
+    msg["To"] = to
+    msg.set_content(text_body)
+    msg.add_alternative(html_body, subtype="html")
+    ctx = ssl.create_default_context()
+    if s.smtp_port == 465:
+        with smtplib.SMTP_SSL(s.smtp_host, s.smtp_port, timeout=15, context=ctx) as server:
+            server.login(s.smtp_user, s.smtp_password)
+            server.send_message(msg)
+    else:
+        with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=15) as server:
+            server.starttls(context=ctx)
+            server.login(s.smtp_user, s.smtp_password)
+            server.send_message(msg)
 
 
 def build_reset_link(token: str) -> str:
@@ -27,6 +60,13 @@ async def send_email(to: str, subject: str, html_body: str, text_body: str) -> b
     s = get_settings()
     if not email_configured():
         return False
+    if not _resend_configured():
+        try:
+            await asyncio.to_thread(_send_smtp_blocking, to, subject, html_body, text_body)
+            return True
+        except Exception as exc:  # noqa: BLE001 - must never break the caller
+            logger.warning("SMTP email error: %s", type(exc).__name__)
+            return False
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
             resp = await client.post(

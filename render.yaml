@@ -6,8 +6,8 @@ services:
     name: smartlegal-api
     runtime: docker
     plan: free
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /health
     autoDeploy: false
     envVars:
@@ -19,10 +19,8 @@ services:
         generateValue: true
       - key: DATABASE_URL
         sync: false
-      - key: ALLOWED_ORIGINS
-        sync: false          # exactly https://<your-app>.vercel.app (no trailing slash)
-      - key: FRONTEND_URL
-        sync: false          # same value as ALLOWED_ORIGINS
+      # ALLOWED_ORIGINS / FRONTEND_URL are filled in automatically from RENDER_EXTERNAL_URL
+      # (the single container serves both the site and the API on that one URL).
       - key: GROQ_API_KEY
         sync: false
       - key: CLOUDINARY_CLOUD_NAME
@@ -31,7 +29,14 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
-      - key: RESEND_API_KEY
+      # Password-reset email without a custom domain: SMTP (e.g. Gmail + app password).
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
         sync: false
-      - key: EMAIL_FROM
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
         sync: false
