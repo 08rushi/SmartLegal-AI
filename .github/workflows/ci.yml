@@ -2,9 +2,9 @@ name: SmartLegal AI Quality Pipeline & CI Gates (SL-049)
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main, master, develop, "SmartLegal_AI/Production", "SmartLegal_AI/develop", "feature/SmartLegal_AI/**" ]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [ main, master, develop, "SmartLegal_AI/Production", "SmartLegal_AI/develop", "feature/SmartLegal_AI/**" ]
 
 jobs:
   backend-checks:
